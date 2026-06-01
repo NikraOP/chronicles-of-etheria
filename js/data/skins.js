@@ -9,7 +9,7 @@ const SKINS_DB = {
                     id: 'warrior_rage_default_m',
                     name: 'Базовый',
                     icon: '😤',
-                    img: 'classes/warrior/iros.png',
+                    img: 'classes/warrior/male/iros.png',
                     price: 0,
                     rarity: 'Обычный',
                     description: 'Стандартный образ воина ярости',
@@ -62,7 +62,7 @@ const SKINS_DB = {
                     id: 'warrior_def_default_m',
                     name: 'Базовый',
                     icon: '🛡️',
-                    img: 'classes/warrior/zach.png',
+                    img: 'classes/warrior/male/zach.png',
                     price: 0,
                     rarity: 'Обычный',
                     description: 'Стандартный образ защитника',
@@ -600,12 +600,12 @@ const SKINS_DB = {
                 },
                 {
                     id: 'archer_sniper_hunter_m',
-                    name: 'Охотник',
+                    name: 'Наёмник будущего',
                     icon: '🏹',
-                    img: 'classes/archer/male/sniper_hunter.png',
-                    price: 1500,
-                    rarity: 'Необычный',
-                    description: 'Образ опытного охотника',
+                    img: 'classes/archer/sniper-future.png',
+                    price: 10000,
+                    rarity: 'Легендарный',
+                    description: 'Образ опытного убийцы',
                     gender: 'male'
                 },
                 {
@@ -613,9 +613,9 @@ const SKINS_DB = {
                     name: 'Демонический стрелок',
                     icon: '🌑',
                     img: 'classes/archer/sniper-demon.png',
-                    price: 1,
+                    price: 20000,
                     rarity: 'Древний',
-                    description: 'Таинственный стрелок из теней',
+                    description: 'Таинственный стрелок из ада',
                     gender: 'male'
                 }
             ],
