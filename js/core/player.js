@@ -239,24 +239,41 @@ function resetBaseStats() {
     player.criticalDamage = Math.min(250, Math.floor(baseStats.criticalDamage * levelBonus));
     player.dodgeChance = Math.min(70, Math.floor(baseStats.dodgeChance * levelBonus));
     
+    // БАЗОВОЕ ЗДОРОВЬЕ (без экипировки)
+    let bonusHp = 0;
+    let bonusMana = 0;
+    
+    // Собираем бонусы от экипировки
     for (let slot in player.equipment) {
         const item = player.equipment[slot];
         if (item) {
             if (item.dmg) player.attack += item.dmg;
             if (item.def) player.defense += item.def;
-            if (item.hp) player.maxHealth += item.hp;
+            if (item.hp) bonusHp += item.hp;
             if (item.crit) player.criticalChance += item.crit;
             if (item.critDmg) player.criticalDamage += item.critDmg;
             if (item.dodge) player.dodgeChance += item.dodge;
-            if (item.mana && player.class === 'Маг') player.maxMana += item.mana;
+            if (item.mana && player.class === 'Маг') bonusMana += item.mana;
         }
     }
     
-    player.maxHealth = Math.floor(80 + player.level * 10);
-    if (player.class === 'Маг') player.maxMana = Math.floor(100 + player.level * 10);
+    // Расчёт максимального здоровья (база + бонус от экипировки)
+    const baseHealth = 80;
+    player.maxHealth = Math.floor(baseHealth + player.level * 10) + bonusHp;
+    
+    if (player.class === 'Маг') {
+        const baseMana = 100;
+        player.maxMana = Math.floor(baseMana + player.level * 10) + bonusMana;
+        if (player.mana > player.maxMana) player.mana = player.maxMana;
+    }
+    
+    // Ограничиваем статы
     player.criticalChance = Math.min(50, player.criticalChance);
     player.criticalDamage = Math.min(250, player.criticalDamage);
     player.dodgeChance = Math.min(70, player.dodgeChance);
+    
+    // Если текущее здоровье больше максимального - уменьшаем
+    if (player.health > player.maxHealth) player.health = player.maxHealth;
 }
 
 function getAvatar() {
