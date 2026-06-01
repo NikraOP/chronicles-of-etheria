@@ -652,14 +652,49 @@ function showInventory() {
         html += '</div>';
     }
     
-    // Ресурсы
+    // РЕСУРСЫ - ИСПРАВЛЕНАЯ ЧАСТЬ (с правильными иконками)
     html += '<h3 style="margin-top: 20px; color: var(--gold);">💎 Ресурсы</h3>';
     const rk = Object.keys(player.resources);
     if (rk.length > 0) {
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">';
         for (const k of rk) {
+            // Получаем иконку для ресурса из RESOURCES_DB
+            let resourceIcon = '📦'; // иконка по умолчанию
+            
+            // Ищем иконку в RESOURCES_DB
+            for (let profId in RESOURCES_DB) {
+                const resources = RESOURCES_DB[profId];
+                const found = resources.find(r => r.name === k);
+                if (found && found.icon) {
+                    resourceIcon = found.icon;
+                    break;
+                }
+            }
+            
+            // Дополнительные иконки для специфических ресурсов
+            const specialIcons = {
+                'Медная руда': '🪨', 'Железная руда': '⛰️', 'Серебряная руда': '⚪', 'Золотая руда': '✨',
+                'Мифриловая руда': '💎', 'Адамантит': '🔮', 'Орихалк': '🌟',
+                'Аметист': '🟣', 'Изумруд': '🟢', 'Рубин': '🔴', 'Сапфир': '🔵', 'Алмаз': '💎', 'Звездный камень': '⭐',
+                'Паутина': '🕸️', 'Хлопок': '🌾', 'Шёлк': '🪶', 'Мифриловая нить': '✨', 'Звёздный шёлк': '🌟',
+                'Лечебная трава': '🌱', 'Синий корень': '🪻', 'Сердце леса': '🍃', 'Призрачная грива': '🍄',
+                'Огненный цветок': '🌺', 'Ледяная роза': '🥀', 'Звездная пыльца': '✨',
+                'Шкура волка': '🐺', 'Шкура медведя': '🐻', 'Шкура тигра': '🐅', 'Чешуя дракона': '🐉',
+                'Шкура йети': '🦍', 'Кожа феникса': '🔥', 'Шкура дракона': '🐲',
+                'Сосновая древесина': '🌲', 'Дубовая древесина': '🌳', 'Красное дерево': '🪵', 'Эбеновое дерево': '🖤',
+                'Серебряное дерево': '✨', 'Древесина мирового древа': '🌟',
+                'Речная форель': '🐟', 'Окунь': '🐠', 'Плотва': '🐡', 'Озерный карп': '🐠', 'Щука': '🐊',
+                'Ледяной сиг': '❄️', 'Морской окунь': '🐡', 'Палтус': '🐋', 'Красный тунец': '🐟',
+                'Глубоководный тунец': '🐋', 'Королевский лосось': '👑', 'Морской змей': '🐍',
+                'Золотая рыбка': '🥇', 'Жемчужина глубин': '⚪', 'Дракон моря': '🐉', 'Кракен': '🐙', 'Левиафан': '🐋'
+            };
+            
+            if (specialIcons[k]) {
+                resourceIcon = specialIcons[k];
+            }
+            
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; align-items: center; gap: 10px;">
-                <div style="font-size: 24px;">📦</div>
+                <div style="font-size: 28px;">${resourceIcon}</div>
                 <div style="flex: 1;">
                     <div style="font-weight: 600; font-size: 12px;">${k}</div>
                     <div style="font-size: 11px; color: var(--gold);">${player.resources[k]} шт.</div>
