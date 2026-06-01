@@ -1072,3 +1072,26 @@ input:focus { outline: none; border-color: var(--gold); }
     border-radius: 10px;
     display: inline-block;
 }
+
+/* В style.css добавьте */
+.combatant-sprite img {
+    animation: idleFloat 3s ease-in-out infinite;
+}
+
+@keyframes idleFloat {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+}
+
+/* Атака игрока */
+.player-attacking img {
+    animation: playerAttackAnim 0.5s ease-in-out !important;
+}
+
+@keyframes playerAttackAnim {
+    0% { transform: translateX(0) rotate(0deg); }
+    30% { transform: translateX(20px) rotate(10deg); }
+    70% { transform: translateX(-10px) rotate(-5deg); }
+    100% { transform: translateX(0) rotate(0deg); }
+}

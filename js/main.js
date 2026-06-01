@@ -1,3 +1,5 @@
+// main.js - С поддержкой создания нового персонажа
+
 // НЕ ОБЪЯВЛЯЙ ЗДЕСЬ ПЕРЕМЕННЫЕ ЗАНОВО! Они уже есть в других файлах
 // Просто вызываем init() когда все файлы загружены
 
@@ -36,10 +38,10 @@ function exportSaveFile() {
     
     // Создаём объект с данными для сохранения
     const saveData = {
-        version: '2.1',
+        version: '3.0',
         timestamp: Date.now(),
         date: new Date().toLocaleString(),
-        player: JSON.parse(JSON.stringify(player)), // Глубокая копия
+        player: JSON.parse(JSON.stringify(player)),
         gameStats: {
             totalPlayTime: getPlayTime(),
             totalVictories: player.victories || 0,
@@ -48,10 +50,7 @@ function exportSaveFile() {
         }
     };
     
-    // Преобразуем в JSON строку
     const jsonStr = JSON.stringify(saveData, null, 2);
-    
-    // Создаём blob и ссылку для скачивания
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -74,37 +73,29 @@ function importSaveFile(file) {
         try {
             const saveData = JSON.parse(e.target.result);
             
-            // Проверка валидности файла
             if (!saveData.player || !saveData.player.class) {
                 addMessage('❌ Неверный формат файла сохранения!', 'error');
                 return;
             }
             
-            // Проверка версии
-            if (saveData.version && saveData.version !== '2.1') {
-                addMessage(`⚠️ Версия сохранения (${saveData.version}) отличается от текущей (2.1). Возможны проблемы.`, 'info');
+            if (saveData.version && saveData.version !== '3.0') {
+                addMessage(`⚠️ Версия сохранения (${saveData.version}) отличается от текущей (3.0). Возможны проблемы.`, 'info');
             }
             
-            // Загружаем данные
             player = saveData.player;
             
-            // Инициализируем отсутствующие поля
             if (!player.professions) player.professions = {};
             if (!player.resources) player.resources = {};
             if (!player.inventory) player.inventory = { armor: [], weapons: [], stones: [], potions: [], foods: [], elixirs: [], scrolls: [] };
             if (!player.temporaryEffects) player.temporaryEffects = [];
             if (!player.abilities) player.abilities = [];
             
-            // Пересчитываем статы и способности
             resetBaseStats();
             updateAllAbilities();
             player.health = player.maxHealth;
             if (player.class === 'Маг') player.mana = player.maxMana;
             
-            // Сохраняем в localStorage
             saveGame();
-            
-            // Обновляем интерфейс
             renderGame();
             
             const saveDate = saveData.date || new Date(saveData.timestamp).toLocaleString();
@@ -116,6 +107,40 @@ function importSaveFile(file) {
         }
     };
     reader.readAsText(file);
+}
+
+// Функция для создания нового персонажа (сброс игры)
+function resetGame() {
+    if (confirm('⚠️ ВНИМАНИЕ! Все текущие данные будут потеряны!\n\nВы уверены, что хотите создать нового персонажа?')) {
+        // Очищаем сохранение
+        localStorage.removeItem('rpg_save_v21');
+        localStorage.removeItem('totalPlayTime');
+        
+        // Сбрасываем переменные
+        player = null;
+        currentMonster = null;
+        isPlayerTurn = true;
+        battleLogEntries = [];
+        
+        // Перезагружаем игру
+        location.reload();
+    }
+}
+
+// Функция для создания нового персонажа с подтверждением
+function createNewCharacter() {
+    if (player) {
+        showModal('⚠️ Создание нового персонажа', 
+            '⚠️', 
+            'Вы уверены, что хотите создать нового персонажа?\n\nВсе текущие данные будут потеряны!\n\nСохраните текущий прогресс через "Сохранить игру", если хотите сохранить данные.', 
+            'Создать нового', 
+            () => {
+                resetGame();
+            });
+    } else {
+        // Если нет персонажа, просто показываем создание
+        renderCharacterCreation();
+    }
 }
 
 // Таймер для отслеживания времени игры
@@ -141,13 +166,12 @@ function savePlayTime() {
     localStorage.setItem('totalPlayTime', totalPlayTime);
 }
 
-// Создание кнопок сохранения/загрузки в интерфейсе
+// Обновлённая страница управления сохранениями с кнопкой нового персонажа
 function showSaveLoadPanel() {
     stopGathering();
     let html = '<h2>💾 Управление сохранениями</h2>';
     html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-bottom: 20px;">';
     
-    // Информация о текущем сохранении
     if (player) {
         html += '<div style="margin-bottom: 20px;">';
         html += '<h3 style="color: var(--gold);">📊 Текущее сохранение</h3>';
@@ -159,22 +183,25 @@ function showSaveLoadPanel() {
         html += `<p>⏱️ Время в игре: <strong>${getPlayTime()}</strong></p>`;
         html += '</div>';
     } else {
-        html += '<p style="color: #e74c3c;">Нет активного персонажа! Сначала создайте персонажа.</p>';
+        html += '<p style="color: #e74c3c;">❌ Нет активного персонажа! Создайте нового.</p>';
     }
     
-    // Кнопки действий
     html += '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">';
-    html += '<button class="action-btn" onclick="exportSaveFile()" style="background: linear-gradient(135deg, #27ae60, #2ecc71); border: none;">💾 Скачать сохранение (JSON)</button>';
+    if (player) {
+        html += '<button class="action-btn" onclick="exportSaveFile()" style="background: linear-gradient(135deg, #27ae60, #2ecc71); border: none;">💾 Скачать сохранение</button>';
+    }
     html += '<label class="action-btn" style="background: linear-gradient(135deg, #2980b9, #3498db); border: none; cursor: pointer; display: inline-block;">📂 Загрузить сохранение<input type="file" id="importSaveInput" accept=".json" style="display: none;" onchange="handleImportSave(event)"></label>';
+    html += '<button class="action-btn" onclick="createNewCharacter()" style="background: linear-gradient(135deg, #e74c3c, #c0392b); border: none;">👤 Создать нового персонажа</button>';
     html += '</div>';
     
     html += '<div style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px;">';
     html += '<h4 style="color: var(--gold); margin-bottom: 10px;">ℹ️ Информация</h4>';
     html += '<ul style="margin-left: 20px; font-size: 12px; color: var(--text-secondary);">';
-    html += '<li>Сохранение экспортируется в JSON файл</li>';
-    html += '<li>Файл содержит имя персонажа, уровень и дату создания</li>';
-    html += '<li>Для загрузки выберите ранее сохранённый JSON файл</li>';
-    html += '<li>Совместимо с версией игры 2.1 и выше</li>';
+    html += '<li>💾 Сохранение экспортируется в JSON файл</li>';
+    html += '<li>📂 Файл содержит имя персонажа, уровень и дату создания</li>';
+    html += '<li>📁 Для загрузки выберите ранее сохранённый JSON файл</li>';
+    html += '<li>👤 Создание нового персонажа удалит текущее сохранение</li>';
+    html += '<li>💡 Совет: экспортируйте текущее сохранение перед созданием нового!</li>';
     html += '</ul>';
     html += '</div>';
     
@@ -188,11 +215,10 @@ function handleImportSave(event) {
     if (file) {
         importSaveFile(file);
     }
-    // Очищаем input, чтобы можно было загрузить тот же файл повторно
     event.target.value = '';
 }
 
-// Добавляем кнопку в навигационное меню (вызывать после renderGame)
+// Добавляем кнопку в навигационное меню
 function addSaveLoadButton() {
     const navGrid = document.querySelector('.nav-grid');
     if (navGrid && !document.querySelector('.nav-card[onclick="showSaveLoadPanel()"]')) {
@@ -201,6 +227,14 @@ function addSaveLoadButton() {
         saveLoadCard.setAttribute('onclick', 'showSaveLoadPanel()');
         saveLoadCard.innerHTML = '<div class="nav-card-icon">💾</div><div class="nav-card-title">Сохранения</div>';
         navGrid.appendChild(saveLoadCard);
+        
+        // Добавляем разделитель или просто размещаем кнопку
+        const cards = navGrid.querySelectorAll('.nav-card');
+        if (cards.length > 0) {
+            // Делаем красивую сетку
+            navGrid.style.display = 'grid';
+            navGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+        }
     }
 }
 
@@ -227,6 +261,8 @@ window.exportSaveFile = exportSaveFile;
 window.importSaveFile = importSaveFile;
 window.showSaveLoadPanel = showSaveLoadPanel;
 window.handleImportSave = handleImportSave;
+window.resetGame = resetGame;
+window.createNewCharacter = createNewCharacter;
 
 // Запуск игры
 init();

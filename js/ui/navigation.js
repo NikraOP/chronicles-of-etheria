@@ -1,3 +1,5 @@
+// navigation.js - Полная версия
+
 function showLocations() {
     stopGathering();
     let html = '<h2>🗺️ Локации</h2><div class="location-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">';
@@ -26,7 +28,6 @@ function showProfessions() {
     stopGathering();
     let html = '<h2>🔧 Профессии</h2><p style="margin-bottom:15px;">Изучайте профессии, собирайте ресурсы и создавайте предметы. Каждый тир даёт бонусы!</p>';
     
-    // Добывающие профессии
     html += '<h3 style="color:var(--green); margin-top: 15px;">🌿 Добывающие профессии</h3><div class="profession-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">';
     PROFESSIONS_DB.gathering.forEach(prof => {
         const learned = player.professions[prof.id];
@@ -58,7 +59,6 @@ function showProfessions() {
     });
     html += '</div>';
     
-    // Создающие профессии
     html += '<h3 style="color:var(--blue); margin-top: 25px;">⚒️ Создающие профессии</h3><div class="profession-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">';
     PROFESSIONS_DB.crafting.forEach(prof => {
         const learned = player.professions[prof.id];
@@ -105,7 +105,8 @@ function learnProfession(profId) {
 function showAbilities() {
     stopGathering();
     let html = '<h2>✨ Способности</h2><p>Школа: <strong>' + player.branch + '</strong></p><div class="ability-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 15px;">';
-    (ABILITIES_DB[player.class]?.[player.branch] || []).forEach(a => {
+    const abilities = ABILITIES_DB[player.class]?.[player.branch]?.abilities || [];
+    abilities.forEach(a => {
         const unlocked = player.level >= a.lvl;
         html += '<div class="ability-card' + (unlocked ? ' unlocked' : ' on-cooldown') + '" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;">' +
             '<div style="display: flex; align-items: center; gap: 10px;">' +
@@ -123,13 +124,31 @@ function showAbilities() {
     document.getElementById('dynamicContent').innerHTML = html;
 }
 
-// ===== НОВАЯ ФУНКЦИЯ ДЛЯ СТРАНИЦЫ СОХРАНЕНИЙ =====
-function showSaveLoadPanel() {
+// Функция создания нового персонажа
+window.createNewCharacter = function() {
+    console.log('createNewCharacter вызвана');
+    showModal('⚠️ СОЗДАНИЕ НОВОГО ПЕРСОНАЖА', '🔄', 
+        'ВНИМАНИЕ! Весь текущий прогресс будет потерян без возможности восстановления!\n\nВы уверены, что хотите начать новую игру?', 
+        '✅ Да, создать нового', 
+        function() {
+            console.log('Создание нового персонажа подтверждено');
+            localStorage.removeItem('rpg_save_v21');
+            player = null;
+            currentMonster = null;
+            battleLogEntries = [];
+            location.reload();
+        }
+    );
+};
+
+// Панель сохранений
+window.showSaveLoadPanel = function() {
+    console.log('showSaveLoadPanel вызвана');
     stopGathering();
+    
     let html = '<h2>💾 Управление сохранениями</h2>';
     html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-bottom: 20px;">';
     
-    // Информация о текущем сохранении
     if (player) {
         html += '<div style="margin-bottom: 20px;">';
         html += '<h3 style="color: var(--gold);">📊 Текущее сохранение</h3>';
@@ -138,31 +157,29 @@ function showSaveLoadPanel() {
         html += `<p>📈 Уровень: <strong>${player.level}</strong></p>`;
         html += `<p>💰 Золото: <strong>${player.gold}</strong></p>`;
         html += `<p>⚔️ Побед: <strong>${player.victories || 0}</strong></p>`;
-        html += `<p>⏱️ Время в игре: <strong>${getPlayTime ? getPlayTime() : '0ч 0м 0с'}</strong></p>`;
         html += '</div>';
     } else {
-        html += '<p style="color: #e74c3c;">Нет активного персонажа! Сначала создайте персонажа.</p>';
+        html += '<p style="color: #e74c3c;">❌ Нет активного персонажа! Создайте нового.</p>';
     }
     
-    // Кнопки действий
-    html += '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">';
-    html += '<button class="action-btn" onclick="exportSaveFile()" style="background: linear-gradient(135deg, #27ae60, #2ecc71); border: none;">💾 Скачать сохранение (JSON)</button>';
-    html += '<label class="action-btn" style="background: linear-gradient(135deg, #2980b9, #3498db); border: none; cursor: pointer; display: inline-block;">📂 Загрузить сохранение<input type="file" id="importSaveInput" accept=".json" style="display: none;" onchange="handleImportSave(event)"></label>';
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; justify-content: center;">';
+    html += '<button class="action-btn" onclick="exportSaveFile()" style="background: linear-gradient(135deg, #27ae60, #2ecc71); border: none; padding: 10px 20px;">💾 Скачать сохранение</button>';
+    html += '<label class="action-btn" style="background: linear-gradient(135deg, #2980b9, #3498db); border: none; cursor: pointer; display: inline-block; padding: 10px 20px;">📂 Загрузить сохранение<input type="file" id="importSaveInput" accept=".json" style="display: none;" onchange="handleImportSave(event)"></label>';
+    html += '<button class="action-btn" onclick="window.createNewCharacter()" style="background: linear-gradient(135deg, #e74c3c, #c0392b); border: none; padding: 10px 20px;">🔄 НОВЫЙ ПЕРСОНАЖ</button>';
     html += '</div>';
     
     html += '<div style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px;">';
     html += '<h4 style="color: var(--gold); margin-bottom: 10px;">ℹ️ Информация</h4>';
     html += '<ul style="margin-left: 20px; font-size: 12px; color: var(--text-secondary);">';
-    html += '<li>Сохранение экспортируется в JSON файл</li>';
-    html += '<li>Файл содержит имя персонажа, уровень и дату создания</li>';
-    html += '<li>Для загрузки выберите ранее сохранённый JSON файл</li>';
-    html += '<li>Совместимо с версией игры 2.1 и выше</li>';
+    html += '<li>💾 Экспорт сохраняет персонажа в JSON файл</li>';
+    html += '<li>📂 Загрузка восстанавливает персонажа из файла</li>';
+    html += '<li>🔄 НОВЫЙ ПЕРСОНАЖ - полностью очищает прогресс</li>';
+    html += '<li>⚠️ Создание нового персонажа НЕОБРАТИМО!</li>';
     html += '</ul>';
     html += '</div>';
     
-    html += '<button class="action-btn" onclick="renderGame()" style="margin-top: 20px; width: 100%;">↩️ Назад</button>';
+    html += '<button class="action-btn" onclick="renderGame()" style="margin-top: 20px; width: 100%;">↩️ Назад в игру</button>';
     document.getElementById('dynamicContent').innerHTML = html;
-}
+};
 
-// Экспортируем функцию в глобальную область
-window.showSaveLoadPanel = showSaveLoadPanel;
+console.log('navigation.js загружен, showSaveLoadPanel определена:', typeof window.showSaveLoadPanel);
