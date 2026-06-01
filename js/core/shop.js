@@ -1,10 +1,10 @@
-// shop.js - Исправленная версия с поддержкой всех редкостей
+// shop.js - Полная рабочая версия
 
 function showShop() {
     stopGathering();
     let html = '<h2>🏪 Магазин</h2><p>💰 Золото: <span style="color:var(--gold);" id="shopGoldAmount">' + player.gold + '</span></p><div class="shop-tabs">';
-    const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', 'Продажа ресурсов', 'Продажа предметов'];
-    const categories = ['weapons', 'helmet', 'chest', 'pants', 'boots', 'sellResources', 'sellItems'];
+    const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', 'Продажа ресурсов', 'Продажа предметов', '🎨 Скины'];
+    const categories = ['weapons', 'helmet', 'chest', 'pants', 'boots', 'sellResources', 'sellItems', 'skins'];
     
     tabs.forEach((t, i) => {
         const isActive = (window.currentShopCategory === categories[i]) || (i === 0 && !window.currentShopCategory);
@@ -31,6 +31,8 @@ function showShopCategory(cat) {
         renderSellResources();
     } else if (cat === 'sellItems') {
         renderSellItems();
+    } else if (cat === 'skins') {
+        renderSkins();
     } else {
         renderBuyItems(cat);
     }
@@ -51,7 +53,7 @@ function getRarityColor(rarity) {
     return colors[rarity] || '#ccc';
 }
 
-// Порядок редкостей для сортировки (чем меньше число, тем выше ранг)
+// Порядок редкостей для сортировки
 function getRarityOrder(rarity) {
     const order = {
         'Божественный': 1,
@@ -84,12 +86,12 @@ function getRarityDisplay(rarity) {
 // Описание характеристик предмета
 function getItemStatsDescription(item) {
     let stats = [];
-    if (item.dmg) stats.push(`⚔️ **Атака:** +${item.dmg}`);
-    if (item.def) stats.push(`🛡️ **Защита:** +${item.def}`);
-    if (item.hp) stats.push(`❤️ **Здоровье:** +${item.hp}`);
-    if (item.crit) stats.push(`💥 **Крит:** +${item.crit}%`);
-    if (item.critDmg) stats.push(`⭐ **Крит урон:** +${item.critDmg}%`);
-    if (item.dodge) stats.push(`💨 **Уклонение:** +${item.dodge}%`);
+    if (item.dmg) stats.push(`⚔️ Атака: +${item.dmg}`);
+    if (item.def) stats.push(`🛡️ Защита: +${item.def}`);
+    if (item.hp) stats.push(`❤️ Здоровье: +${item.hp}`);
+    if (item.crit) stats.push(`💥 Крит: +${item.crit}%`);
+    if (item.critDmg) stats.push(`⭐ Крит урон: +${item.critDmg}%`);
+    if (item.dodge) stats.push(`💨 Уклонение: +${item.dodge}%`);
     
     if (stats.length === 0) return '—';
     return stats.join(' · ');
@@ -225,7 +227,6 @@ function renderSellItems() {
             html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 15px;">';
         }
         
-        // ИСПРАВЛЕННАЯ ЛОГИКА: sellPrice имеет приоритет
         let sellPrice = 25;
         if (item.sellPrice) {
             sellPrice = item.sellPrice;
@@ -272,7 +273,6 @@ function renderBuyItems(cat) {
         return;
     }
     
-    // Сортировка по уровню и редкости
     items.sort((a, b) => {
         if (a.lvl !== b.lvl) return a.lvl - b.lvl;
         return getRarityOrder(a.rarity) - getRarityOrder(b.rarity);
@@ -288,7 +288,6 @@ function renderBuyItems(cat) {
         const rarityColor = getRarityColor(item.rarity);
         const rarityDisplay = getRarityDisplay(item.rarity);
         
-        // Уровневая полоска (визуально показывает насколько предмет доступен)
         const levelDiff = item.lvl - player.level;
         let levelStatus = '';
         if (levelDiff <= 0) {
@@ -316,6 +315,90 @@ function renderBuyItems(cat) {
     
     html += '</div>';
     document.getElementById('shopItems').innerHTML = html;
+}
+
+function renderSkins() {
+    if (typeof getSkinsForCurrentSchool === 'undefined') {
+        document.getElementById('shopItems').innerHTML = '<p style="color:#666; text-align: center; padding: 20px;">Система скинов не загружена</p>';
+        return;
+    }
+    
+    const skins = getSkinsForCurrentSchool();
+    if (skins.length === 0) {
+        document.getElementById('shopItems').innerHTML = '<p style="color:#666; text-align: center; padding: 20px;">Нет доступных скинов для вашей школы</p>';
+        return;
+    }
+    
+    const currentSkinId = getCurrentSkin();
+    
+    skins.sort((a, b) => {
+        if (a.price === 0) return -1;
+        if (b.price === 0) return 1;
+        if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+        return getRarityOrder(a.rarity) - getRarityOrder(b.rarity);
+    });
+    
+    let html = '<h3>🎨 Скины персонажа</h3>';
+    html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+        <div style="font-size: 12px; color: var(--gold);">👤 Ваш класс: ${player.class} · ${player.branch}</div>
+        <div style="font-size: 11px; color: #aaa; margin-top: 5px;">Скины меняют внешний вид вашего персонажа в бою</div>
+    </div>`;
+    html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">';
+    
+    for (let skin of skins) {
+        const isOwned = skin.unlocked || skin.price === 0;
+        const isEquipped = currentSkinId === skin.id;
+        const rarityColor = getRarityColor(skin.rarity);
+        const rarityDisplay = getRarityDisplay(skin.rarity);
+        
+        html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 14px; ${!isOwned ? 'opacity:0.8;' : ''}">
+            <div style="display: flex; gap: 14px;">
+                <div style="font-size: 48px; text-align: center; min-width: 60px;">
+                    <img src="${skin.img}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px;" onerror="this.style.display='none';this.parentElement.innerHTML='${skin.icon}'">
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 15px; color: ${rarityColor};">${skin.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary); margin: 5px 0;">${skin.description}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 5px;">
+                        <div style="font-size: 10px; color: ${rarityColor};">${rarityDisplay}</div>
+                        ${isEquipped ? '<div style="font-size: 10px; color: #2ecc71;">✅ Экипирован</div>' : ''}
+                        ${!isOwned ? `<div style="font-size: 10px; color: var(--gold);">💰 ${skin.price}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 10px;">
+                ${!isOwned ? 
+                    `<button class="action-btn" onclick="buyAndEquipSkinFromShop('${skin.id}')" style="width: 100%; padding: 8px; background: linear-gradient(135deg, #f39c12, #e67e22);">💰 Купить за ${skin.price}</button>` :
+                    (isEquipped ? 
+                        `<button class="action-btn" disabled style="width: 100%; padding: 8px; opacity: 0.5;">✅ Экипирован</button>` :
+                        `<button class="action-btn" onclick="equipSkinFromShop('${skin.id}')" style="width: 100%; padding: 8px;">✨ Экипировать</button>`
+                    )
+                }
+            </div>
+        </div>`;
+    }
+    
+    html += '</div>';
+    document.getElementById('shopItems').innerHTML = html;
+}
+
+// Функции для работы со скинами из магазина
+function buyAndEquipSkinFromShop(skinId) {
+    if (typeof buySkin !== 'undefined') {
+        if (buySkin(skinId)) {
+            refreshCurrentCategory();
+            renderGame();
+        }
+    }
+}
+
+function equipSkinFromShop(skinId) {
+    if (typeof equipSkin !== 'undefined') {
+        if (equipSkin(skinId)) {
+            refreshCurrentCategory();
+            renderGame();
+        }
+    }
 }
 
 function sellResourceKeepOpen(resName, pricePerUnit) {
@@ -351,9 +434,6 @@ function sellItemKeepOpen(type, index, price) {
     const item = itemsList[index];
     if (!item) return;
     
-    let finalPrice = price;
-    if (item.sellPrice) finalPrice = item.sellPrice;
-
     player.gold += price;
     itemsList.splice(index, 1);
     saveGame();
@@ -438,7 +518,7 @@ function refreshCurrentCategory() {
     showShopCategory(window.currentShopCategory);
 }
 
-// Совместимость
+// Совместимость со старыми функциями
 function sellResource(resName, pricePerUnit) {
     sellResourceKeepOpen(resName, pricePerUnit);
 }

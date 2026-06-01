@@ -216,5 +216,17 @@ const LOCATIONS = [
                     {name:'Щит хаоса',type:'shield',value:50,duration:2,chance:45,cooldown:4},
                     {name:'Божественное возмездие',type:'damage',multiplier:1.5,chance:60}
                 ]}
+        ]},
+
+        {name:'Место мироздания',icon:'🌌',minLvl:60,maxLvl:61,desc:'Страх всей вселенной',goldMult:18,bgColor:'linear-gradient(135deg, #1a1a3a, #0a0a2a)',
+        monsters:[
+            {name:'Бог бесконечности',icon:'👹',img:'./monsters/bogBesk.png',hp:8500,atk:235,exp:530,def:58,
+                abilities:[
+                    {name:'Пространственный разрыв',type:'damage',multiplier:3.0,chance:45,cooldown:4},
+                    {name:'Проклятие бесконечности',type:'debuff',effect:'hp',value:60,duration:2,chance:55,cooldown:6},
+                    {name:'Щит бесконечности',type:'shield',value:100,duration:2,chance:45,cooldown:7},
+                    {name:'Божественное возмездие',type:'damage',multiplier:1.5,chance:60},
+                    {name:'Возврат',type:'heal',value:70,chance:45,cooldown:10},
+                ]}
         ]}
 ];

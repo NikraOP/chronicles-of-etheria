@@ -1,4 +1,4 @@
-// player.js - С отладкой для проверки загрузки изображений
+// player.js - Исправленная версия с поддержкой пола
 
 let player = null;
 
@@ -7,14 +7,36 @@ function selectClass(className) {
     console.log('Выбран класс:', className);
     
     window.selectedClass = className;
+    document.getElementById('genderSelection').style.display = 'block';
+    document.getElementById('branchSelection').style.display = 'none';
+    document.getElementById('startBtn').style.display = 'none';
+    
+    const genderDiv = document.getElementById('genders');
+    genderDiv.innerHTML = `
+        <div class="class-option" onclick="selectGender('male')">
+            <div style="font-size: 45px;">👨</div>
+            <h3>Мужской</h3>
+        </div>
+        <div class="class-option" onclick="selectGender('female')">
+            <div style="font-size: 45px;">👩</div>
+            <h3>Женский</h3>
+        </div>
+    `;
+}
+
+function selectGender(gender) {
+    console.log('=== selectGender ===');
+    console.log('Выбран пол:', gender);
+    
+    window.selectedGender = gender;
+    document.getElementById('genderSelection').style.display = 'none';
     document.getElementById('branchSelection').style.display = 'block';
+    
     const branchesDiv = document.getElementById('branches');
     let branches = [];
-    if (className === 'Воин') branches = ['Школа Ярости', 'Школа Защиты', 'Школа Оружия'];
-    else if (className === 'Маг') branches = ['Школа Огня', 'Школа Льда', 'Школа Утилити'];
-    else if (className === 'Лучник') branches = ['Школа Снайпера', 'Школа Охотника', 'Школа Выживания'];
-    
-    console.log('Доступные ветки:', branches);
+    if (window.selectedClass === 'Воин') branches = ['Школа Ярости', 'Школа Защиты', 'Школа Оружия'];
+    else if (window.selectedClass === 'Маг') branches = ['Школа Огня', 'Школа Льда', 'Школа Утилити'];
+    else if (window.selectedClass === 'Лучник') branches = ['Школа Снайпера', 'Школа Охотника', 'Школа Выживания'];
     
     branchesDiv.innerHTML = branches.map(b => `
         <div class="class-option" onclick="selectBranch('${b}', event)">
@@ -79,55 +101,31 @@ function finalizeCharacter() {
         alert('Имя должно быть от 2 до 20 символов');
         return;
     }
-    if (!window.selectedClass || !window.selectedBranch) {
-        alert('Выберите класс и школу');
+    if (!window.selectedClass || !window.selectedBranch || !window.selectedGender) {
+        alert('Выберите класс, пол и школу');
         return;
     }
     
     const className = window.selectedClass;
     const branch = window.selectedBranch;
+    const gender = window.selectedGender;
+    
     console.log('3. Класс:', className);
     console.log('4. Ветка:', branch);
+    console.log('5. Пол:', gender);
     
-    // Получаем изображение школы из ABILITIES_DB
+    // Получаем изображение школы из SKINS_DB с учётом пола
     let schoolImg = '';
-    console.log('5. Проверка ABILITIES_DB...');
-    console.log('ABILITIES_DB существует?', typeof ABILITIES_DB !== 'undefined');
-
-    console.log('ABILITIES_DB[className] =', ABILITIES_DB[className]);
-    console.log('ABILITIES_DB[className][branch] =', ABILITIES_DB[className][branch]);
-    console.log('schoolImg =', schoolImg);
-    
-    if (ABILITIES_DB && ABILITIES_DB[className]) {
-        console.log('6. Класс', className, 'найден в ABILITIES_DB');
-        console.log('7. Доступные школы:', Object.keys(ABILITIES_DB[className]));
-        
-        if (ABILITIES_DB[className][branch]) {
-            schoolImg = ABILITIES_DB[className][branch].img || '';
-            console.log('8. Найдено изображение для школы', branch, ':', schoolImg);
+    if (typeof SKINS_DB !== 'undefined' && SKINS_DB[className] && SKINS_DB[className][gender] && SKINS_DB[className][gender][branch]) {
+        const defaultSkin = SKINS_DB[className][gender][branch].find(s => s.price === 0);
+        if (defaultSkin) {
+            schoolImg = defaultSkin.img;
+            console.log('6. Найдено изображение для', className, gender, branch, ':', schoolImg);
         } else {
-            console.error('9. ОШИБКА: Школа', branch, 'не найдена в ABILITIES_DB[' + className + ']');
+            console.error('7. Не найден дефолтный скин для', className, gender, branch);
         }
     } else {
-        console.error('10. ОШИБКА: Класс', className, 'не найден в ABILITIES_DB');
-    }
-    
-    // Проверяем, существует ли файл изображения
-    if (schoolImg) {
-        console.log('11. Путь к изображению:', schoolImg);
-        
-        // Создаём временный объект Image для проверки существования файла
-        const testImg = new Image();
-        testImg.onload = function() {
-            console.log('✅ Изображение ЗАГРУЗИЛОСЬ! Путь правильный:', schoolImg);
-        };
-        testImg.onerror = function() {
-            console.error('❌ Изображение НЕ ЗАГРУЗИЛОСЬ! Проверьте путь:', schoolImg);
-            console.log('   Полный URL должен быть примерно:', window.location.origin + '/' + schoolImg);
-        };
-        testImg.src = schoolImg;
-    } else {
-        console.log('11. Изображение не указано, будет использован эмодзи');
+        console.error('8. ОШИБКА: Скины не найдены для', className, gender, branch);
     }
     
     // Базовые статы
@@ -144,6 +142,7 @@ function finalizeCharacter() {
         name: name,
         class: className,
         branch: branch,
+        gender: gender,
         schoolImg: schoolImg,
         level: 1,
         experience: 0,
@@ -173,20 +172,28 @@ function finalizeCharacter() {
             boots: null
         },
         abilities: [],
+        unlockedSkins: [],
+        currentSkin: null,
         ...baseStats
     };
     
-    console.log('12. Объект player создан:', player);
+    console.log('9. Объект player создан:', player);
     
     addStartingEquipment();
     updateAllAbilities();
     resetBaseStats();
     player.health = player.maxHealth;
     if (player.class === 'Маг') player.mana = player.maxMana;
+    
+    // Инициализируем скины
+    if (typeof initSkins !== 'undefined') {
+        initSkins();
+    }
+    
     saveGame();
     
-    console.log('13. Персонаж создан успешно!');
-    console.log('14. schoolImg в player:', player.schoolImg);
+    console.log('10. Персонаж создан успешно!');
+    console.log('11. schoolImg в player:', player.schoolImg);
     
     renderGame();
 }
@@ -239,11 +246,9 @@ function resetBaseStats() {
     player.criticalDamage = Math.min(250, Math.floor(baseStats.criticalDamage * levelBonus));
     player.dodgeChance = Math.min(70, Math.floor(baseStats.dodgeChance * levelBonus));
     
-    // БАЗОВОЕ ЗДОРОВЬЕ (без экипировки)
     let bonusHp = 0;
     let bonusMana = 0;
     
-    // Собираем бонусы от экипировки
     for (let slot in player.equipment) {
         const item = player.equipment[slot];
         if (item) {
@@ -257,7 +262,6 @@ function resetBaseStats() {
         }
     }
     
-    // Расчёт максимального здоровья (база + бонус от экипировки)
     const baseHealth = 80;
     player.maxHealth = Math.floor(baseHealth + player.level * 10) + bonusHp;
     
@@ -267,12 +271,10 @@ function resetBaseStats() {
         if (player.mana > player.maxMana) player.mana = player.maxMana;
     }
     
-    // Ограничиваем статы
     player.criticalChance = Math.min(50, player.criticalChance);
     player.criticalDamage = Math.min(250, player.criticalDamage);
     player.dodgeChance = Math.min(70, player.dodgeChance);
     
-    // Если текущее здоровье больше максимального - уменьшаем
     if (player.health > player.maxHealth) player.health = player.maxHealth;
 }
 
@@ -284,11 +286,6 @@ function getAvatar() {
         const imgPath = player.schoolImg;
         console.log('Пытаемся загрузить изображение:', imgPath);
         
-        // Формируем полный URL для проверки
-        const fullUrl = window.location.origin + '/' + imgPath;
-        console.log('Полный URL:', fullUrl);
-        
-        // УВЕЛИЧЕННЫЙ РАЗМЕР (120x120 вместо 80x80)
         return `<img class="player-avatar" src="${imgPath}" 
                       onerror="console.error('❌ ОШИБКА ЗАГРУЗКИ: изображение не найдено по пути', '${imgPath}'); this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${getFallbackAvatar()}'">`;
     }
@@ -342,19 +339,17 @@ function saveGame() {
     localStorage.setItem('rpg_save_v21', JSON.stringify(player));
 }
 
-// Проверка при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== PLAYER.JS ЗАГРУЖЕН ===');
     console.log('ABILITIES_DB доступна?', typeof ABILITIES_DB !== 'undefined');
+    console.log('SKINS_DB доступна?', typeof SKINS_DB !== 'undefined');
     if (typeof ABILITIES_DB !== 'undefined') {
         console.log('Доступные классы:', Object.keys(ABILITIES_DB));
-        console.log('Воин:', ABILITIES_DB['Воин'] ? Object.keys(ABILITIES_DB['Воин']) : 'нет');
-        console.log('Маг:', ABILITIES_DB['Маг'] ? Object.keys(ABILITIES_DB['Маг']) : 'нет');
-        console.log('Лучник:', ABILITIES_DB['Лучник'] ? Object.keys(ABILITIES_DB['Лучник']) : 'нет');
     }
 });
 
 window.selectClass = selectClass;
+window.selectGender = selectGender;
 window.selectBranch = selectBranch;
 window.finalizeCharacter = finalizeCharacter;
 window.closeModal = closeModal;
