@@ -272,8 +272,7 @@ function getAvatar() {
         console.log('Полный URL:', fullUrl);
         
         // УВЕЛИЧЕННЫЙ РАЗМЕР (120x120 вместо 80x80)
-        return `<img src="${imgPath}" 
-                      style="width: 220px; height: 220px; " 
+        return `<img class="player-avatar" src="${imgPath}" 
                       onerror="console.error('❌ ОШИБКА ЗАГРУЗКИ: изображение не найдено по пути', '${imgPath}'); this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${getFallbackAvatar()}'">`;
     }
     console.log('Изображение не указано, используем эмодзи');

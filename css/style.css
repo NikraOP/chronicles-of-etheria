@@ -1095,3 +1095,34 @@ input:focus { outline: none; border-color: var(--gold); }
     70% { transform: translateX(-10px) rotate(-5deg); }
     100% { transform: translateX(0) rotate(0deg); }
 }
+
+.player-avatar {
+    width: 220px;
+    height: 220px;
+}
+
+
+
+/* Планшеты (768px - 1024px) */
+@media (max-width: 1024px) {
+    .player-avatar {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+/* Телефоны (480px - 768px) */
+@media (max-width: 768px) {
+    .player-avatar {
+        width: 140px;
+        height: 140px;
+    }
+}
+
+/* Маленькие телефоны (до 480px) */
+@media (max-width: 480px) {
+    .player-avatar {
+        width: 100px;
+        height: 100px;
+    }
+}
