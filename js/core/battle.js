@@ -376,9 +376,26 @@ function useMonsterAbility(ability) {
             break;
             
         case 'dot':
-            currentMonster.effects.push({ type: ability.effect || 'Яд', val: ability.value || 5, dur: ability.duration || 2 });
-            addBattleLog(`☠️ ${ability.name}: наложен эффект ${ability.effect || 'Яд'} (${ability.value || 5}% HP в ход)!`, 'info');
-            showDebuffEffect('enemy', ability.effect || 'poison');
+            const dotValue = ability.value || 5;
+            const dotDuration = ability.duration || 2;
+            const dotEffect = ability.effect || 'Яд';
+            
+            // Проверяем, есть ли уже такой эффект на игроке
+            const existingDot = player.temporaryEffects.find(e => e.type === 'dot_' + dotEffect);
+            if (existingDot) {
+                existingDot.val = dotValue;
+                existingDot.dur = dotDuration;
+            } else {
+                player.temporaryEffects.push({
+                    type: 'dot_' + dotEffect,
+                    val: dotValue,
+                    dur: dotDuration,
+                    isDot: true
+                });
+            }
+            
+            addBattleLog(`☠️ ${ability.name}: наложен эффект ${dotEffect} на ВАС! (${dotValue}% HP в ход)`, 'error');
+            showDebuffEffect('player', dotEffect);
             break;
             
         case 'heal':
@@ -611,6 +628,22 @@ function renderBattle() {
         }
     }
 
+        // Отображение DOT эффектов на игроке
+    let playerDotHTML = '';
+    const playerDots = player.temporaryEffects.filter(e => e.type && e.type.startsWith('dot_'));
+    if (playerDots.length > 0) {
+        playerDotHTML = '<div class="active-effects" style="margin-top: 5px;">';
+        for (let dot of playerDots) {
+            let icon = '☠️';
+            const dotType = dot.type.replace('dot_', '');
+            if (dotType === 'poison') icon = '☠️';
+            else if (dotType === 'burn') icon = '🔥';
+            else if (dotType === 'shock') icon = '⚡';
+            playerDotHTML += `<div class="effect-icon dot" title="${dotType} - ${dot.val}% HP/ход (${dot.dur} ход.)">${icon} ${dot.val}%</div>`;
+        }
+        playerDotHTML += '</div>';
+    }
+
     let logHTML = '<div class="battle-log" id="battleLog">';
     battleLogEntries.forEach(e => { logHTML += '<div class="log-entry ' + e.cls + '">' + e.msg + '</div>'; });
     logHTML += '</div>';
@@ -618,7 +651,7 @@ function renderBattle() {
     const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena"><div class="ground"></div>' +
         '<div class="combatant-wrapper" id="enemyWrapper"><div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div><div class="combatant-info"><div class="combatant-name" style="color:#e74c3c;">' + currentMonster.name + '</div><div class="health-bar"><div class="health-fill enemy-hp" style="width:' + mHp + '%;"></div></div>' + monsterShieldHTML + '<div class="health-text">' + currentMonster.health + '/' + currentMonster.maxHealth + '</div>' + monsterEffectsHTML + monsterDotHTML + abilitiesHTML + '</div></div>' +
         '<div class="vs-badge">⚔️ VS ⚔️</div>' +
-        '<div class="combatant-wrapper" id="playerWrapper"><div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div><div class="combatant-info"><div class="combatant-name" style="color:#2ecc71;">' + player.name + '</div><div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' + playerShieldHTML + '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' + playerEffectsHTML + '</div></div>' +
+        '<div class="combatant-wrapper" id="playerWrapper"><div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div><div class="combatant-info"><div class="combatant-name" style="color:#2ecc71;">' + player.name + '</div><div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' + playerShieldHTML + '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' + playerEffectsHTML + playerDotHTML + '</div></div>' +
         '</div><div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
         showItemCooldownsInBattle() +
         logHTML + '</div>';
@@ -744,31 +777,6 @@ function monsterTurn() {
         return;
     }
     
-    const blindEffect = player.temporaryEffects.find(e => e.type === 'debuff_blind');
-    let playerMissChance = 0;
-    if (blindEffect) playerMissChance = blindEffect.value || 25;
-    
-    let dodgeBonus = player.temporaryEffects.reduce((s, e) => s + (e.dodge || 0), 0);
-    const dodgeDebuff = player.temporaryEffects.find(e => e.type === 'debuff_dodge');
-    if (dodgeDebuff) dodgeBonus = dodgeBonus - dodgeDebuff.value;
-    
-    let totalDodge = getCappedDodge(player.dodgeChance + dodgeBonus);
-    if (playerMissChance > 0) totalDodge = totalDodge + playerMissChance;
-    
-    if (Math.random() * 100 <= totalDodge) {
-        addBattleLog('💨 Вы уклонились от атаки!', 'info');
-        const hasFreeOnDodge = player.temporaryEffects.some(e => e.freeOnDodge);
-        if (hasFreeOnDodge) {
-            nextFreeMana = true;
-            addBattleLog(`🔄 Уклонение активировало бесплатный выстрел!`, 'info');
-        }
-        reduceAllCooldowns();
-        isPlayerTurn = true;
-        renderBattle();
-        updateBattleButtons();
-        return;
-    }
-    
     const immune = player.temporaryEffects.find(e => e.immune);
     if (immune) {
         addBattleLog('🛡️ Иммунитет!', 'info');
@@ -780,6 +788,27 @@ function monsterTurn() {
         updateBattleButtons();
         return;
     }
+    
+    // ===== ПРОСТАЯ ОБРАБОТКА DOT ЭФФЕКТОВ =====
+    for (let i = 0; i < player.temporaryEffects.length; i++) {
+        const effect = player.temporaryEffects[i];
+        if (effect.type && effect.type.startsWith('dot_')) {
+            const dotDamage = Math.floor(player.maxHealth * (effect.val / 100));
+            if (dotDamage > 0) {
+                player.health -= dotDamage;
+                const dotName = effect.type.replace('dot_', '');
+                addBattleLog(`☠️ ${dotName} наносит ${dotDamage} урона!`, 'dmg');
+                floatDamage('player', dotDamage, false);
+                showHitEffect('player');
+            }
+            effect.dur--;
+        }
+    }
+    // Удаляем истекшие DOT
+    player.temporaryEffects = player.temporaryEffects.filter(e => {
+        if (e.type && e.type.startsWith('dot_') && e.dur <= 0) return false;
+        return true;
+    });
     
     let abilityUsed = false;
     if (currentMonster.abilities && currentMonster.abilities.length > 0) {
@@ -830,16 +859,32 @@ function monsterTurn() {
         }
         
         if (dmg > 0) {
-            const appliedDamage = applyDamageToPlayer(dmg);
-            if (appliedDamage > 0) {
-                addBattleLog(`👊 ${currentMonster.name} наносит ${appliedDamage} урона!`, 'dmg');
-                floatDamage('player', appliedDamage, false);
+            let remainingDamage = dmg;
+            const playerShieldIndex = player.temporaryEffects.findIndex(e => e.shield !== undefined && e.shield > 0);
+            if (playerShieldIndex !== -1) {
+                const playerShield = player.temporaryEffects[playerShieldIndex];
+                const absorbed = Math.min(playerShield.shield, remainingDamage);
+                playerShield.shield -= absorbed;
+                remainingDamage -= absorbed;
+                addBattleLog(`🛡️ Ваш щит поглотил ${absorbed} урона! Осталось щита: ${playerShield.shield}`, 'info');
+                if (playerShield.shield <= 0) {
+                    player.temporaryEffects.splice(playerShieldIndex, 1);
+                    addBattleLog(`🛡️ Ваш щит разрушен!`, 'info');
+                }
             }
-            if (lifestealValue > 0 && appliedDamage > 0) {
-                const healAmount = Math.floor(appliedDamage * lifestealValue / 100);
+            
+            if (remainingDamage > 0) {
+                player.health -= remainingDamage;
+                addBattleLog(`👊 ${currentMonster.name} наносит ${remainingDamage} урона!`, 'dmg');
+                floatDamage('player', remainingDamage, false);
+            }
+            
+            if (lifestealValue > 0 && dmg > 0) {
+                const healAmount = Math.floor(dmg * lifestealValue / 100);
                 currentMonster.health = Math.min(currentMonster.maxHealth, currentMonster.health + healAmount);
                 addBattleLog(`🩸 Монстр восстанавливает ${healAmount} HP!`, 'heal');
             }
+            
             if (player.health <= 0 && deathSaveActive) {
                 player.health = Math.floor(player.maxHealth * 0.1);
                 deathSaveActive = false;
@@ -868,6 +913,7 @@ function monsterTurn() {
         updateBattleButtons();
     });
     
+    // Обработка эффектов у монстра
     if (currentMonster.effects && currentMonster.effects.length > 0) {
         currentMonster.effects = currentMonster.effects.filter(e => { 
             if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
@@ -887,7 +933,7 @@ function monsterTurn() {
         });
     }
     
-    // ИСПРАВЛЕННЫЙ БЛОК - удалены дублирования
+    // Фильтрация остальных эффектов игрока
     player.temporaryEffects = player.temporaryEffects.filter(e => {
         if (e.dur) e.dur--;
         if (e.regen) {
@@ -911,22 +957,20 @@ function monsterTurn() {
             return false;
         }
         if (e.type === 'debuff_hp' && e.dur <= 0) {
-        if (player.originalMaxHealth) {
-            const oldMaxHp = player.maxHealth;
-            player.maxHealth = player.originalMaxHealth;
-            // Восстанавливаем здоровье пропорционально
-            const healthPercent = player.health / oldMaxHp;
-            player.health = Math.floor(player.maxHealth * healthPercent);
-            if (player.health > player.maxHealth) player.health = player.maxHealth;
-            addBattleLog(`❤️ Максимальное здоровье восстановлено! Было ${oldMaxHp}, стало ${player.maxHealth}`, 'info');
-            player.originalMaxHealth = null;
+            if (player.originalMaxHealth) {
+                const oldMaxHp = player.maxHealth;
+                player.maxHealth = player.originalMaxHealth;
+                const healthPercent = player.health / oldMaxHp;
+                player.health = Math.floor(player.maxHealth * healthPercent);
+                if (player.health > player.maxHealth) player.health = player.maxHealth;
+                addBattleLog(`❤️ Максимальное здоровье восстановлено! Было ${oldMaxHp}, стало ${player.maxHealth}`, 'info');
+                player.originalMaxHealth = null;
+            }
+            return false;
         }
-        return false;
-    }
-    
-    if (e.type && e.type.startsWith('debuff_') && e.dur <= 0) return false;
-    return (e.dur || 0) > 0 || e.immune || e.shield || e.reflect || e.atk || e.def || e.dodge || e.crit || e.counterChance || e.freezeOnHit || e.freeOnDodge;
-});
+        if (e.type && e.type.startsWith('debuff_') && e.dur <= 0) return false;
+        return (e.dur || 0) > 0 || e.immune || e.shield || e.reflect || e.atk || e.def || e.dodge || e.crit || e.counterChance || e.freezeOnHit || e.freeOnDodge;
+    });
     
     if (player.class === 'Маг') player.mana = Math.min(player.maxMana, player.mana + Math.floor(player.maxMana * 0.08));
     if (player.class === 'Воин') {
