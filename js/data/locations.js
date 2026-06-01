@@ -131,7 +131,7 @@ const LOCATIONS = [
                 abilities:[
                     {name:'Кристальный взрыв',type:'damage',multiplier:1.5,chance:50,cooldown:2},
                     {name:'Осколки',type:'damage',multiplier:0.8,hits:3,chance:40,cooldown:3},
-                    {name:'Ослепление',type:'debuff',effect:'blind',value:25,duration:2,chance:35,cooldown:3}
+                    {name:'Мясорубка',type:'debuff',effect:'hp',value:25,duration:2,chance:35,cooldown:3}
                 ]},
             {name:'Фантомный призрак',icon:'👻',img:'./monsters/CristalPriz.png',hp:2150,atk:195,exp:265,def:24,
                 abilities:[
