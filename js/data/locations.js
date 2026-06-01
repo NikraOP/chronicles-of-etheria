@@ -137,7 +137,7 @@ const LOCATIONS = [
                 abilities:[
                     {name:'Призрачный вопль',type:'debuff',effect:'atk',value:30,duration:2,chance:50,cooldown:3},
                     {name:'Фазовый сдвиг',type:'buff',effect:'atk',value:50,duration:1,chance:40,cooldown:3},
-                    {name:'Энергетический вампиризм',type:'lifesteal',value:50,chance:45,cooldown:4}
+                    {name:'Энергетический вампиризм',type:'lifesteal',value:80,chance:45,cooldown:4}
                 ]},
             {name:'Хранитель бездны',icon:'🕳️',img:'./monsters/cristalBog.png',hp:2500,atk:158,exp:320,def:50,
                 abilities:[
