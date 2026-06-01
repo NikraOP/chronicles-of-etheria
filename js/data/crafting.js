@@ -1,0 +1,249 @@
+// crafting.js - Крафтовые предметы ДОРОЖЕ магазинных (в 1.5 раза по ресурсам)
+
+const CRAFTING_RECIPES = {
+    // ===== КУЗНЕЧНОЕ ДЕЛО (для Воина) - ресурсов на 50% больше =====
+    'blacksmith': {
+        weapons: [
+            // Базовые (тир 1-2) - магазин: 4 руды, крафт: 6 руды (+50%)
+            {name:'Стальной меч',icon:'🗡️',tier:1,exp:60,time:4,resources:{'Железная руда':6},type:'weapon',class:'Воин',rarity:'Обычный',dmg:12,def:2,baseDmg:12},
+            {name:'Боевой топор',icon:'🪓',tier:1,exp:65,time:4,resources:{'Железная руда':6,'Медная руда':3},type:'weapon',class:'Воин',rarity:'Обычный',dmg:14,hp:12,baseDmg:14},
+            {name:'Закаленный клинок',icon:'⚔️',tier:2,exp:120,time:5,resources:{'Железная руда':8,'Серебряная руда':3},type:'weapon',class:'Воин',rarity:'Необычный',dmg:19,def:5,crit:6,baseDmg:19},
+            {name:'Секира ярости',icon:'🔪',tier:2,exp:130,time:5,resources:{'Железная руда':8,'Серебряная руда':3,'Рубин':2},type:'weapon',class:'Воин',rarity:'Необычный',dmg:21,hp:18,critDmg:18,baseDmg:21},
+            
+            // Редкие (тир 3)
+            {name:'Рыцарский меч',icon:'⚔️',tier:3,exp:250,time:7,resources:{'Железная руда':9,'Золотая руда':5,'Рубин':2},type:'weapon',class:'Воин',rarity:'Редкий',dmg:26,def:7,crit:7,baseDmg:26},
+            {name:'Рыцарский топор',icon:'🪓',tier:3,exp:260,time:7,resources:{'Железная руда':9,'Золотая руда':5,'Изумруд':2},type:'weapon',class:'Воин',rarity:'Редкий',dmg:29,hp:30,critDmg:21,baseDmg:29},
+            
+            // Эпические (тир 4)
+            {name:'Благословенный клинок',icon:'✨',tier:4,exp:400,time:10,resources:{'Мифриловая руда':8,'Аметист':3,'Золотая руда':6},type:'weapon',class:'Воин',rarity:'Эпический',dmg:35,def:9,hp:48,crit:9,baseDmg:35},
+            {name:'Молот правосудия',icon:'🔨',tier:4,exp:420,time:10,resources:{'Мифриловая руда':8,'Сапфир':3,'Железная руда':9},type:'weapon',class:'Воин',rarity:'Эпический',dmg:41,def:6,critDmg:30,dodge:6,baseDmg:41},
+            
+            // Легендарные (тир 5)
+            {name:'Меч короля-воина',icon:'👑',tier:5,exp:650,time:14,resources:{'Адамантит':8,'Алмаз':3,'Мифриловая руда':6},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:49,def:12,crit:12,critDmg:23,baseDmg:49},
+            {name:'Секира великана',icon:'🪓',tier:5,exp:700,time:14,resources:{'Адамантит':8,'Алмаз':3,'Шкура дракона':2},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:56,hp:72,crit:9,critDmg:29,baseDmg:56},
+            {name:'Клинок тысячелетия',icon:'💎',tier:5,exp:750,time:15,resources:{'Адамантит':9,'Алмаз':5,'Мифриловая руда':8},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:67,def:14,hp:96,crit:14,critDmg:35,baseDmg:67},
+            
+            // Древние (тир 6) - ТОЛЬКО КРАФТ
+            {name:'Древний клинок предков',icon:'🌌',tier:6,exp:900,time:18,resources:{'Орихалк':8,'Адамантит':6,'Звездный камень':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:85,def:18,crit:18,critDmg:42,dodge:6,baseDmg:85},
+            {name:'Молот титанов',icon:'🔨',tier:6,exp:950,time:18,resources:{'Орихалк':8,'Адамантит':6,'Шкура титана':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:100,hp:144,crit:12,critDmg:48,baseDmg:100},
+            
+            // Божественные (тир 6+) - ТОЛЬКО КРАФТ
+            {name:'Клинок разрушителя миров',icon:'🌌',tier:6,exp:1200,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:96,def:22,hp:240,crit:30,critDmg:66,baseDmg:96},
+            {name:'Топор армагеддона',icon:'☠️',tier:6,exp:1300,time:20,resources:{'Орихалк':12,'Звездный камень':5,'Шкура титана':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:132,def:26,hp:312,crit:34,critDmg:78,baseDmg:132},
+            {name:'Меч богов',icon:'⚜️',tier:6,exp:1500,time:22,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':5},type:'weapon',class:'Воин',rarity:'Божественный',dmg:156,def:34,hp:420,crit:38,critDmg:90,baseDmg:156},
+            {name:'Оружие Судьбы',icon:'🔱',tier:6,exp:1800,time:25,resources:{'Орихалк':15,'Звездный камень':8,'Камень душ':6,'Шкура титана':5},type:'weapon',class:'Воин',rarity:'Божественный',dmg:180,def:38,hp:540,crit:42,critDmg:102,baseDmg:180}
+        ],
+        armor: [
+            // Шлемы - ресурсов на 50% больше
+            {name:'Стальной шлем',icon:'⛑️',tier:1,exp:50,time:4,resources:{'Железная руда':5},type:'helmet',class:'Воин',rarity:'Обычный',def:12,hp:14,baseDef:12},
+            {name:'Закаленный шлем',icon:'🪖',tier:2,exp:100,time:5,resources:{'Железная руда':6,'Серебряная руда':3},type:'helmet',class:'Воин',rarity:'Необычный',def:17,hp:24,crit:2,baseDef:17},
+            {name:'Шлем рыцаря',icon:'👑',tier:3,exp:200,time:7,resources:{'Железная руда':8,'Золотая руда':3},type:'helmet',class:'Воин',rarity:'Редкий',def:24,hp:36,crit:5,baseDef:24},
+            {name:'Титановый шлем',icon:'🛡️',tier:4,exp:350,time:9,resources:{'Мифриловая руда':6,'Аметист':2},type:'helmet',class:'Воин',rarity:'Эпический',def:34,hp:54,crit:7,baseDef:34},
+            {name:'Шлем доблести',icon:'⭐',tier:5,exp:550,time:12,resources:{'Адамантит':6,'Алмаз':2},type:'helmet',class:'Воин',rarity:'Легендарный',def:38,hp:72,dmg:6,crit:6,baseDef:38},
+            {name:'Корона бессмертных',icon:'👑',tier:5,exp:700,time:13,resources:{'Адамантит':8,'Алмаз':3},type:'helmet',class:'Воин',rarity:'Мифический',def:58,hp:132,crit:12,dodge:6,baseDef:58},
+            
+            // Древние/Божественные шлемы - ТОЛЬКО КРАФТ
+            {name:'Венец древних знаний',icon:'📜',tier:6,exp:800,time:15,resources:{'Орихалк':6,'Звездный камень':2},type:'helmet',class:'Воин',rarity:'Древний',def:70,hp:168,crit:14,critDmg:12,baseDef:70},
+            {name:'Шлем просветленного',icon:'💫',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'helmet',class:'Воин',rarity:'Божественный',def:84,hp:216,crit:18,dodge:6,baseDef:84},
+            {name:'Корона власти',icon:'👑',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'helmet',class:'Воин',rarity:'Божественный',def:96,hp:276,dmg:12,crit:22,baseDef:96},
+            {name:'Венец всевластия',icon:'⚜️',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'helmet',class:'Воин',rarity:'Божественный',def:118,hp:348,crit:24,critDmg:18,baseDef:118},
+            
+            // Нагрудники
+            {name:'Стальной нагрудник',icon:'🛡️',tier:1,exp:70,time:5,resources:{'Железная руда':8},type:'chest',class:'Воин',rarity:'Обычный',def:24,hp:30,baseDef:24},
+            {name:'Закаленная броня',icon:'⚔️',tier:2,exp:130,time:6,resources:{'Железная руда':9,'Серебряная руда':5},type:'chest',class:'Воин',rarity:'Необычный',def:34,hp:48,dodge:1,baseDef:34},
+            {name:'Драконья броня',icon:'🐉',tier:3,exp:250,time:8,resources:{'Железная руда':10,'Чешуя дракона':3,'Золотая руда':5},type:'chest',class:'Воин',rarity:'Редкий',def:43,hp:72,critDmg:10,baseDef:43},
+            {name:'Титановый доспех',icon:'💪',tier:4,exp:450,time:11,resources:{'Мифриловая руда':9,'Сапфир':2},type:'chest',class:'Воин',rarity:'Эпический',def:58,hp:108,dodge:4,baseDef:58},
+            {name:'Броня бессмертных',icon:'🌟',tier:5,exp:700,time:14,resources:{'Адамантит':9,'Алмаз':3},type:'chest',class:'Воин',rarity:'Легендарный',def:67,hp:144,dmg:6,critDmg:12,baseDef:67},
+            {name:'Панцирь титана',icon:'🦾',tier:5,exp:800,time:15,resources:{'Адамантит':10,'Алмаз':5},type:'chest',class:'Воин',rarity:'Мифический',def:94,hp:240,dodge:7,baseDef:94},
+            
+            // Древние/Божественные нагрудники - ТОЛЬКО КРАФТ
+            {name:'Доспех перворожденных',icon:'🌌',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звездный камень':3,'Адамантит':6},type:'chest',class:'Воин',rarity:'Древний',def:110,hp:300,critDmg:18,dodge:10,baseDef:110},
+            {name:'Броня вознесения',icon:'✨',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'chest',class:'Воин',rarity:'Божественный',def:132,hp:372,dmg:12,dodge:12,baseDef:132},
+            {name:'Доспех абсолюта',icon:'💫',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'chest',class:'Воин',rarity:'Божественный',def:156,hp:456,critDmg:24,dodge:14,baseDef:156},
+            {name:'Панцирь божества',icon:'🌟',tier:6,exp:1500,time:20,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':6},type:'chest',class:'Воин',rarity:'Божественный',def:186,hp:564,dmg:18,dodge:18,baseDef:186},
+            
+            // Поножи
+            {name:'Стальные поножи',icon:'👖',tier:1,exp:45,time:4,resources:{'Железная руда':5},type:'pants',class:'Воин',rarity:'Обычный',def:17,hp:22,baseDef:17},
+            {name:'Закаленные поножи',icon:'🦵',tier:2,exp:90,time:5,resources:{'Железная руда':6,'Серебряная руда':3},type:'pants',class:'Воин',rarity:'Необычный',def:24,hp:34,dodge:2,baseDef:24},
+            {name:'Поножи рыцаря',icon:'⚡',tier:3,exp:180,time:6,resources:{'Железная руда':8,'Золотая руда':3},type:'pants',class:'Воин',rarity:'Редкий',def:31,hp:50,crit:4,baseDef:31},
+            {name:'Титановые поножи',icon:'🔩',tier:4,exp:300,time:8,resources:{'Мифриловая руда':6,'Аметист':2},type:'pants',class:'Воин',rarity:'Эпический',def:41,hp:72,dodge:6,baseDef:41},
+            {name:'Поножи бессмертного',icon:'✨',tier:5,exp:500,time:11,resources:{'Адамантит':6,'Алмаз':2},type:'pants',class:'Воин',rarity:'Легендарный',def:48,hp:96,dmg:4,dodge:7,baseDef:48},
+            {name:'Поножи вечности',icon:'🔱',tier:5,exp:600,time:12,resources:{'Адамантит':8,'Алмаз':3},type:'pants',class:'Воин',rarity:'Мифический',def:67,hp:156,dodge:10,baseDef:67},
+            
+            // Древние/Божественные поножи - ТОЛЬКО КРАФТ
+            {name:'Поножи древнего героя',icon:'🌌',tier:6,exp:700,time:13,resources:{'Орихалк':6,'Звездный камень':3},type:'pants',class:'Воин',rarity:'Древний',def:82,hp:204,critDmg:12,dodge:12,baseDef:82},
+            {name:'Набедренники возмездия',icon:'⚡',tier:6,exp:800,time:14,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Воин',rarity:'Божественный',def:96,hp:264,dmg:10,crit:6,dodge:14,baseDef:96},
+            {name:'Поножи просветленного',icon:'💫',tier:6,exp:900,time:15,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Воин',rarity:'Божественный',def:115,hp:336,critDmg:18,dodge:17,baseDef:115},
+            {name:'Набедренники творца',icon:'🔱',tier:6,exp:1100,time:16,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'pants',class:'Воин',rarity:'Божественный',def:138,hp:432,dmg:14,dodge:22,baseDef:138},
+            
+            // Сапоги
+            {name:'Стальные сапоги',icon:'👢',tier:1,exp:40,time:3,resources:{'Железная руда':3},type:'boots',class:'Воин',rarity:'Обычный',def:8,dodge:2,baseDef:8},
+            {name:'Сапоги скорости',icon:'👟',tier:2,exp:80,time:5,resources:{'Железная руда':5,'Серебряная руда':3},type:'boots',class:'Воин',rarity:'Необычный',def:12,hp:14,dodge:7,baseDef:12},
+            {name:'Сапоги странника',icon:'🥾',tier:3,exp:150,time:7,resources:{'Железная руда':6,'Золотая руда':3},type:'boots',class:'Воин',rarity:'Редкий',def:16,hp:24,dodge:12,baseDef:16},
+            {name:'Крылатые сандалии',icon:'🪽',tier:4,exp:250,time:10,resources:{'Мифриловая руда':5,'Сапфир':2},type:'boots',class:'Воин',rarity:'Эпический',def:19,hp:42,dodge:17,baseDef:19},
+            {name:'Сапоги ветра',icon:'💨',tier:5,exp:400,time:14,resources:{'Адамантит':5,'Алмаз':2},type:'boots',class:'Воин',rarity:'Легендарный',def:24,hp:60,dodge:22,baseDef:24},
+            {name:'Сапоги вселенной',icon:'🌠',tier:5,exp:500,time:15,resources:{'Адамантит':6,'Алмаз':3},type:'boots',class:'Воин',rarity:'Мифический',def:36,hp:120,dodge:32,baseDef:36},
+            
+            // Древние/Божественные сапоги - ТОЛЬКО КРАФТ
+            {name:'Сандалии древнего ветра',icon:'🌬️',tier:6,exp:600,time:16,resources:{'Орихалк':6,'Звездный камень':3},type:'boots',class:'Воин',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
+            {name:'Сапоги вознесения',icon:'💫',tier:6,exp:700,time:17,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Воин',rarity:'Божественный',def:53,hp:204,dmg:6,dodge:48,baseDef:53},
+            {name:'Сандалии абсолютной скорости',icon:'⚡',tier:6,exp:800,time:18,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Воин',rarity:'Божественный',def:62,hp:264,crit:6,dodge:56,baseDef:62},
+            {name:'Сандалии творца',icon:'🔱',tier:6,exp:1000,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'boots',class:'Воин',rarity:'Божественный',def:77,hp:336,dmg:10,critDmg:12,dodge:66,baseDef:77}
+        ]
+    },
+
+    // ===== КОЖЕВЕННОЕ ДЕЛО (для Лучника) - ресурсов на 50% больше =====
+    'leatherworking': {
+        weapons: [
+            {name:'Охотничий лук',icon:'🏹',tier:1,exp:55,time:4,resources:{'Дубовая древесина':5,'Кожа':3},type:'weapon',class:'Лучник',rarity:'Обычный',dmg:13,dodge:4,baseDmg:13},
+            {name:'Легкий арбалет',icon:'🔫',tier:1,exp:60,time:4,resources:{'Железная руда':5,'Дубовая древесина':3},type:'weapon',class:'Лучник',rarity:'Обычный',dmg:16,crit:7,baseDmg:16},
+            {name:'Составной лук',icon:'🏹',tier:2,exp:110,time:5,resources:{'Серебряная руда':3,'Дубовая древесина':6,'Толстая кожа':3},type:'weapon',class:'Лучник',rarity:'Необычный',dmg:22,crit:11,dodge:6,baseDmg:22},
+            {name:'Боевой арбалет',icon:'⚔️',tier:2,exp:120,time:5,resources:{'Железная руда':6,'Серебряная руда':3,'Толстая кожа':3},type:'weapon',class:'Лучник',rarity:'Необычный',dmg:24,hp:14,critDmg:22,baseDmg:24},
+            {name:'Снайперский лук',icon:'🎯',tier:3,exp:250,time:7,resources:{'Золотая руда':5,'Эбеновое дерево':6,'Закалённая кожа':3},type:'weapon',class:'Лучник',rarity:'Редкий',dmg:31,crit:14,critDmg:18,dodge:6,baseDmg:31},
+            {name:'Убойный арбалет',icon:'🏹',tier:3,exp:270,time:7,resources:{'Золотая руда':5,'Эбеновое дерево':5,'Закалённая кожа':5},type:'weapon',class:'Лучник',rarity:'Редкий',dmg:34,def:6,hp:18,crit:12,critDmg:22,baseDmg:34},
+            {name:'Лук ветра',icon:'💨',tier:4,exp:400,time:10,resources:{'Мифриловая руда':5,'Эбеновое дерево':6,'Закалённая кожа':5,'Сапфир':2},type:'weapon',class:'Лучник',rarity:'Эпический',dmg:43,crit:19,critDmg:26,dodge:10,baseDmg:43},
+            {name:'Арбалет шторма',icon:'⚡',tier:4,exp:420,time:10,resources:{'Мифриловая руда':6,'Эбеновое дерево':6,'Закалённая кожа':6,'Рубин':2},type:'weapon',class:'Лучник',rarity:'Эпический',dmg:48,def:10,hp:36,crit:17,critDmg:29,baseDmg:48},
+            {name:'Лук короля-охотника',icon:'👑',tier:5,exp:650,time:14,resources:{'Адамантит':6,'Древесина мирового древа':5,'Драконья чешуя':3,'Алмаз':2},type:'weapon',class:'Лучник',rarity:'Легендарный',dmg:58,crit:22,critDmg:34,dodge:12,baseDmg:58},
+            {name:'Арбалет драконобойца',icon:'🐉',tier:5,exp:680,time:14,resources:{'Адамантит':6,'Древесина мирового древа':5,'Драконья чешуя':5,'Алмаз':2},type:'weapon',class:'Лучник',rarity:'Легендарный',dmg:65,hp:54,crit:19,critDmg:36,dodge:6,baseDmg:65},
+            {name:'Лук звездного пути',icon:'⭐',tier:5,exp:750,time:15,resources:{'Адамантит':8,'Древесина мирового древа':6,'Звездный камень':3},type:'weapon',class:'Лучник',rarity:'Легендарный',dmg:79,hp:72,crit:26,critDmg:46,dodge:14,baseDmg:79},
+            
+            // Древние/Божественные - ТОЛЬКО КРАФТ
+            {name:'Лук древнего снайпера',icon:'🌌',tier:6,exp:900,time:18,resources:{'Орихалк':8,'Древесина мирового древа':6,'Звездный камень':3},type:'weapon',class:'Лучник',rarity:'Древний',dmg:96,hp:96,crit:31,critDmg:54,dodge:18,baseDmg:96},
+            {name:'Арбалет первобытного ужаса',icon:'💀',tier:6,exp:950,time:18,resources:{'Орихалк':8,'Древесина мирового древа':6,'Звездный камень':3,'Камень душ':2},type:'weapon',class:'Лучник',rarity:'Древний',dmg:114,hp:120,crit:29,critDmg:60,dodge:12,baseDmg:114},
+            {name:'Лук судьбы',icon:'🎯',tier:6,exp:1100,time:20,resources:{'Орихалк':9,'Древесина мирового древа':8,'Звездный камень':5,'Камень душ':3},type:'weapon',class:'Лучник',rarity:'Божественный',dmg:126,hp:144,crit:36,critDmg:78,dodge:19,baseDmg:126},
+            {name:'Арбалет возмездия',icon:'⚡',tier:6,exp:1200,time:20,resources:{'Орихалк':10,'Древесина мирового древа':8,'Звездный камень':5,'Камень душ':3},type:'weapon',class:'Лучник',rarity:'Божественный',dmg:150,hp:180,crit:41,critDmg:90,dodge:22,baseDmg:150},
+            {name:'Лук небесного охотника',icon:'🌟',tier:6,exp:1400,time:22,resources:{'Орихалк':12,'Древесина мирового древа':9,'Звездный камень':6,'Камень душ':5},type:'weapon',class:'Лучник',rarity:'Божественный',dmg:174,hp:216,crit:46,critDmg:102,dodge:24,baseDmg:174},
+            {name:'Оружие перворожденных',icon:'🔱',tier:6,exp:1600,time:25,resources:{'Орихалк':14,'Древесина мирового древа':10,'Звездный камень':8,'Камень душ':6},type:'weapon',class:'Лучник',rarity:'Божественный',dmg:204,hp:264,crit:50,critDmg:120,dodge:29,baseDmg:204}
+        ],
+        armor: [
+            {name:'Кожаный шлем',icon:'🎭',tier:1,exp:40,time:3,resources:{'Кожа':5},type:'helmet',class:'Лучник',rarity:'Обычный',def:5,hp:10,dodge:4,baseDef:5},
+            {name:'Кожаная куртка',icon:'🧥',tier:1,exp:50,time:4,resources:{'Кожа':6},type:'chest',class:'Лучник',rarity:'Обычный',def:7,hp:14,dodge:5,baseDef:7},
+            {name:'Кожаные поножи',icon:'👖',tier:1,exp:35,time:3,resources:{'Кожа':5},type:'pants',class:'Лучник',rarity:'Обычный',def:5,hp:12,dodge:4,baseDef:5},
+            {name:'Кожаные сапоги',icon:'👢',tier:1,exp:35,time:3,resources:{'Кожа':5},type:'boots',class:'Лучник',rarity:'Обычный',def:5,dodge:6,baseDef:5},
+            {name:'Сапоги скорости',icon:'👟',tier:2,exp:80,time:5,resources:{'Кожа':5,'Толстая кожа':3},type:'boots',class:'Лучник',rarity:'Необычный',def:12,hp:14,dodge:7,baseDef:12},
+            {name:'Сапоги странника',icon:'🥾',tier:3,exp:150,time:7,resources:{'Закалённая кожа':5,'Толстая кожа':3},type:'boots',class:'Лучник',rarity:'Редкий',def:16,hp:24,dodge:12,baseDef:16},
+            {name:'Крылатые сандалии',icon:'🪽',tier:4,exp:250,time:10,resources:{'Закалённая кожа':6,'Шёлк':3,'Сапфир':2},type:'boots',class:'Лучник',rarity:'Эпический',def:19,hp:42,dodge:17,baseDef:19},
+            {name:'Сапоги ветра',icon:'💨',tier:5,exp:400,time:14,resources:{'Драконья чешуя':5,'Закалённая кожа':6,'Алмаз':2},type:'boots',class:'Лучник',rarity:'Легендарный',def:24,hp:60,dodge:22,baseDef:24},
+            {name:'Сапоги вселенной',icon:'🌠',tier:5,exp:500,time:15,resources:{'Драконья чешуя':6,'Закалённая кожа':8,'Алмаз':3},type:'boots',class:'Лучник',rarity:'Мифический',def:36,hp:120,dodge:32,baseDef:36},
+            
+            // Древние/Божественные сапоги - ТОЛЬКО КРАФТ
+            {name:'Сандалии древнего ветра',icon:'🌬️',tier:6,exp:600,time:16,resources:{'Шкура титана':5,'Драконья чешуя':5,'Звездный камень':2},type:'boots',class:'Лучник',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
+            {name:'Сапоги вознесения',icon:'💫',tier:6,exp:700,time:17,resources:{'Шкура титана':6,'Драконья чешуя':6,'Звездный камень':3},type:'boots',class:'Лучник',rarity:'Божественный',def:53,hp:204,dodge:48,baseDef:53},
+            {name:'Сандалии абсолютной скорости',icon:'⚡',tier:6,exp:800,time:18,resources:{'Шкура титана':8,'Драконья чешуя':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Лучник',rarity:'Божественный',def:62,hp:264,dodge:56,baseDef:62},
+            {name:'Сандалии творца',icon:'🔱',tier:6,exp:1000,time:20,resources:{'Шкура титана':9,'Драконья чешуя':8,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Лучник',rarity:'Божественный',def:77,hp:336,dodge:66,baseDef:77}
+        ]
+    },
+
+    // ===== ПОРТНЯЖНОЕ ДЕЛО (для Мага) - ресурсов на 50% больше =====
+    'tailoring': {
+        weapons: [
+            {name:'Дубовый посох',icon:'🪄',tier:1,exp:55,time:4,resources:{'Дубовая древесина':6,'Паутина':3},type:'weapon',class:'Маг',rarity:'Обычный',dmg:10,hp:18,baseDmg:10},
+            {name:'Кристальный скипетр',icon:'💠',tier:1,exp:60,time:4,resources:{'Медная руда':5,'Аметист':2,'Паутина':3},type:'weapon',class:'Маг',rarity:'Обычный',dmg:12,crit:5,baseDmg:12},
+            {name:'Посох элементаля',icon:'🌍',tier:2,exp:120,time:5,resources:{'Серебряная руда':5,'Аметист':3,'Шёлк':3},type:'weapon',class:'Маг',rarity:'Необычный',dmg:18,hp:24,crit:10,baseDmg:18},
+            {name:'Скипетр мудреца',icon:'📜',tier:2,exp:130,time:5,resources:{'Серебряная руда':5,'Сапфир':2,'Шёлк':5},type:'weapon',class:'Маг',rarity:'Необычный',dmg:20,critDmg:22,dodge:4,baseDmg:20},
+            {name:'Посох архимага',icon:'🧙',tier:3,exp:260,time:7,resources:{'Золотая руда':5,'Рубин':2,'Мифриловая нить':3},type:'weapon',class:'Маг',rarity:'Редкий',dmg:26,crit:12,critDmg:22,baseDmg:26},
+            {name:'Скипетр волшебника',icon:'✨',tier:3,exp:280,time:7,resources:{'Золотая руда':5,'Изумруд':2,'Мифриловая нить':3},type:'weapon',class:'Маг',rarity:'Редкий',dmg:30,def:6,hp:24,crit:10,critDmg:24,baseDmg:30},
+            {name:'Жезл чародея',icon:'🔮',tier:4,exp:420,time:10,resources:{'Мифриловая руда':6,'Изумруд':3,'Мифриловая нить':5,'Звездная пыльца':2},type:'weapon',class:'Маг',rarity:'Эпический',dmg:38,hp:48,crit:14,critDmg:30,dodge:6,baseDmg:38},
+            {name:'Посох заклинаний',icon:'📜',tier:4,exp:440,time:10,resources:{'Мифриловая руда':6,'Рубин':3,'Мифриловая нить':5,'Звездная пыльца':2},type:'weapon',class:'Маг',rarity:'Эпический',dmg:43,hp:72,crit:17,critDmg:34,baseDmg:43},
+            {name:'Посох короля-мага',icon:'👑',tier:5,exp:680,time:14,resources:{'Адамантит':6,'Алмаз':3,'Звёздный шёлк':3,'Звездная пыльца':3},type:'weapon',class:'Маг',rarity:'Легендарный',dmg:53,hp:60,crit:19,critDmg:36,baseDmg:53},
+            {name:'Скипетр драконьей магии',icon:'🐉',tier:5,exp:700,time:14,resources:{'Адамантит':6,'Алмаз':3,'Звёздный шёлк':5,'Драконья чешуя':2},type:'weapon',class:'Маг',rarity:'Легендарный',dmg:60,def:10,hp:84,crit:17,critDmg:38,baseDmg:60},
+            {name:'Жезл вечности',icon:'💎',tier:5,exp:800,time:15,resources:{'Адамантит':8,'Алмаз':5,'Звёздный шёлк':5,'Звездная пыльца':5},type:'weapon',class:'Маг',rarity:'Мифический',dmg:72,hp:96,crit:22,critDmg:46,dodge:6,baseDmg:72},
+            
+            // Древние/Божественные - ТОЛЬКО КРАФТ
+            {name:'Посох древнего мага',icon:'🌌',tier:6,exp:900,time:18,resources:{'Орихалк':8,'Звездный камень':3,'Звёздный шёлк':5,'Звездная пыльца':5},type:'weapon',class:'Маг',rarity:'Древний',dmg:89,hp:120,crit:26,critDmg:54,dodge:6,baseDmg:89},
+            {name:'Скипетр первозданной магии',icon:'✨',tier:6,exp:1000,time:18,resources:{'Орихалк':8,'Звездный камень':3,'Звёздный шёлк':6,'Камень душ':2},type:'weapon',class:'Маг',rarity:'Древний',dmg:106,def:12,hp:156,crit:24,critDmg:60,baseDmg:106},
+            {name:'Посох абсолютной магии',icon:'🔮',tier:6,exp:1200,time:20,resources:{'Орихалк':9,'Звездный камень':5,'Звёздный шёлк':6,'Камень душ':3},type:'weapon',class:'Маг',rarity:'Божественный',dmg:114,hp:192,crit:34,critDmg:90,dodge:4,baseDmg:114},
+            {name:'Жезл вселенной',icon:'🌠',tier:6,exp:1300,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Звёздный шёлк':8,'Камень душ':3},type:'weapon',class:'Маг',rarity:'Божественный',dmg:132,hp:240,crit:38,critDmg:102,baseDmg:132},
+            {name:'Скипетр божественной силы',icon:'👑',tier:6,exp:1500,time:22,resources:{'Орихалк':12,'Звездный камень':6,'Звёздный шёлк':8,'Камень душ':5},type:'weapon',class:'Маг',rarity:'Божественный',dmg:156,hp:300,crit:42,critDmg:120,baseDmg:156},
+            {name:'Посох мироздания',icon:'🌟',tier:6,exp:1800,time:25,resources:{'Орихалк':14,'Звездный камень':8,'Звёздный шёлк':9,'Камень душ':6},type:'weapon',class:'Маг',rarity:'Божественный',dmg:180,hp:384,crit:48,critDmg:144,baseDmg:180}
+        ],
+        armor: [
+            {name:'Хлопковая мантия',icon:'👘',tier:2,exp:80,time:4,resources:{'Хлопок':6},type:'chest',class:'Маг',rarity:'Необычный',def:6,hp:24,mana:24,baseDef:6},
+            {name:'Хлопковый капюшон',icon:'🎭',tier:2,exp:60,time:3,resources:{'Хлопок':5},type:'helmet',class:'Маг',rarity:'Необычный',def:4,hp:14,mana:14,baseDef:4},
+            {name:'Хлопковые штаны',icon:'👖',tier:2,exp:55,time:3,resources:{'Хлопок':5},type:'pants',class:'Маг',rarity:'Необычный',def:4,hp:12,mana:12,baseDef:4},
+            {name:'Хлопковые сапоги',icon:'👢',tier:2,exp:55,time:3,resources:{'Хлопок':5},type:'boots',class:'Маг',rarity:'Необычный',def:4,dodge:4,mana:10,baseDef:4},
+            {name:'Шёлковая мантия',icon:'👘',tier:3,exp:150,time:6,resources:{'Шёлк':6,'Паутина':3},type:'chest',class:'Маг',rarity:'Редкий',def:12,hp:42,mana:48,baseDef:12},
+            {name:'Шёлковый капюшон',icon:'🎭',tier:3,exp:120,time:5,resources:{'Шёлк':5,'Паутина':2},type:'helmet',class:'Маг',rarity:'Редкий',def:8,hp:26,mana:30,baseDef:8},
+            {name:'Шёлковые штаны',icon:'👖',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'pants',class:'Маг',rarity:'Редкий',def:7,hp:22,mana:24,baseDef:7},
+            {name:'Шёлковые сапоги',icon:'👢',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'boots',class:'Маг',rarity:'Редкий',def:7,dodge:6,mana:22,baseDef:7},
+            {name:'Мифриловое одеяние',icon:'✨',tier:4,exp:280,time:9,resources:{'Мифриловая нить':6,'Шёлк':3},type:'chest',class:'Маг',rarity:'Эпический',def:22,hp:66,mana:84,baseDef:22},
+            {name:'Мифриловый капюшон',icon:'🎭',tier:4,exp:220,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'helmet',class:'Маг',rarity:'Эпический',def:14,hp:42,mana:54,baseDef:14},
+            {name:'Мифриловые штаны',icon:'👖',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'pants',class:'Маг',rarity:'Эпический',def:12,hp:34,mana:42,baseDef:12},
+            {name:'Мифриловые сапоги',icon:'👢',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'boots',class:'Маг',rarity:'Эпический',def:12,dodge:7,mana:36,baseDef:12},
+            
+            // Древние/Божественные - ТОЛЬКО КРАФТ
+            {name:'Звёздное одеяние',icon:'🌟',tier:6,exp:500,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Звездная пыльца':3},type:'chest',class:'Маг',rarity:'Мифический',def:38,hp:108,mana:144,baseDef:38},
+            {name:'Звёздный капюшон',icon:'🎭',tier:6,exp:400,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'helmet',class:'Маг',rarity:'Мифический',def:26,hp:72,mana:96,baseDef:26},
+            {name:'Звёздные штаны',icon:'👖',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'pants',class:'Маг',rarity:'Мифический',def:22,hp:60,mana:78,baseDef:22},
+            {name:'Звёздные сапоги',icon:'👢',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Мифический',def:22,dodge:10,mana:66,baseDef:22}
+        ]
+    },
+
+    // ===== ЮВЕЛИРНОЕ ДЕЛО (для всех классов) - ресурсов на 50% больше =====
+    'jewelry': {
+        gems: [
+            {name:'Аметист (огранённый)',icon:'🟣',tier:2,exp:50,time:3,resources:{'Аметист':3},type:'stone',rarity:'Необычный',dmg:5,baseDmg:5},
+            {name:'Изумруд (огранённый)',icon:'🟢',tier:3,exp:80,time:4,resources:{'Изумруд':3},type:'stone',rarity:'Редкий',dmg:7,crit:4,baseDmg:7},
+            {name:'Рубин (огранённый)',icon:'🔴',tier:4,exp:150,time:6,resources:{'Рубин':3},type:'stone',rarity:'Эпический',dmg:12,hp:36,baseDmg:12},
+            {name:'Сапфир (огранённый)',icon:'🔵',tier:4,exp:150,time:6,resources:{'Сапфир':3},type:'stone',rarity:'Эпический',def:10,hp:42,mana:24,baseDef:10},
+            {name:'Алмаз (огранённый)',icon:'💎',tier:5,exp:250,time:8,resources:{'Алмаз':5},type:'stone',rarity:'Легендарный',dmg:22,crit:10,critDmg:36,baseDmg:22},
+            {name:'Звездный камень (огранённый)',icon:'🌟',tier:6,exp:400,time:10,resources:{'Звездный камень':5},type:'stone',rarity:'Мифический',dmg:36,crit:14,critDmg:60,hp:72,baseDmg:36}
+        ],
+        rings: [
+            {name:'Медное кольцо',icon:'💍',tier:1,exp:30,time:2,resources:{'Медная руда':3},type:'ring',rarity:'Обычный',dmg:4,baseDmg:4},
+            {name:'Серебряное кольцо',icon:'💍',tier:2,exp:70,time:4,resources:{'Серебряная руда':3,'Аметист':2},type:'ring',rarity:'Необычный',dmg:7,crit:4,baseDmg:7},
+            {name:'Золотое кольцо',icon:'💍',tier:3,exp:140,time:6,resources:{'Золотая руда':5,'Рубин':2},type:'ring',rarity:'Редкий',dmg:14,crit:6,hp:24,baseDmg:14},
+            {name:'Мифриловое кольцо',icon:'💍',tier:4,exp:250,time:8,resources:{'Мифриловая руда':5,'Алмаз':2},type:'ring',rarity:'Эпический',dmg:24,crit:10,hp:48,baseDmg:24},
+            {name:'Кольцо дракона',icon:'💍',tier:5,exp:400,time:10,resources:{'Адамантит':5,'Алмаз':3,'Драконья чешуя':2},type:'ring',rarity:'Легендарный',dmg:36,crit:14,hp:72,baseDmg:36},
+            {name:'Кольцо титана',icon:'💍',tier:6,exp:600,time:12,resources:{'Орихалк':6,'Звездный камень':3,'Шкура титана':2},type:'ring',rarity:'Мифический',dmg:54,crit:22,hp:120,baseDmg:54}
+        ],
+        amulets: [
+            {name:'Медный амулет',icon:'📿',tier:1,exp:30,time:2,resources:{'Медная руда':3},type:'necklace',rarity:'Обычный',def:4,baseDef:4},
+            {name:'Серебряный амулет',icon:'📿',tier:2,exp:70,time:4,resources:{'Серебряная руда':3,'Сапфир':2},type:'necklace',rarity:'Необычный',def:7,dodge:4,baseDef:7},
+            {name:'Золотой амулет',icon:'📿',tier:3,exp:140,time:6,resources:{'Золотая руда':5,'Изумруд':2},type:'necklace',rarity:'Редкий',def:14,dodge:6,hp:24,baseDef:14},
+            {name:'Амулет защиты',icon:'📿',tier:4,exp:250,time:8,resources:{'Мифриловая руда':5,'Сапфир':3},type:'necklace',rarity:'Эпический',def:26,dodge:10,hp:48,baseDef:26},
+            {name:'Амулет дракона',icon:'📿',tier:5,exp:400,time:10,resources:{'Адамантит':5,'Алмаз':3,'Шкура дракона':2},type:'necklace',rarity:'Легендарный',def:42,dodge:14,hp:72,baseDef:42},
+            {name:'Амулет богов',icon:'📿',tier:6,exp:600,time:12,resources:{'Орихалк':6,'Звездный камень':3,'Камень душ':2},type:'necklace',rarity:'Мифический',def:60,dodge:22,hp:120,baseDef:60}
+        ]
+    },
+
+    // ===== АЛХИМИЯ (для всех классов) - ресурсов на 50% больше =====
+    'alchemy': {
+        potions: [
+            {name:'Малое зелье здоровья',icon:'🧪',tier:1,exp:30,time:2,resources:{'Лечебная трава':3},type:'potion',effect:'heal',value:72,rarity:'Обычный'},
+            {name:'Зелье здоровья',icon:'🧪',tier:2,exp:60,time:3,resources:{'Лечебная трава':5,'Синий корень':2},type:'potion',effect:'heal',value:144,rarity:'Необычный'},
+            {name:'Большое зелье здоровья',icon:'🧪',tier:3,exp:120,time:5,resources:{'Лечебная трава':8,'Сердце леса':3},type:'potion',effect:'heal',value:300,rarity:'Редкий'},
+            {name:'Эликсир силы',icon:'💪',tier:2,exp:70,time:3,resources:{'Синий корень':3,'Сердце леса':2},type:'elixir',effect:'atk',value:30,rarity:'Необычный'},
+            {name:'Эликсир защиты',icon:'🛡️',tier:2,exp:70,time:3,resources:{'Синий корень':3,'Лечебная трава':3},type:'elixir',effect:'def',value:30,rarity:'Необычный'},
+            {name:'Эликсир ловкости',icon:'💨',tier:3,exp:100,time:4,resources:{'Призрачная грива':3,'Лечебная трава':3},type:'elixir',effect:'dodge',value:24,rarity:'Редкий'},
+            {name:'Эликсир берсерка',icon:'😤',tier:3,exp:150,time:6,resources:{'Огненный цветок':3,'Призрачная грива':2},type:'elixir',effect:'berserk',value:48,rarity:'Редкий'},
+            {name:'Эликсир неуязвимости',icon:'✨',tier:4,exp:250,time:10,resources:{'Звездная пыльца':3,'Огненный цветок':3,'Сердце леса':3},type:'elixir',effect:'immortal',value:0,rarity:'Эпический'},
+            {name:'Божественный эликсир',icon:'🌟',tier:6,exp:500,time:15,resources:{'Звездная пыльца':8,'Огненный цветок':5,'Сердце леса':5},type:'elixir',effect:'immortal',value:0,rarity:'Легендарный'}
+        ]
+    },
+
+    // ===== СВИТКОТВОРЧЕСТВО (для всех классов) - ресурсов на 50% больше =====
+    'scrollcraft': {
+        scrolls: [
+            {name:'Свиток слабого зачарования',icon:'📜',tier:2,exp:80,time:4,resources:{'Паутина':3,'Синий корень':2,'Сосновая древесина':2},type:'scroll',effect:'enchant',value:12,rarity:'Необычный'},
+            {name:'Свиток зачарования оружия',icon:'📜',tier:3,exp:150,time:6,resources:{'Шёлк':3,'Огненный цветок':2,'Дубовая древесина':3},type:'scroll',effect:'enchant',value:24,rarity:'Редкий'},
+            {name:'Великий свиток зачарования',icon:'✨',tier:4,exp:250,time:8,resources:{'Мифриловая нить':3,'Звездная пыльца':2,'Эбеновое дерево':3},type:'scroll',effect:'enchant',value:42,rarity:'Эпический'},
+            {name:'Легендарный свиток',icon:'🌟',tier:6,exp:450,time:12,resources:{'Звёздный шёлк':3,'Звездный камень':2,'Древесина мирового древа':3},type:'scroll',effect:'enchant',value:72,rarity:'Легендарный'},
+            {name:'Свиток огненного шара',icon:'🔥',tier:3,exp:120,time:5,resources:{'Огненный цветок':3,'Рубин':2,'Шёлк':3},type:'battle_scroll',effect:'fireball',value:96,rarity:'Редкий'},
+            {name:'Свиток исцеления',icon:'💚',tier:3,exp:120,time:5,resources:{'Лечебная трава':5,'Изумруд':2,'Шёлк':3},type:'battle_scroll',effect:'heal',value:180,rarity:'Редкий'}
+        ]
+    },
+
+    // ===== КУЛИНАРИЯ (для всех классов) - ресурсов на 50% больше =====
+    'cooking': {
+        foods: [
+            {name:'Жареная рыба',icon:'🍣',tier:1,exp:20,time:2,resources:{'Речная форель':2},type:'food',effect:'heal',value:48,rarity:'Обычный'},
+            {name:'Рыбный суп',icon:'🥣',tier:2,exp:50,time:3,resources:{'Окунь':3,'Плотва':2},type:'food',effect:'heal',value:96,rarity:'Необычный'},
+            {name:'Стейк из медведя',icon:'🍖',tier:2,exp:60,time:3,resources:{'Шкура медведя':2,'Сосновая древесина':2},type:'food',effect:'heal',value:108,rarity:'Необычный'},
+            {name:'Пряный стейк',icon:'🔥',tier:3,exp:100,time:4,resources:{'Шкура тигра':2,'Огненный цветок':2},type:'food',effect:'heal',value:156,rarity:'Редкий'},
+            {name:'Драконье филе',icon:'🐉',tier:5,exp:300,time:10,resources:{'Шкура дракона':2,'Чешуя дракона':3,'Огненный цветок':3},type:'food',effect:'heal',value:420,rarity:'Легендарный'},
+            {name:'Королевский пир',icon:'👑',tier:5,exp:350,time:12,resources:{'Королевский лосось':3,'Золотая рыбка':2,'Лечебная трава':5},type:'food',effect:'heal',value:480,rarity:'Легендарный'},
+            {name:'Нектар богов',icon:'✨',tier:6,exp:500,time:15,resources:{'Левиафан':2,'Звездный камень':2,'Звездная пыльца':5},type:'food',effect:'heal',value:720,rarity:'Мифический'}
+        ]
+    }
+};

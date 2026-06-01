@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Хроники Этерии — Версия 3 (Модульная)</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="main-container" id="app"></div>
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
+
+    <!-- Загрузка данных (БД) -->
+    <script src="js/data/abilities.js"></script>
+    <script src="js/data/professions.js"></script>
+    <script src="js/data/resources.js"></script>
+    <script src="js/data/crafting.js"></script>
+    <script src="js/data/equipment.js"></script>
+    <script src="js/data/locations.js"></script>
+    
+    <!-- Загрузка ядра (основная логика) -->
+    <script src="js/core/player.js"></script>
+    <script src="js/core/gathering.js"></script>
+    <script src="js/core/craftingSystem.js"></script>
+    <script src="js/core/shop.js"></script>
+    <script src="js/core/inventory.js"></script>
+    <script src="js/core/battle.js"></script>
+    
+    <!-- Загрузка UI (отрисовка и навигация) -->
+    <script src="js/ui/animations.js"></script>
+    <script src="js/ui/render.js"></script>
+    <script src="js/ui/navigation.js"></script>
+    
+    <!-- Главный файл (инициализация) -->
+    <script src="js/main.js"></script>
+</body>
+</html>
