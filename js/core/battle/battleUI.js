@@ -87,28 +87,31 @@ function renderBattle() {
         `;
     }
 
-    // ===== БАФФЫ МОНСТРА =====
-   // Отображение активных баффов монстра
-let monsterBuffsHTML = '';
-if (currentMonster.activeBuffs) {
-    const buffs = [];
-    if (currentMonster.activeBuffs.atk) {
-        buffs.push(`⚔️ +${currentMonster.activeBuffs.atk.value}% (${currentMonster.activeBuffs.atk.remainingTurns} ход.)`);
+    // ===== БАФФЫ МОНСТРА (ИСПРАВЛЕНО) =====
+    let monsterBuffsHTML = '';
+    if (currentMonster.activeBuffs) {
+        const buffs = [];
+        
+        if (currentMonster.activeBuffs.atk) {
+            buffs.push(`⚔️ Атака +${currentMonster.activeBuffs.atk.value}% (${currentMonster.activeBuffs.atk.remainingTurns} ход.)`);
+        }
+        if (currentMonster.activeBuffs.def) {
+            buffs.push(`🛡️ Защита +${currentMonster.activeBuffs.def.value}% (${currentMonster.activeBuffs.def.remainingTurns} ход.)`);
+        }
+        if (currentMonster.activeBuffs.dodge) {
+            buffs.push(`💨 Уклонение +${currentMonster.activeBuffs.dodge.value}% (${currentMonster.activeBuffs.dodge.remainingTurns} ход.)`);
+        }
+        if (currentMonster.activeBuffs.lifesteal) {
+            buffs.push(`🩸 Вампиризм ${currentMonster.activeBuffs.lifesteal.value}% (${currentMonster.activeBuffs.lifesteal.remainingTurns} ход.)`);
+        }
+        if (currentMonster.activeBuffs.reflect) {
+            buffs.push(`🔄 Отражение ${currentMonster.activeBuffs.reflect.value}% (${currentMonster.activeBuffs.reflect.remainingTurns} ход.)`);
+        }
+        
+        if (buffs.length > 0) {
+            monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
+        }
     }
-    if (currentMonster.activeBuffs.def) {
-        buffs.push(`🛡️ +${currentMonster.activeBuffs.def.value}% (${currentMonster.activeBuffs.def.remainingTurns} ход.)`);
-    }
-    if (currentMonster.activeBuffs.reflect) {
-        buffs.push(`🔄 Отражение ${currentMonster.activeBuffs.reflect.value}% (${currentMonster.activeBuffs.reflect.remainingTurns} ход.)`);
-    }
-    if (currentMonster.activeBuffs.shield) {
-        const shieldPercent = Math.floor((currentMonster.activeBuffs.shield.value / currentMonster.maxHealth) * 100);
-        buffs.push(`🛡️ Щит ${shieldPercent}% (${currentMonster.activeBuffs.shield.value} HP)`);
-    }
-    if (buffs.length > 0) {
-        monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
-    }
-}
 
     // Эффекты игрока (дебаффы)
     let playerEffectsHTML = '';
@@ -131,17 +134,17 @@ if (currentMonster.activeBuffs) {
     }
 
     // Отображение DoT эффектов на игроке
-let playerDotHTML = '';
-const playerDots = player.temporaryEffects.filter(e => e.isDot && e.dur > 0);
-if (playerDots.length > 0) {
-    playerDotHTML = '<div class="active-effects" style="margin-top: 4px;">';
-    for (let dot of playerDots) {
-        const dotType = dot.type.replace('dot_', '');
-        const icon = dot.dotIcon || (dotType === 'burn' ? '🔥' : '☠️');
-        playerDotHTML += `<div class="effect-icon dot" style="display: inline-block; background: rgba(230,126,34,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${dotType} - ${dot.value}% HP/ход (${dot.dur} ход.)">${icon} ${dot.value}%</div>`;
+    let playerDotHTML = '';
+    const playerDots = player.temporaryEffects.filter(e => e.isDot && e.dur > 0);
+    if (playerDots.length > 0) {
+        playerDotHTML = '<div class="active-effects" style="margin-top: 4px;">';
+        for (let dot of playerDots) {
+            const dotType = dot.type.replace('dot_', '');
+            const icon = dot.dotIcon || (dotType === 'burn' ? '🔥' : '☠️');
+            playerDotHTML += `<div class="effect-icon dot" style="display: inline-block; background: rgba(230,126,34,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${dotType} - ${dot.value}% HP/ход (${dot.dur} ход.)">${icon} ${dot.value}%</div>`;
+        }
+        playerDotHTML += '</div>';
     }
-    playerDotHTML += '</div>';
-}
 
     // Щит игрока
     let playerShieldHTML = '';

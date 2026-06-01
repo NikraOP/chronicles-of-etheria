@@ -18,10 +18,20 @@ function applyMonsterBuff(type, value, duration) {
     if (type === 'atk') {
         currentMonster.attack = Math.floor(originalMonsterStats.attack * (1 + value / 100));
         addBattleLog(`⚔️ Атака ${currentMonster.name} увеличена на ${value}% (${originalMonsterStats.attack} → ${currentMonster.attack})`, 'info');
+        showBuffEffect('enemy', '⚔️');
     }
     if (type === 'def') {
         currentMonster.defense = Math.floor(originalMonsterStats.defense * (1 + value / 100));
         addBattleLog(`🛡️ Защита ${currentMonster.name} увеличена на ${value}% (${originalMonsterStats.defense} → ${currentMonster.defense})`, 'info');
+        showBuffEffect('enemy', '🛡️');
+    }
+    if (type === 'dodge') {
+        addBattleLog(`💨 Уклонение ${currentMonster.name} увеличено на ${value}% на ${duration} хода!`, 'info');
+        showBuffEffect('enemy', '💨');
+    }
+    if (type === 'lifesteal') {
+        addBattleLog(`🩸 Вампиризм ${currentMonster.name} увеличен на ${value}% на ${duration} хода!`, 'info');
+        showBuffEffect('enemy', '🩸');
     }
 }
 
@@ -48,6 +58,12 @@ function updateMonsterBuffs() {
             }
             if (type === 'reflect') {
                 addBattleLog(`🔄 Отражение урона ${currentMonster.name} закончилось!`, 'info');
+            }
+            if (type === 'dodge') {
+                addBattleLog(`💨 Бафф уклонения ${currentMonster.name} закончился!`, 'info');
+            }
+            if (type === 'lifesteal') {
+                addBattleLog(`🩸 Бафф вампиризма ${currentMonster.name} закончился!`, 'info');
             }
         }
     }
@@ -89,7 +105,6 @@ function useMonsterAbility(ability) {
             const dotDuration = ability.duration || 2;
             
             if (dotTarget === 'player') {
-                // Накладываем DoT на игрока
                 const existingDot = player.temporaryEffects.find(e => e.type === 'dot_' + dotEffect);
                 if (existingDot) {
                     existingDot.value = dotValue;
@@ -106,7 +121,6 @@ function useMonsterAbility(ability) {
                 addBattleLog(`☠️ ${ability.name}: вы получили эффект ${dotEffect} (${dotValue}% HP в ход на ${dotDuration} хода)!`, 'info');
                 showDebuffEffect('player', dotEffect);
             } else {
-                // Накладываем DoT на монстра
                 currentMonster.effects.push({ 
                     type: dotEffect, 
                     val: dotValue, 
@@ -130,14 +144,15 @@ function useMonsterAbility(ability) {
             const buffValue = ability.value || 20;
             const buffDuration = ability.duration || 2;
             
-            if (buffType === 'atk' || buffType === 'def') {
-                applyMonsterBuff(buffType, buffValue, buffDuration);
+            if (buffType === 'atk') {
+                applyMonsterBuff('atk', buffValue, buffDuration);
+            } else if (buffType === 'def') {
+                applyMonsterBuff('def', buffValue, buffDuration);
+            } else if (buffType === 'dodge') {
+                applyMonsterBuff('dodge', buffValue, buffDuration);
             } else if (buffType === 'crit') {
                 addBattleLog(`✨ ${ability.name}: крит увеличен на ${buffValue}% на ${buffDuration} хода!`, 'info');
-            } else if (buffType === 'dodge') {
-                addBattleLog(`💨 ${ability.name}: уклонение увеличено на ${buffValue}% на ${buffDuration} хода!`, 'info');
             } else if (buffType === 'reflect') {
-                // ДОБАВЛЕНА ОБРАБОТКА ОТРАЖЕНИЯ
                 if (!currentMonster.activeBuffs) currentMonster.activeBuffs = {};
                 currentMonster.activeBuffs.reflect = {
                     value: buffValue,
@@ -149,6 +164,8 @@ function useMonsterAbility(ability) {
                 applyMonsterBuff('atk', buffValue, buffDuration);
                 applyMonsterBuff('def', buffValue, buffDuration);
                 addBattleLog(`✨ ${ability.name}: все характеристики увеличены на ${buffValue}%!`, 'info');
+            } else if (buffType === 'lifesteal') {
+                applyMonsterBuff('lifesteal', buffValue, buffDuration);
             } else {
                 addBattleLog(`⚠️ Неизвестный тип баффа: ${buffType}`, 'error');
             }
@@ -167,27 +184,51 @@ function useMonsterAbility(ability) {
             break;
             
         case 'debuff':
-            const existingDebuff = player.temporaryEffects.find(e => e.type === 'debuff_' + ability.effect);
+            const debuffType = ability.effect;
+            const debuffValue = ability.value || 20;
+            const debuffDuration = ability.duration || 2;
+            
+            const existingDebuff = player.temporaryEffects.find(e => e.type === 'debuff_' + debuffType);
             if (existingDebuff) {
-                existingDebuff.value = ability.value || 20;
-                existingDebuff.dur = ability.duration || 2;
+                existingDebuff.value = debuffValue;
+                existingDebuff.dur = debuffDuration;
             } else {
-                player.temporaryEffects.push({ type: 'debuff_' + ability.effect, value: ability.value || 20, dur: ability.duration || 2 });
+                player.temporaryEffects.push({ 
+                    type: 'debuff_' + debuffType, 
+                    value: debuffValue, 
+                    dur: debuffDuration 
+                });
             }
             
-            let debuffIcon = { atk:'⚔️', def:'🛡️', dodge:'💨', all:'😵', freeze:'❄️', blind:'👁️', slow:'🐢', hp:'❤️' }[ability.effect] || '😵';
-            let effectText = { atk:'атака', def:'защита', dodge:'уклонение', hp:'здоровье', all:'все характеристики', freeze:'заморозка', blind:'ослепление', slow:'замедление' }[ability.effect] || 'характеристики';
+            let debuffIcon = '😵';
+            let effectText = '';
             
-            addBattleLog(`${debuffIcon} ${ability.name}: ${effectText} -${ability.value || 20}% на ${ability.duration || 2} хода!`, 'error');
-            showDebuffEffect('player', ability.effect);
+            switch(debuffType) {
+                case 'atk': debuffIcon = '⚔️'; effectText = 'атака'; break;
+                case 'def': debuffIcon = '🛡️'; effectText = 'защита'; break;
+                case 'dodge': debuffIcon = '💨'; effectText = 'уклонение'; break;
+                case 'all': debuffIcon = '😵'; effectText = 'все характеристики'; break;
+                case 'freeze': debuffIcon = '❄️'; effectText = 'заморозка'; break;
+                case 'blind': debuffIcon = '👁️'; effectText = 'ослепление'; break;
+                case 'slow': debuffIcon = '🐢'; effectText = 'замедление'; break;
+                case 'hp': debuffIcon = '❤️'; effectText = 'здоровье'; break;
+                default: effectText = 'характеристики';
+            }
             
-            if (ability.effect === 'hp') {
-                const hpReductionPercent = ability.value || 20;
-                if (!player.originalMaxHealth) player.originalMaxHealth = player.maxHealth;
+            addBattleLog(`${debuffIcon} ${ability.name}: ${effectText} -${debuffValue}% на ${debuffDuration} хода!`, 'error');
+            showDebuffEffect('player', debuffType);
+            
+            if (debuffType === 'hp') {
+                const hpReductionPercent = debuffValue;
+                if (!player.originalMaxHealth) {
+                    player.originalMaxHealth = player.maxHealth;
+                }
                 const newMaxHealth = Math.max(10, Math.floor(player.originalMaxHealth * (1 - hpReductionPercent / 100)));
                 const oldMaxHealth = player.maxHealth;
                 player.maxHealth = newMaxHealth;
-                if (player.health > player.maxHealth) player.health = player.maxHealth;
+                if (player.health > player.maxHealth) {
+                    player.health = player.maxHealth;
+                }
                 addBattleLog(`❤️ Максимальное здоровье снижено на ${hpReductionPercent}% (было ${oldMaxHealth}, стало ${player.maxHealth})!`, 'error');
             }
             break;
@@ -219,10 +260,8 @@ function monsterTurn() {
         return; 
     }
 
-    // Обновляем баффы монстра
     updateMonsterBuffs();
 
-    // Призванный дух
     if (summonedSpirit) {
         const spiritDamage = Math.floor(player.attack * 0.8);
         const appliedDamage = applyDamageToMonster(spiritDamage);
@@ -230,14 +269,12 @@ function monsterTurn() {
         summonedSpirit = false;
     }
     
-    // Ядовитое облако
     if (lingeringCloud && currentMonster.effects.some(e => e.type === 'Яд')) {
         const cloudDamage = Math.floor(currentMonster.maxHealth * 0.05);
         const appliedDamage = applyDamageToMonster(cloudDamage);
         addBattleLog(`☁️ Ядовитое облако наносит ${appliedDamage} урона!`, 'dmg');
     }
     
-    // Заморозка/оглушение монстра
     const stunEffect = currentMonster.effects.find(e => e.type === 'Оглушение' || e.type === 'Заморозка');
     if (stunEffect) {
         addBattleLog(`${currentMonster.name} ${stunEffect.type === 'Оглушение' ? 'оглушён' : 'заморожен'} и пропускает ход!`, 'info');
@@ -250,7 +287,6 @@ function monsterTurn() {
         return;
     }
     
-    // Иммунитет игрока
     const immune = player.temporaryEffects.find(e => e.immune);
     if (immune) {
         addBattleLog('🛡️ Иммунитет! Монстр не может атаковать!', 'info');
@@ -263,11 +299,6 @@ function monsterTurn() {
         return;
     }
     
-    // =================================================================
-    // НЕТ НИКАКОГО ПАССИВНОГО УКЛОНЕНИЯ! МОНСТР ВСЕГДА АТАКУЕТ!
-    // =================================================================
-    
-    // Пытаемся использовать способность монстра
     let abilityUsed = false;
     if (currentMonster.abilities && currentMonster.abilities.length > 0) {
         const sortedAbilities = [...currentMonster.abilities].sort((a, b) => {
@@ -278,8 +309,10 @@ function monsterTurn() {
         for (let ability of sortedAbilities) {
             if (ability.type === 'buff' && ability.effect === 'atk' && currentMonster.activeBuffs && currentMonster.activeBuffs.atk) continue;
             if (ability.type === 'buff' && ability.effect === 'def' && currentMonster.activeBuffs && currentMonster.activeBuffs.def) continue;
+            if (ability.type === 'buff' && ability.effect === 'dodge' && currentMonster.activeBuffs && currentMonster.activeBuffs.dodge) continue;
             if (ability.type === 'buff' && ability.effect === 'shield' && currentMonster.activeBuffs && currentMonster.activeBuffs.shield) continue;
             if (ability.type === 'buff' && ability.effect === 'reflect' && currentMonster.activeBuffs && currentMonster.activeBuffs.reflect) continue;
+            if (ability.type === 'buff' && ability.effect === 'lifesteal' && currentMonster.activeBuffs && currentMonster.activeBuffs.lifesteal) continue;
             if (ability.type === 'heal' && currentMonster.health > currentMonster.maxHealth * 0.5) continue;
             if (useMonsterAbility(ability)) { abilityUsed = true; break; }
         }
@@ -303,70 +336,89 @@ function monsterTurn() {
         });
     }
     
-    // Если способность не использована - обычная атака
     if (!abilityUsed) {
         const monsterAtk = getMonsterCurrentAttack();
         let dmg = Math.floor(monsterAtk);
         const playerDef = getPlayerEffectiveDefense();
         dmg = calculateDamageWithDebuffs(dmg, playerDef, player.temporaryEffects);
         
+        // ПОЛУЧАЕМ БАФФЫ МОНСТРА
         const lifestealBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.lifesteal : null;
         let lifestealValue = lifestealBuff ? lifestealBuff.value : 0;
+        
+        const dodgeBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.dodge : null;
+        let monsterDodgeBonus = dodgeBuff ? dodgeBuff.value : 0;
         
         const reflectBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.reflect : null;
         let reflectValue = reflectBuff ? reflectBuff.value : 0;
         
-        // Контратака игрока
-        const counter = player.temporaryEffects.find(e => e.counterChance);
-        if (counter && Math.random() * 100 <= counter.counterChance) {
-            const counterDmg = Math.floor(dmg * (counter.counterDmg || 80) / 100);
-            applyDamageToMonster(counterDmg);
-            addBattleLog(`↩️ Контратака! ${counterDmg} урона!`, 'dmg');
+        // ПРОВЕРКА УКЛОНЕНИЯ МОНСТРА (базовое уклонение + бафф)
+        let monsterDodge = 0;
+        if (monsterDodgeBonus > 0) {
+            monsterDodge = Math.min(50, monsterDodgeBonus);
+            addBattleLog(`💨 ${currentMonster.name} уклоняется с шансом ${monsterDodge}%!`, 'info');
         }
         
-        // Отражение урона монстром
-        if (reflectValue > 0 && dmg > 0) {
-            const reflectedDmg = Math.floor(dmg * reflectValue / 100);
-            if (reflectedDmg > 0) {
-                applyDamageToPlayer(reflectedDmg);
-                addBattleLog(`🔄 Отражение урона! Вы получили ${reflectedDmg} урона!`, 'dmg');
-                floatDamage('player', reflectedDmg, false);
+        if (monsterDodge > 0 && Math.random() * 100 <= monsterDodge) {
+            addBattleLog(`💨 ${currentMonster.name} уклонился от атаки!`, 'info');
+            // Монстр уклонился, ничего не делаем
+        } else {
+            // КОНТРАТАКА ИГРОКА
+            const counter = player.temporaryEffects.find(e => e.counterChance);
+            if (counter && Math.random() * 100 <= counter.counterChance) {
+                const counterDmg = Math.floor(dmg * (counter.counterDmg || 80) / 100);
+                applyDamageToMonster(counterDmg);
+                addBattleLog(`↩️ Контратака! ${counterDmg} урона!`, 'dmg');
             }
-        }
-        
-        // Отражение урона игроком
-        const reflectEffect = player.temporaryEffects.find(e => e.reflect);
-        if (reflectEffect && reflectEffect.reflect > 0 && dmg > 0) {
-            const reflectedDmg = Math.floor(dmg * reflectEffect.reflect / 100);
-            applyDamageToMonster(reflectedDmg);
-            addBattleLog(`↩️ Отражено ${reflectedDmg} урона!`, 'dmg');
-            reflectEffect.dur--;
-            if (reflectEffect.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== reflectEffect);
-            if (currentMonster.health <= 0) { victory(); return; }
-        }
-        
-        // Заморозка атакующего
-        const freezeOnHit = player.temporaryEffects.find(e => e.freezeOnHit);
-        if (freezeOnHit && dmg > 0) {
-            currentMonster.effects.push({ type: 'Заморозка', dur: 1 });
-            addBattleLog(`❄️ Монстр заморожен!`, 'info');
-        }
-        
-        if (dmg > 0) {
-            const appliedDamage = applyDamageToPlayer(dmg);
-            if (appliedDamage > 0) {
-                addBattleLog(`👊 ${currentMonster.name} наносит ${appliedDamage} урона!`, 'dmg');
-                floatDamage('player', appliedDamage, false);
+            
+            // ОТРАЖЕНИЕ УРОНА МОНСТРОМ
+            if (reflectValue > 0 && dmg > 0) {
+                const reflectedDmg = Math.floor(dmg * reflectValue / 100);
+                if (reflectedDmg > 0) {
+                    applyDamageToPlayer(reflectedDmg);
+                    addBattleLog(`🔄 Отражение урона! Вы получили ${reflectedDmg} урона!`, 'dmg');
+                    floatDamage('player', reflectedDmg, false);
+                }
             }
-            if (lifestealValue > 0 && appliedDamage > 0) {
-                const healAmount = Math.floor(appliedDamage * lifestealValue / 100);
-                currentMonster.health = Math.min(currentMonster.maxHealth, currentMonster.health + healAmount);
-                addBattleLog(`🩸 Монстр восстанавливает ${healAmount} HP!`, 'heal');
+            
+            // ОТРАЖЕНИЕ УРОНА ИГРОКОМ
+            const reflectEffect = player.temporaryEffects.find(e => e.reflect);
+            if (reflectEffect && reflectEffect.reflect > 0 && dmg > 0) {
+                const reflectedDmg = Math.floor(dmg * reflectEffect.reflect / 100);
+                applyDamageToMonster(reflectedDmg);
+                addBattleLog(`↩️ Отражено ${reflectedDmg} урона!`, 'dmg');
+                reflectEffect.dur--;
+                if (reflectEffect.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== reflectEffect);
+                if (currentMonster.health <= 0) { victory(); return; }
             }
-            if (player.health <= 0 && deathSaveActive) {
-                player.health = Math.floor(player.maxHealth * 0.1);
-                deathSaveActive = false;
-                addBattleLog(`🛡️ Инстинкт выживания! Вы выжили с 10% HP!`, 'success');
+            
+            // ЗАМОРОЗКА АТАКУЮЩЕГО
+            const freezeOnHit = player.temporaryEffects.find(e => e.freezeOnHit);
+            if (freezeOnHit && dmg > 0) {
+                currentMonster.effects.push({ type: 'Заморозка', dur: 1 });
+                addBattleLog(`❄️ Монстр заморожен!`, 'info');
+            }
+            
+            // НАНЕСЕНИЕ УРОНА
+            if (dmg > 0) {
+                const appliedDamage = applyDamageToPlayer(dmg);
+                if (appliedDamage > 0) {
+                    addBattleLog(`👊 ${currentMonster.name} наносит ${appliedDamage} урона!`, 'dmg');
+                    floatDamage('player', appliedDamage, false);
+                }
+                
+                // ВАМПИРИЗМ МОНСТРА
+                if (lifestealValue > 0 && appliedDamage > 0) {
+                    const healAmount = Math.floor(appliedDamage * lifestealValue / 100);
+                    currentMonster.health = Math.min(currentMonster.maxHealth, currentMonster.health + healAmount);
+                    addBattleLog(`🩸 Монстр восстанавливает ${healAmount} HP!`, 'heal');
+                }
+                
+                if (player.health <= 0 && deathSaveActive) {
+                    player.health = Math.floor(player.maxHealth * 0.1);
+                    deathSaveActive = false;
+                    addBattleLog(`🛡️ Инстинкт выживания! Вы выжили с 10% HP!`, 'success');
+                }
             }
         }
     }
@@ -391,7 +443,6 @@ function monsterTurn() {
         updateBattleButtons();
     });
     
-    // Обработка эффектов у монстра (DoT)
     if (currentMonster.effects && currentMonster.effects.length > 0) {
         currentMonster.effects = currentMonster.effects.filter(e => { 
             if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
@@ -411,7 +462,6 @@ function monsterTurn() {
         });
     }
     
-    // Обработка эффектов у игрока
     player.temporaryEffects = player.temporaryEffects.filter(e => {
         if (e.dur) e.dur--;
         if (e.regen) {
@@ -450,26 +500,19 @@ function monsterTurn() {
         return (e.dur || 0) > 0 || e.immune || e.shield || e.reflect || e.atk || e.def || e.dodge || e.crit || e.counterChance || e.freezeOnHit || e.freeOnDodge;
     });
     
-    // Регенерация маны для мага
     if (player.class === 'Маг') player.mana = Math.min(player.maxMana, player.mana + Math.floor(player.maxMana * 0.08));
-    
-    // Регенерация здоровья для воина
     if (player.class === 'Воин') {
         const warriorRegen = Math.floor(player.maxHealth * 0.02);
         player.health = Math.min(player.maxHealth, player.health + warriorRegen);
         addBattleLog(`💪 Регенерация здоровья: +${warriorRegen} HP`, 'heal');
     }
     
-    // Сброс ярости берсерка
     if (rageStack > 0) {
         rageStack = 0;
         addBattleLog(`💢 Накопление ярости сброшено!`, 'info');
     }
     
-    // Проверка смерти монстра
     if (currentMonster.health <= 0) { victory(); return; }
-    
-    // Проверка смерти игрока с возможностью воскрешения
     if (player.health <= 0) {
         const hasRevive = player.abilities && player.abilities.some(a => a.reviveOnDeath && !reviveUsed);
         if (hasRevive && !reviveUsed) {
