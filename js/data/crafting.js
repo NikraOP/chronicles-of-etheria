@@ -211,8 +211,8 @@ const CRAFTING_RECIPES = {
     'alchemy': {
         potions: [
             {name:'Малое зелье здоровья',icon:'🧪',tier:1,exp:30,time:2,resources:{'Лечебная трава':3},type:'potion',effect:'heal',value:72,rarity:'Обычный'},
-            {name:'Зелье здоровья',icon:'🧪',tier:2,exp:60,time:3,resources:{'Лечебная трава':5,'Синий корень':2},type:'potion',effect:'heal',value:144,rarity:'Необычный'},
-            {name:'Большое зелье здоровья',icon:'🧪',tier:3,exp:120,time:5,resources:{'Лечебная трава':8,'Сердце леса':3},type:'potion',effect:'heal',value:300,rarity:'Редкий'},
+            {name:'Зелье здоровья',icon:'🧪',tier:2,exp:60,time:3,resources:{'Лечебная трава':8,'Синий корень':2},type:'potion',effect:'heal',value:144,rarity:'Необычный', sellPrice: 50},
+            {name:'Большое зелье здоровья',icon:'🧪',tier:3,exp:120,time:5,resources:{'Лечебная трава':8,'Сердце леса':3, 'Огненный цветок': 4},type:'potion',effect:'heal',value:300,rarity:'Редкий'},
             {name:'Эликсир силы',icon:'💪',tier:2,exp:70,time:3,resources:{'Синий корень':3,'Сердце леса':2},type:'elixir',effect:'atk',value:30,rarity:'Необычный'},
             {name:'Эликсир защиты',icon:'🛡️',tier:2,exp:70,time:3,resources:{'Синий корень':3,'Лечебная трава':3},type:'elixir',effect:'def',value:30,rarity:'Необычный'},
             {name:'Эликсир ловкости',icon:'💨',tier:3,exp:100,time:4,resources:{'Призрачная грива':3,'Лечебная трава':3},type:'elixir',effect:'dodge',value:24,rarity:'Редкий'},

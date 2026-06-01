@@ -15,6 +15,8 @@ function init() {
                 
                 if (!player.professions) player.professions = {};
                 if (!player.resources) player.resources = {};
+                
+                updateAllItemPrices()
                 updateAllAbilities();
                 resetBaseStats();
                 player.health = player.maxHealth;
@@ -28,6 +30,115 @@ function init() {
         }
     }
     renderCharacterCreation();
+}
+
+// Миграция старых предметов - добавляет sellPrice на основе характеристик
+// Миграция старых предметов - ПРИНУДИТЕЛЬНОЕ обновление цен
+// Миграция старых предметов - НЕ перезаписывает существующие sellPrice
+function migrateItemPrices() {
+    if (!player || !player.inventory) return;
+    
+    let migrated = 0;
+    
+    // Функция для расчёта цены продажи (только для предметов без sellPrice)
+    function calculateSellPrice(item) {
+        // СПЕЦИАЛЬНЫЕ ЦЕНЫ ДЛЯ ОПРЕДЕЛЁННЫХ ПРЕДМЕТОВ
+        const specialPrices = {
+            'Зелье здоровья': 5,
+            'Малое зелье здоровья': 3,
+            'Большое зелье здоровья': 10,
+            'Эликсир силы': 8,
+            'Эликсир защиты': 8,
+        };
+        
+        if (specialPrices[item.name]) {
+            return specialPrices[item.name];
+        }
+        
+        // Базовые цены в зависимости от редкости
+        const basePrices = {
+            'Обычный': 15,
+            'Необычный': 35,
+            'Редкий': 75,
+            'Эпический': 150,
+            'Легендарный': 350,
+            'Мифический': 800,
+            'Древний': 1500,
+            'Божественный': 3000
+        };
+        
+        let basePrice = basePrices[item.rarity] || 25;
+        
+        let statBonus = 0;
+        if (item.dmg) statBonus += item.dmg * 4;
+        if (item.def) statBonus += item.def * 3;
+        if (item.hp) statBonus += Math.floor(item.hp * 1.5);
+        if (item.crit) statBonus += item.crit * 8;
+        if (item.critDmg) statBonus += item.critDmg * 2;
+        if (item.dodge) statBonus += item.dodge * 5;
+        if (item.mana) statBonus += item.mana * 2;
+        if (item.value) statBonus += Math.floor(item.value / 2);
+        
+        return Math.max(10, Math.min(basePrice + statBonus, 50000));
+    }
+    
+    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
+    
+    for (let type of itemTypes) {
+        if (player.inventory[type] && player.inventory[type].length > 0) {
+            for (let item of player.inventory[type]) {
+                // ВАЖНО: пересчитываем цену ТОЛЬКО если нет sellPrice
+                if (!item.sellPrice) {
+                    item.sellPrice = calculateSellPrice(item);
+                    migrated++;
+                }
+            }
+        }
+    }
+    
+    if (migrated > 0) {
+        console.log(`✅ Добавлены цены для ${migrated} предметов`);
+        saveGame();
+    }
+}
+
+// Обновление цен всех предметов из базы
+function updateAllItemPrices() {
+    if (!player || !player.inventory) return;
+    
+    let updated = 0;
+    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
+    
+    for (let type of itemTypes) {
+        if (player.inventory[type] && player.inventory[type].length > 0) {
+            for (let item of player.inventory[type]) {
+                const newPrice = getItemSellPrice(item);
+                if (item.sellPrice !== newPrice) {
+                    item.sellPrice = newPrice;
+                    updated++;
+                }
+            }
+        }
+    }
+    
+    // Обновляем экипировку
+    for (let slot in player.equipment) {
+        const item = player.equipment[slot];
+        if (item) {
+            const newPrice = getItemSellPrice(item);
+            if (item.sellPrice !== newPrice) {
+                item.sellPrice = newPrice;
+                updated++;
+            }
+        }
+    }
+    
+    if (updated > 0) {
+        console.log(`✅ Обновлены цены для ${updated} предметов`);
+        saveGame();
+    }
+    
+    return updated;
 }
 // ===== СИСТЕМА СОХРАНЕНИЯ И ЗАГРУЗКИ ЧЕРЕЗ JSON ФАЙЛЫ =====
 
@@ -138,6 +249,7 @@ function createNewCharacter() {
             'Создать нового', 
             () => {
                 resetGame();
+                migrateItemPrices()
             });
     } else {
         // Если нет персонажа, просто показываем создание

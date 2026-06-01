@@ -74,6 +74,14 @@ function completeCrafting(profId) {
         upgradeLevel: 0
     };
     
+    // Устанавливаем цену продажи из базы
+    if (typeof getItemSellPrice === 'function') {
+        newItem.sellPrice = getItemSellPrice(newItem);
+    } else if (recipe.sellPrice) {
+        newItem.sellPrice = recipe.sellPrice;
+    }
+    
+    
     let qualityBonus = bonuses.craftQualityBonus;
     if (qualityBonus > 0 && (newItem.dmg > 0 || newItem.def > 0 || newItem.hp > 0)) {
         const qualityMultiplier = 1 + qualityBonus;

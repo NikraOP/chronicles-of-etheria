@@ -225,11 +225,19 @@ function renderSellItems() {
             html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 15px;">';
         }
         
+        // ИСПРАВЛЕННАЯ ЛОГИКА: sellPrice имеет приоритет
         let sellPrice = 25;
-        if (item.price) sellPrice = Math.floor(item.price * 0.3);
-        else if (item.effect === 'heal') sellPrice = Math.floor((item.value || 50) * 2);
-        else if (item.effect === 'atk' || item.effect === 'def') sellPrice = Math.floor((item.value || 30) * 3);
-        else if (item.dmg) sellPrice = Math.floor((item.dmg || 10) * 8);
+        if (item.sellPrice) {
+            sellPrice = item.sellPrice;
+        } else if (item.price) {
+            sellPrice = Math.floor(item.price * 0.3);
+        } else if (item.effect === 'heal') {
+            sellPrice = Math.floor((item.value || 50) * 2);
+        } else if (item.effect === 'atk' || item.effect === 'def') {
+            sellPrice = Math.floor((item.value || 30) * 3);
+        } else if (item.dmg) {
+            sellPrice = Math.floor((item.dmg || 10) * 8);
+        }
         
         const statsText = getItemStatsDescription(item);
         const rarityColor = getRarityColor(item.rarity);
@@ -343,6 +351,9 @@ function sellItemKeepOpen(type, index, price) {
     const item = itemsList[index];
     if (!item) return;
     
+    let finalPrice = price;
+    if (item.sellPrice) finalPrice = item.sellPrice;
+
     player.gold += price;
     itemsList.splice(index, 1);
     saveGame();
