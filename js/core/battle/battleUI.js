@@ -88,19 +88,27 @@ function renderBattle() {
     }
 
     // ===== БАФФЫ МОНСТРА =====
-    let monsterBuffsHTML = '';
-    if (currentMonster.activeBuffs) {
-        const buffs = [];
-        if (currentMonster.activeBuffs.atk) {
-            buffs.push(`⚔️ +${currentMonster.activeBuffs.atk.value}% (${currentMonster.activeBuffs.atk.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.def) {
-            buffs.push(`🛡️ +${currentMonster.activeBuffs.def.value}% (${currentMonster.activeBuffs.def.remainingTurns} ход.)`);
-        }
-        if (buffs.length > 0) {
-            monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
-        }
+   // Отображение активных баффов монстра
+let monsterBuffsHTML = '';
+if (currentMonster.activeBuffs) {
+    const buffs = [];
+    if (currentMonster.activeBuffs.atk) {
+        buffs.push(`⚔️ +${currentMonster.activeBuffs.atk.value}% (${currentMonster.activeBuffs.atk.remainingTurns} ход.)`);
     }
+    if (currentMonster.activeBuffs.def) {
+        buffs.push(`🛡️ +${currentMonster.activeBuffs.def.value}% (${currentMonster.activeBuffs.def.remainingTurns} ход.)`);
+    }
+    if (currentMonster.activeBuffs.reflect) {
+        buffs.push(`🔄 Отражение ${currentMonster.activeBuffs.reflect.value}% (${currentMonster.activeBuffs.reflect.remainingTurns} ход.)`);
+    }
+    if (currentMonster.activeBuffs.shield) {
+        const shieldPercent = Math.floor((currentMonster.activeBuffs.shield.value / currentMonster.maxHealth) * 100);
+        buffs.push(`🛡️ Щит ${shieldPercent}% (${currentMonster.activeBuffs.shield.value} HP)`);
+    }
+    if (buffs.length > 0) {
+        monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
+    }
+}
 
     // Эффекты игрока (дебаффы)
     let playerEffectsHTML = '';
@@ -121,6 +129,19 @@ function renderBattle() {
         }
         playerEffectsHTML += '</div>';
     }
+
+    // Отображение DoT эффектов на игроке
+let playerDotHTML = '';
+const playerDots = player.temporaryEffects.filter(e => e.isDot && e.dur > 0);
+if (playerDots.length > 0) {
+    playerDotHTML = '<div class="active-effects" style="margin-top: 4px;">';
+    for (let dot of playerDots) {
+        const dotType = dot.type.replace('dot_', '');
+        const icon = dot.dotIcon || (dotType === 'burn' ? '🔥' : '☠️');
+        playerDotHTML += `<div class="effect-icon dot" style="display: inline-block; background: rgba(230,126,34,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${dotType} - ${dot.value}% HP/ход (${dot.dur} ход.)">${icon} ${dot.value}%</div>`;
+    }
+    playerDotHTML += '</div>';
+}
 
     // Щит игрока
     let playerShieldHTML = '';
@@ -184,6 +205,7 @@ function renderBattle() {
                 '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
                 playerShieldHTML +
                 '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' +
+                playerDotHTML +
                 debuffedStatsHTML +
                 playerEffectsHTML +
             '</div>' +
@@ -423,3 +445,28 @@ function getAbilityTypeName(type) {
     };
     return types[type] || '✨ Другое';
 }
+
+function showReflectEffect(target, value) {
+    const wrapper = target === 'player' ? document.getElementById('playerWrapper') : document.getElementById('enemyWrapper');
+    if (!wrapper) return;
+    const el = document.createElement('div');
+    el.className = 'reflect-effect';
+    el.textContent = `🔄 ${value}`;
+    el.style.color = '#ff6600';
+    el.style.fontSize = '18px';
+    el.style.fontWeight = 'bold';
+    el.style.position = 'absolute';
+    el.style.left = '50%';
+    el.style.top = '-30px';
+    el.style.transform = 'translateX(-50%)';
+    el.style.backgroundColor = 'rgba(255,102,0,0.3)';
+    el.style.padding = '4px 8px';
+    el.style.borderRadius = '20px';
+    el.style.whiteSpace = 'nowrap';
+    el.style.animation = 'reflectPulse 0.5s ease-out';
+    el.style.zIndex = '100';
+    wrapper.appendChild(el);
+    setTimeout(() => el.remove(), 800);
+}
+
+window.showReflectEffect = showReflectEffect;

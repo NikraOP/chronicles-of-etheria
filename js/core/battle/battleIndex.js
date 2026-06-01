@@ -30,6 +30,7 @@ if (typeof showHealEffect !== 'undefined') window.showHealEffect = showHealEffec
 if (typeof showBuffEffect !== 'undefined') window.showBuffEffect = showBuffEffect;
 if (typeof showDebuffEffect !== 'undefined') window.showDebuffEffect = showDebuffEffect;
 if (typeof showShieldEffect !== 'undefined') window.showShieldEffect = showShieldEffect;
+window.showReflectEffect = showReflectEffect;
 
 console.log('battleIndex.js: функции экспортированы');
 console.log('playerAttack определена?', typeof playerAttack !== 'undefined');

@@ -15,11 +15,31 @@ function playerAttack() {
     const crit = Math.random() * 100 <= player.criticalChance;
     if (crit) dmg = Math.floor(dmg * (player.criticalDamage / 100));
     dmg = calculateDamage(dmg, currentMonster.defense);
+
+     // ОБЪЯВЛЯЕМ ПЕРЕМЕННУЮ ДО ИСПОЛЬЗОВАНИЯ
+    let reflectedDamage = 0;
+    
+    // Проверка на отражение урона от монстра
+    if (currentMonster.activeBuffs && currentMonster.activeBuffs.reflect) {
+        const reflectValue = currentMonster.activeBuffs.reflect.value;
+        reflectedDamage = Math.floor(dmg * reflectValue / 100);
+        if (reflectedDamage > 0) {
+            addBattleLog(`🔄 ${currentMonster.name} отражает ${reflectedDamage} урона!`, 'info');
+            showReflectEffect('player', reflectedDamage);
+        }
+    }
     
     const appliedDamage = applyDamageToMonster(dmg);
     const msg = (crit ? '💥 КРИТ! ' : '⚔️ ') + appliedDamage + ' урона';
     addBattleLog(msg, crit ? 'crit' : 'dmg');
     
+    // ПРИМЕНЯЕМ ОТРАЖЁННЫЙ УРОН К ИГРОКУ
+    if (reflectedDamage > 0) {
+        applyDamageToPlayer(reflectedDamage);
+        floatDamage('player', reflectedDamage, false);
+        showHitEffect('player');
+    }
+
     animatePlayerAttack(() => {
         floatDamage('enemy', appliedDamage, crit);
         if (currentMonster.health <= 0) { victory(); return; }

@@ -46,6 +46,9 @@ function updateMonsterBuffs() {
             if (type === 'shield') {
                 addBattleLog(`🛡️ Щит ${currentMonster.name} рассеялся!`, 'info');
             }
+            if (type === 'reflect') {
+                addBattleLog(`🔄 Отражение урона ${currentMonster.name} закончилось!`, 'info');
+            }
         }
     }
 }
@@ -80,9 +83,38 @@ function useMonsterAbility(ability) {
             break;
             
         case 'dot':
-            currentMonster.effects.push({ type: ability.effect || 'Яд', val: ability.value || 5, dur: ability.duration || 2 });
-            addBattleLog(`☠️ ${ability.name}: наложен эффект ${ability.effect || 'Яд'} (${ability.value || 5}% HP в ход)!`, 'info');
-            showDebuffEffect('enemy', ability.effect || 'poison');
+            const dotTarget = ability.target || 'player';
+            const dotEffect = ability.effect || 'Яд';
+            const dotValue = ability.value || 5;
+            const dotDuration = ability.duration || 2;
+            
+            if (dotTarget === 'player') {
+                // Накладываем DoT на игрока
+                const existingDot = player.temporaryEffects.find(e => e.type === 'dot_' + dotEffect);
+                if (existingDot) {
+                    existingDot.value = dotValue;
+                    existingDot.dur = dotDuration;
+                } else {
+                    player.temporaryEffects.push({
+                        type: 'dot_' + dotEffect,
+                        value: dotValue,
+                        dur: dotDuration,
+                        isDot: true,
+                        dotIcon: dotEffect === 'burn' ? '🔥' : '☠️'
+                    });
+                }
+                addBattleLog(`☠️ ${ability.name}: вы получили эффект ${dotEffect} (${dotValue}% HP в ход на ${dotDuration} хода)!`, 'info');
+                showDebuffEffect('player', dotEffect);
+            } else {
+                // Накладываем DoT на монстра
+                currentMonster.effects.push({ 
+                    type: dotEffect, 
+                    val: dotValue, 
+                    dur: dotDuration 
+                });
+                addBattleLog(`☠️ ${ability.name}: наложен эффект ${dotEffect} (${dotValue}% HP в ход)!`, 'info');
+                showDebuffEffect('enemy', dotEffect);
+            }
             break;
             
         case 'heal':
@@ -104,6 +136,15 @@ function useMonsterAbility(ability) {
                 addBattleLog(`✨ ${ability.name}: крит увеличен на ${buffValue}% на ${buffDuration} хода!`, 'info');
             } else if (buffType === 'dodge') {
                 addBattleLog(`💨 ${ability.name}: уклонение увеличено на ${buffValue}% на ${buffDuration} хода!`, 'info');
+            } else if (buffType === 'reflect') {
+                // ДОБАВЛЕНА ОБРАБОТКА ОТРАЖЕНИЯ
+                if (!currentMonster.activeBuffs) currentMonster.activeBuffs = {};
+                currentMonster.activeBuffs.reflect = {
+                    value: buffValue,
+                    remainingTurns: buffDuration
+                };
+                addBattleLog(`🔄 ${ability.name}: отражение урона увеличено на ${buffValue}% на ${buffDuration} хода!`, 'info');
+                showBuffEffect('enemy', '🔄');
             } else if (buffType === 'all') {
                 applyMonsterBuff('atk', buffValue, buffDuration);
                 applyMonsterBuff('def', buffValue, buffDuration);
@@ -238,9 +279,28 @@ function monsterTurn() {
             if (ability.type === 'buff' && ability.effect === 'atk' && currentMonster.activeBuffs && currentMonster.activeBuffs.atk) continue;
             if (ability.type === 'buff' && ability.effect === 'def' && currentMonster.activeBuffs && currentMonster.activeBuffs.def) continue;
             if (ability.type === 'buff' && ability.effect === 'shield' && currentMonster.activeBuffs && currentMonster.activeBuffs.shield) continue;
+            if (ability.type === 'buff' && ability.effect === 'reflect' && currentMonster.activeBuffs && currentMonster.activeBuffs.reflect) continue;
             if (ability.type === 'heal' && currentMonster.health > currentMonster.maxHealth * 0.5) continue;
             if (useMonsterAbility(ability)) { abilityUsed = true; break; }
         }
+    }
+
+    // Обработка DoT эффектов на игроке
+    if (player.temporaryEffects && player.temporaryEffects.length > 0) {
+        player.temporaryEffects = player.temporaryEffects.filter(e => {
+            if (e.isDot && e.value) {
+                const dotDamage = Math.floor(player.maxHealth * e.value / 100);
+                if (dotDamage > 0) {
+                    player.health -= dotDamage;
+                    const icon = e.dotIcon || '🔥';
+                    addBattleLog(`${icon} ${e.type}: -${dotDamage} урона!`, 'dmg');
+                    floatDamage('player', dotDamage, false);
+                }
+                e.dur--;
+                return e.dur > 0;
+            }
+            return true;
+        });
     }
     
     // Если способность не использована - обычная атака
@@ -253,6 +313,9 @@ function monsterTurn() {
         const lifestealBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.lifesteal : null;
         let lifestealValue = lifestealBuff ? lifestealBuff.value : 0;
         
+        const reflectBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.reflect : null;
+        let reflectValue = reflectBuff ? reflectBuff.value : 0;
+        
         // Контратака игрока
         const counter = player.temporaryEffects.find(e => e.counterChance);
         if (counter && Math.random() * 100 <= counter.counterChance) {
@@ -261,7 +324,17 @@ function monsterTurn() {
             addBattleLog(`↩️ Контратака! ${counterDmg} урона!`, 'dmg');
         }
         
-        // Отражение урона
+        // Отражение урона монстром
+        if (reflectValue > 0 && dmg > 0) {
+            const reflectedDmg = Math.floor(dmg * reflectValue / 100);
+            if (reflectedDmg > 0) {
+                applyDamageToPlayer(reflectedDmg);
+                addBattleLog(`🔄 Отражение урона! Вы получили ${reflectedDmg} урона!`, 'dmg');
+                floatDamage('player', reflectedDmg, false);
+            }
+        }
+        
+        // Отражение урона игроком
         const reflectEffect = player.temporaryEffects.find(e => e.reflect);
         if (reflectEffect && reflectEffect.reflect > 0 && dmg > 0) {
             const reflectedDmg = Math.floor(dmg * reflectEffect.reflect / 100);
