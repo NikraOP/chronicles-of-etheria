@@ -112,7 +112,7 @@ const LOCATIONS = [
                 ]},
             {name:'Магмовый голем',icon:'🗿',img:'./monsters/laveGolem.png',hp:1680,atk:125,exp:200,def:44,
                 abilities:[
-                    {name:'Каменная броня',type:'buff',effect:'def',value:80,duration:2,chance:60,cooldown:4},
+                    {name:'Каменная броня',type:'shield',value:50,duration:2,chance:60,cooldown:4},
                     {name:'Дробящий удар',type:'damage',multiplier:1.6,chance:45,cooldown:2},
                     {name:'Лавовое извержение',type:'damage',multiplier:1.3,chance:50}
                 ]},

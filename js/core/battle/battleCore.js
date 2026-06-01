@@ -1,0 +1,175 @@
+// js/core/battle/battleCore.js
+
+let currentMonster = null;
+let isPlayerTurn = true;
+let battleLogEntries = [];
+let rageStack = 0;
+let lastUsedAbility = null;
+let abilityComboStep = 0;
+let comboAbilityId = null;
+let nextFreeMana = false;
+let nextDoubleEffect = false;
+let nextNoCd = false;
+let nextAttackBonus = 0;
+let markedTarget = false;
+let lingeringCloud = false;
+let deathSaveActive = false;
+let reviveUsed = false;
+let summonedSpirit = false;
+
+// Хранилище оригинальных статов монстра для восстановления после баффов
+let originalMonsterStats = {
+    attack: 0,
+    defense: 0
+};
+
+window.itemCooldowns = {
+    potion: 0,
+    elixir: 0,
+    food: 0,
+    scroll: 0
+};
+
+window.ITEM_COOLDOWNS = {
+    potion: 3,
+    elixir: 5,
+    food: 2,
+    scroll: 6
+};
+
+let monsterAbilityCooldowns = {};
+
+window.resetItemCooldowns = function() {
+    window.itemCooldowns = { potion: 0, elixir: 0, food: 0, scroll: 0 };
+};
+
+window.reduceItemCooldowns = function() {
+    for (let type in window.itemCooldowns) {
+        if (window.itemCooldowns[type] > 0) {
+            window.itemCooldowns[type]--;
+            if (window.itemCooldowns[type] === 0) {
+                const typeNames = { potion: 'зелья', elixir: 'эликсиры', food: 'еду', scroll: 'свитки' };
+                if (typeof addBattleLog !== 'undefined') addBattleLog(`⏳ ${typeNames[type]} снова доступны!`, 'info');
+            }
+        }
+    }
+};
+
+window.getItemCooldown = function(type) { return window.itemCooldowns[type] || 0; };
+window.canUseItem = function(type) { return window.itemCooldowns[type] === 0; };
+window.setItemCooldown = function(type) { window.itemCooldowns[type] = window.ITEM_COOLDOWNS[type]; };
+
+function getWordForm(number, words) {
+    const cases = [2, 0, 1, 1, 1, 2];
+    return words[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
+}
+
+function getCappedDodge(dodge) { return Math.min(70, Math.max(0, dodge)); }
+
+function addBattleLog(msg, cls) {
+    battleLogEntries.push({ msg: msg, cls: cls || 'info' });
+    const logEl = document.getElementById('battleLog');
+    if (logEl) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry ' + (cls || 'info');
+        entry.textContent = msg;
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+}
+
+function updateBattleButtons() {
+    const btns = document.querySelectorAll('.action-btn');
+    btns.forEach(btn => { if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn; });
+}
+
+function reduceAllCooldowns() {
+    if (!player || !player.abilities) return;
+    player.abilities.forEach(ab => { if (ab && ab.currentCooldown > 0) ab.currentCooldown--; });
+    window.reduceItemCooldowns();
+    for (let key in monsterAbilityCooldowns) {
+        if (monsterAbilityCooldowns[key] > 0) monsterAbilityCooldowns[key]--;
+    }
+}
+
+function resetAllCooldowns() {
+    if (!player || !player.abilities) return;
+    player.abilities.forEach(ab => { if (ab) ab.currentCooldown = 0; });
+    window.resetItemCooldowns();
+    monsterAbilityCooldowns = {};
+    rageStack = 0;
+    abilityComboStep = 0;
+    comboAbilityId = null;
+    nextFreeMana = false;
+    nextDoubleEffect = false;
+    nextNoCd = false;
+    nextAttackBonus = 0;
+    markedTarget = false;
+    lingeringCloud = false;
+    deathSaveActive = false;
+    reviveUsed = false;
+    summonedSpirit = false;
+    
+    // Восстанавливаем оригинальные статы монстра
+    if (originalMonsterStats.attack > 0 && currentMonster) {
+        currentMonster.attack = originalMonsterStats.attack;
+        currentMonster.defense = originalMonsterStats.defense;
+        originalMonsterStats.attack = 0;
+        originalMonsterStats.defense = 0;
+    }
+
+    if (player.class === 'Маг') {
+        const baseMana = Math.floor(100 + player.level * 10);
+        player.maxMana = baseMana;
+        if (player.mana > player.maxMana) player.mana = player.maxMana;
+    }
+    
+    if (player.originalMaxHealth) {
+        player.maxHealth = player.originalMaxHealth;
+        if (player.health > player.maxHealth) player.health = player.maxHealth;
+        player.originalMaxHealth = null;
+    }
+}
+
+function startBattle() {
+    stopGathering();
+    battleLogEntries = [];
+    resetAllCooldowns();
+    player.originalMaxHealth = null;
+    
+    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
+    const monsters = loc.monsters;
+    const mData = monsters[Math.floor(Math.random() * monsters.length)];
+    const scale = Math.max(1, 1 + ((player.level - loc.minLvl) * 0.2));
+    
+    const monsterAbilities = mData.abilities || [];
+    
+    currentMonster = {
+        name: mData.name, 
+        icon: mData.icon, 
+        img: mData.img || '',
+        health: Math.floor(mData.hp * scale), 
+        maxHealth: Math.floor(mData.hp * scale),
+        attack: Math.floor(mData.atk * scale), 
+        defense: Math.floor(mData.def * scale), 
+        exp: Math.floor(mData.exp * scale),
+        effects: [], 
+        goldMult: loc.goldMult,
+        marked: false,
+        fireVuln: 0,
+        armorShred: 0,
+        abilities: monsterAbilities,
+        activeBuffs: {}  // { type: { value, remainingTurns } }
+    };
+    
+    // Сохраняем оригинальные статы
+    originalMonsterStats.attack = currentMonster.attack;
+    originalMonsterStats.defense = currentMonster.defense;
+    
+    player.health = player.maxHealth;
+    if (player.class === 'Маг') player.mana = player.maxMana;
+    player.temporaryEffects = [];
+    window.echoActive = false;
+    isPlayerTurn = true;
+    renderBattle();
+}

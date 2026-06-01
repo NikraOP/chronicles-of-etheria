@@ -3,17 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Хроники Этерии — Версия 3 (Модульная)</title>
+    <title>Хроники Этерии — Версия 3.0 (Модульная)</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Дополнительные стили для плавной загрузки */
+        .loading-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: var(--gold);
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            z-index: 9999;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
+    <div class="loading-indicator" id="loadingIndicator">⚔️ Загрузка Хроник Этерии... ⚔️</div>
     <div class="particles" id="particles"></div>
     <div class="main-container" id="app"></div>
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal-content" id="modalContent"></div>
     </div>
 
-    <!-- Загрузка данных (БД) -->
+    <!-- ===== ЗАГРУЗКА ДАННЫХ (БД) ===== -->
     <script src="js/data/abilities.js"></script>
     <script src="js/data/professions.js"></script>
     <script src="js/data/resources.js"></script>
@@ -21,20 +38,43 @@
     <script src="js/data/equipment.js"></script>
     <script src="js/data/locations.js"></script>
     
-    <!-- Загрузка ядра (основная логика) -->
+    <!-- ===== ЗАГРУЗКА ЯДРА БОЯ (МОДУЛЬНО) ===== -->
+<script src="js/core/battle/battleCore.js"></script>
+<script src="js/core/battle/battleDamage.js"></script>
+<script src="js/core/battle/battleMonster.js"></script>
+<script src="js/core/battle/battlePlayer.js"></script>
+<script src="js/core/battle/battleUI.js"></script>
+<script src="js/core/battle/battleEnd.js"></script>
+<script src="js/core/battle/battleIndex.js"></script>
+
+    <!-- ===== ЗАГРУЗКА ОСТАЛЬНОГО ЯДРА ===== -->
     <script src="js/core/player.js"></script>
     <script src="js/core/gathering.js"></script>
     <script src="js/core/craftingSystem.js"></script>
     <script src="js/core/shop.js"></script>
     <script src="js/core/inventory.js"></script>
-    <script src="js/core/battle.js"></script>
     
-    <!-- Загрузка UI (отрисовка и навигация) -->
+    <!-- ===== ЗАГРУЗКА UI ===== -->
     <script src="js/ui/animations.js"></script>
     <script src="js/ui/render.js"></script>
     <script src="js/ui/navigation.js"></script>
     
-    <!-- Главный файл (инициализация) -->
+    <!-- ===== ГЛАВНЫЙ ФАЙЛ (ИНИЦИАЛИЗАЦИЯ) ===== -->
     <script src="js/main.js"></script>
+    
+    <script>
+        // Скрываем индикатор загрузки после полной загрузки страницы
+        window.addEventListener('load', function() {
+            const loader = document.getElementById('loadingIndicator');
+            if (loader) {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                    }, 500);
+                }, 500);
+            }
+        });
+    </script>
 </body>
 </html>

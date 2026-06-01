@@ -1045,3 +1045,30 @@ input:focus { outline: none; border-color: var(--gold); }
     background: #3498db;
     transition: width 0.3s;
 }
+
+
+/* В style.css */
+.shield-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(52, 152, 219, 0.3);
+    border-radius: 2px;
+    margin-top: 2px;
+    overflow: hidden;
+}
+
+.shield-fill {
+    height: 100%;
+    background: #3498db;
+    transition: width 0.3s ease;
+}
+
+.monster-buffs {
+    font-size: 10px;
+    color: #f39c12;
+    margin-top: 4px;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-block;
+}
