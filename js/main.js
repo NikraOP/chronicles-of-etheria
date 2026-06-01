@@ -10,7 +10,9 @@ function init() {
         try {
             const d = JSON.parse(saved);
             if (d && d.class) {
-                player = d;
+                // ПРИМЕНЯЕМ МИГРАЦИЮ для старых сохранений
+                player = migrateOldSave(d);
+                
                 if (!player.professions) player.professions = {};
                 if (!player.resources) player.resources = {};
                 updateAllAbilities();
@@ -18,6 +20,7 @@ function init() {
                 player.health = player.maxHealth;
                 if (player.class === 'Маг') player.mana = player.maxMana;
                 renderGame();
+                console.log('Сохранение загружено, schoolImg:', player.schoolImg);
                 return;
             }
         } catch(e) {
@@ -26,7 +29,6 @@ function init() {
     }
     renderCharacterCreation();
 }
-
 // ===== СИСТЕМА СОХРАНЕНИЯ И ЗАГРУЗКИ ЧЕРЕЗ JSON ФАЙЛЫ =====
 
 // Экспорт сохранения в JSON файл
@@ -252,6 +254,38 @@ window.addEventListener('beforeunload', function() {
         saveGame();
     }
 });
+
+// Функция для миграции старых сохранений
+function migrateOldSave(playerData) {
+    // Если нет schoolImg - добавляем на основе класса и ветки
+    if (!playerData.schoolImg && playerData.class && playerData.branch) {
+        // Получаем изображение из ABILITIES_DB
+        if (ABILITIES_DB[playerData.class] && ABILITIES_DB[playerData.class][playerData.branch]) {
+            playerData.schoolImg = ABILITIES_DB[playerData.class][playerData.branch].img || '';
+            console.log('Миграция: добавлен schoolImg для', playerData.class, playerData.branch, '->', playerData.schoolImg);
+        }
+    }
+    
+    // Добавляем отсутствующие поля в инвентарь
+    if (!playerData.inventory) {
+        playerData.inventory = {
+            weapons: [], helmets: [], chests: [], pants: [], boots: [],
+            potions: [], foods: [], elixirs: [], scrolls: [], stones: []
+        };
+    }
+    
+    // Добавляем отсутствующие поля в экипировку
+    if (!playerData.equipment) {
+        playerData.equipment = { weapon: null, helmet: null, chest: null, pants: null, boots: null };
+    }
+    
+    // Добавляем остальные поля по умолчанию
+    if (playerData.professions === undefined) playerData.professions = {};
+    if (playerData.resources === undefined) playerData.resources = {};
+    if (playerData.temporaryEffects === undefined) playerData.temporaryEffects = [];
+    
+    return playerData;
+}
 
 // Запускаем таймер при загрузке
 startPlayTimer();
