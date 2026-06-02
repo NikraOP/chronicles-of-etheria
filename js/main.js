@@ -1,4 +1,4 @@
-// main.js - С поддержкой сохранения скинов (рабочая версия)
+// main.js - С поддержкой сохранения скинов (полностью рабочая)
 
 // НЕ ОБЪЯВЛЯЙ ЗДЕСЬ ПЕРЕМЕННЫЕ ЗАНОВО! Они уже есть в других файлах
 // Просто вызываем init() когда все файлы загружены
@@ -10,25 +10,13 @@ function init() {
         try {
             const d = JSON.parse(saved);
             if (d && d.class) {
-                // ПРИМЕНЯЕМ МИГРАЦИЮ для старых сохранений
                 player = migrateOldSave(d);
                 
                 if (!player.professions) player.professions = {};
                 if (!player.resources) player.resources = {};
                 
-                // ===== ИНИЦИАЛИЗАЦИЯ СКИНОВ =====
-                if (player.unlockedSkins === undefined) player.unlockedSkins = [];
-                if (player.currentSkin === undefined) player.currentSkin = null;
-                if (player.gender === undefined) player.gender = 'male';
-                
-                // Добавляем базовые скины (ценой 0) в разблокированные
-                addDefaultSkinsToUnlocked();
-                
-                // Если нет текущего скина, устанавливаем базовый
-                if (!player.currentSkin) {
-                    setDefaultSkin();
-                }
-                // ===== КОНЕЦ ИНИЦИАЛИЗАЦИИ СКИНОВ =====
+                // ИНИЦИАЛИЗАЦИЯ СКИНОВ
+                initSkinsSystem();
                 
                 updateAllItemPrices();
                 updateAllAbilities();
@@ -36,8 +24,7 @@ function init() {
                 player.health = player.maxHealth;
                 if (player.class === 'Маг') player.mana = player.maxMana;
                 renderGame();
-                console.log('Сохранение загружено, schoolImg:', player.schoolImg);
-                console.log('Разблокировано скинов:', player.unlockedSkins?.length || 0);
+                console.log('Сохранение загружено, скинов:', player.unlockedSkins?.length || 0);
                 return;
             }
         } catch(e) {
@@ -47,9 +34,27 @@ function init() {
     renderCharacterCreation();
 }
 
-// ===== ФУНКЦИИ ДЛЯ РАБОТЫ СО СКИНАМИ =====
+// ===== СИСТЕМА СКИНОВ =====
 
-// Функция для добавления базовых скинов в разблокированные
+function initSkinsSystem() {
+    if (!player) return;
+    
+    // Инициализация полей
+    if (player.unlockedSkins === undefined) player.unlockedSkins = [];
+    if (player.currentSkin === undefined) player.currentSkin = null;
+    if (player.gender === undefined) player.gender = 'male';
+    
+    // Добавляем базовые скины
+    addDefaultSkinsToUnlocked();
+    
+    // Устанавливаем базовый скин если нет текущего
+    if (!player.currentSkin) {
+        setDefaultSkin();
+    }
+    
+    saveGame();
+}
+
 function addDefaultSkinsToUnlocked() {
     if (!player || !player.class || !player.branch) return;
     if (typeof SKINS_DB === 'undefined') return;
@@ -65,17 +70,16 @@ function addDefaultSkinsToUnlocked() {
     
     if (!player.unlockedSkins) player.unlockedSkins = [];
     
+    let added = 0;
     for (let skin of schoolSkins) {
         if (skin.price === 0 && !player.unlockedSkins.includes(skin.id)) {
             player.unlockedSkins.push(skin.id);
-            console.log(`Добавлен базовый скин: ${skin.name}`);
+            added++;
         }
     }
-    
-    saveGame();
+    if (added > 0) console.log(`Добавлено ${added} базовых скинов`);
 }
 
-// Функция для установки базового скина по умолчанию
 function setDefaultSkin() {
     if (!player || !player.class || !player.branch) return;
     if (typeof SKINS_DB === 'undefined') return;
@@ -93,12 +97,10 @@ function setDefaultSkin() {
     if (defaultSkin) {
         player.currentSkin = defaultSkin.id;
         player.schoolImg = defaultSkin.img;
-        saveGame();
         console.log(`Установлен базовый скин: ${defaultSkin.name}`);
     }
 }
 
-// Функция для получения скинов для текущего класса, школы и пола
 function getSkinsForCurrentSchool() {
     if (!player) return [];
     if (typeof SKINS_DB === 'undefined') return [];
@@ -120,7 +122,6 @@ function getSkinsForCurrentSchool() {
     }));
 }
 
-// Функция для покупки скина
 function buySkin(skinId) {
     const skins = getSkinsForCurrentSchool();
     const skin = skins.find(s => s.id === skinId);
@@ -149,13 +150,12 @@ function buySkin(skinId) {
     player.schoolImg = skin.img;
     
     saveGame();
-    addMessage(`✅ Куплен скин: ${skin.name}! Он автоматически экипирован.`, 'success');
+    addMessage(`✅ Куплен скин: ${skin.name}!`, 'success');
     
     renderGame();
     return true;
 }
 
-// Функция для экипировки скина
 function equipSkin(skinId) {
     const skins = getSkinsForCurrentSchool();
     const skin = skins.find(s => s.id === skinId);
@@ -179,7 +179,6 @@ function equipSkin(skinId) {
     return true;
 }
 
-// Функция для отображения галереи скинов
 function showSkinsGallery() {
     stopGathering();
     
@@ -206,7 +205,6 @@ function showSkinsGallery() {
         const isUnlocked = skin.unlocked;
         const rarityColor = rarityColors[skin.rarity] || '#ccc';
         
-        // Если есть картинка, показываем её, иначе иконку
         const imageHtml = skin.img && skin.img !== '' 
             ? `<img src="${skin.img}" style="width: 64px; height: 64px; object-fit: contain; margin-bottom: 10px;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\'font-size:64px;\'>${skin.icon}</div>'">`
             : `<div style="font-size: 64px; margin-bottom: 10px;">${skin.icon}</div>`;
@@ -250,9 +248,8 @@ function addSkinsButton() {
     }
 }
 
-// ===== ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) =====
+// ===== МИГРАЦИЯ СТАРЫХ ПРЕДМЕТОВ =====
 
-// Миграция старых предметов - добавляет sellPrice на основе характеристик
 function migrateItemPrices() {
     if (!player || !player.inventory) return;
     
@@ -267,23 +264,15 @@ function migrateItemPrices() {
             'Эликсир защиты': 8,
         };
         
-        if (specialPrices[item.name]) {
-            return specialPrices[item.name];
-        }
+        if (specialPrices[item.name]) return specialPrices[item.name];
         
         const basePrices = {
-            'Обычный': 15,
-            'Необычный': 35,
-            'Редкий': 75,
-            'Эпический': 150,
-            'Легендарный': 350,
-            'Мифический': 800,
-            'Древний': 1500,
-            'Божественный': 3000
+            'Обычный': 15, 'Необычный': 35, 'Редкий': 75,
+            'Эпический': 150, 'Легендарный': 350, 'Мифический': 800,
+            'Древний': 1500, 'Божественный': 3000
         };
         
         let basePrice = basePrices[item.rarity] || 25;
-        
         let statBonus = 0;
         if (item.dmg) statBonus += item.dmg * 4;
         if (item.def) statBonus += item.def * 3;
@@ -349,9 +338,10 @@ function updateAllItemPrices() {
         console.log(`✅ Обновлены цены для ${updated} предметов`);
         saveGame();
     }
-    
     return updated;
 }
+
+// ===== СИСТЕМА СОХРАНЕНИЯ =====
 
 function exportSaveFile() {
     if (!player) {
@@ -359,8 +349,13 @@ function exportSaveFile() {
         return;
     }
     
+    // Убеждаемся, что данные о скинах сохранены в player
+    if (!player.unlockedSkins) player.unlockedSkins = [];
+    if (!player.currentSkin) player.currentSkin = null;
+    if (!player.gender) player.gender = 'male';
+    
     const saveData = {
-        version: '3.0',
+        version: '3.1',
         timestamp: Date.now(),
         date: new Date().toLocaleString(),
         player: JSON.parse(JSON.stringify(player)),
@@ -369,7 +364,8 @@ function exportSaveFile() {
             totalVictories: player.victories || 0,
             level: player.level,
             gold: player.gold,
-            unlockedSkinsCount: player.unlockedSkins?.length || 0
+            unlockedSkinsCount: player.unlockedSkins?.length || 0,
+            currentSkin: player.currentSkin
         }
     };
     
@@ -384,7 +380,7 @@ function exportSaveFile() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    addMessage(`💾 Сохранение "${player.name}" экспортировано! (Скинов: ${player.unlockedSkins?.length || 0})`, 'success');
+    addMessage(`💾 Сохранение экспортировано! Скинов: ${player.unlockedSkins?.length || 0}`, 'success');
 }
 
 function importSaveFile(file) {
@@ -400,29 +396,25 @@ function importSaveFile(file) {
                 return;
             }
             
-            if (saveData.version && saveData.version !== '3.0') {
-                addMessage(`⚠️ Версия сохранения (${saveData.version}) отличается от текущей (3.0). Возможны проблемы.`, 'info');
-            }
+            // СОХРАНЯЕМ ДАННЫЕ О СКИНАХ ИЗ ФАЙЛА
+            const importedPlayer = saveData.player;
             
-            player = saveData.player;
+            // Проверяем и восстанавливаем поля скинов
+            if (importedPlayer.unlockedSkins === undefined) importedPlayer.unlockedSkins = [];
+            if (importedPlayer.currentSkin === undefined) importedPlayer.currentSkin = null;
+            if (importedPlayer.gender === undefined) importedPlayer.gender = 'male';
             
+            player = importedPlayer;
+            
+            // Инициализация остальных полей
             if (!player.professions) player.professions = {};
             if (!player.resources) player.resources = {};
             if (!player.inventory) player.inventory = { armor: [], weapons: [], stones: [], potions: [], foods: [], elixirs: [], scrolls: [] };
             if (!player.temporaryEffects) player.temporaryEffects = [];
             if (!player.abilities) player.abilities = [];
             
-            // ===== ИНИЦИАЛИЗАЦИЯ СКИНОВ ПРИ ЗАГРУЗКЕ =====
-            if (player.unlockedSkins === undefined) player.unlockedSkins = [];
-            if (player.currentSkin === undefined) player.currentSkin = null;
-            if (player.gender === undefined) player.gender = 'male';
-            
-            addDefaultSkinsToUnlocked();
-            
-            if (!player.currentSkin) {
-                setDefaultSkin();
-            }
-            // ===== КОНЕЦ ИНИЦИАЛИЗАЦИИ =====
+            // Восстанавливаем скины
+            initSkinsSystem();
             
             resetBaseStats();
             updateAllAbilities();
@@ -433,7 +425,7 @@ function importSaveFile(file) {
             renderGame();
             
             const saveDate = saveData.date || new Date(saveData.timestamp).toLocaleString();
-            addMessage(`✅ Загружено сохранение от ${saveDate}! Уровень ${player.level}, ${player.gold} золота, скинов: ${player.unlockedSkins?.length || 0}`, 'success');
+            addMessage(`✅ Загружено сохранение от ${saveDate}! Уровень ${player.level}, скинов: ${player.unlockedSkins?.length || 0}`, 'success');
             
         } catch (err) {
             addMessage('❌ Ошибка при чтении файла сохранения!', 'error');
@@ -447,38 +439,31 @@ function resetGame() {
     if (confirm('⚠️ ВНИМАНИЕ! Все текущие данные будут потеряны!\n\nВы уверены, что хотите создать нового персонажа?')) {
         localStorage.removeItem('rpg_save_v21');
         localStorage.removeItem('totalPlayTime');
-        
         player = null;
         currentMonster = null;
         isPlayerTurn = true;
         battleLogEntries = [];
-        
         location.reload();
     }
 }
 
 function createNewCharacter() {
     if (player) {
-        showModal('⚠️ Создание нового персонажа', 
-            '⚠️', 
-            'Вы уверены, что хотите создать нового персонажа?\n\nВсе текущие данные будут потеряны!\n\nСохраните текущий прогресс через "Сохранить игру", если хотите сохранить данные.', 
-            'Создать нового', 
-            () => {
-                resetGame();
-                migrateItemPrices();
-            });
+        showModal('⚠️ Создание нового персонажа', '⚠️', 'Вы уверены, что хотите создать нового персонажа?\n\nВсе текущие данные будут потеряны!', 'Создать нового', () => {
+            resetGame();
+            migrateItemPrices();
+        });
     } else {
         renderCharacterCreation();
     }
 }
 
+// ===== ТАЙМЕР =====
+
 let playTimeStart = Date.now();
 let totalPlayTime = localStorage.getItem('totalPlayTime') ? parseInt(localStorage.getItem('totalPlayTime')) : 0;
 
-function startPlayTimer() {
-    playTimeStart = Date.now();
-}
-
+function startPlayTimer() { playTimeStart = Date.now(); }
 function getPlayTime() {
     const currentSession = Math.floor((Date.now() - playTimeStart) / 1000);
     const total = totalPlayTime + currentSession;
@@ -487,12 +472,13 @@ function getPlayTime() {
     const seconds = total % 60;
     return `${hours}ч ${minutes}м ${seconds}с`;
 }
-
 function savePlayTime() {
     const currentSession = Math.floor((Date.now() - playTimeStart) / 1000);
     totalPlayTime += currentSession;
     localStorage.setItem('totalPlayTime', totalPlayTime);
 }
+
+// ===== ПАНЕЛЬ СОХРАНЕНИЙ =====
 
 function showSaveLoadPanel() {
     stopGathering();
@@ -509,6 +495,7 @@ function showSaveLoadPanel() {
         html += `<p>💰 Золото: <strong>${player.gold}</strong></p>`;
         html += `<p>⚔️ Побед: <strong>${player.victories || 0}</strong></p>`;
         html += `<p>🎨 Скинов куплено: <strong>${player.unlockedSkins?.length || 0}</strong></p>`;
+        html += `<p>🎭 Текущий скин: <strong>${player.currentSkin || 'базовый'}</strong></p>`;
         html += `<p>⏱️ Время в игре: <strong>${getPlayTime()}</strong></p>`;
         html += '</div>';
     } else {
@@ -527,7 +514,7 @@ function showSaveLoadPanel() {
     html += '<h4 style="color: var(--gold); margin-bottom: 10px;">ℹ️ Информация</h4>';
     html += '<ul style="margin-left: 20px; font-size: 12px; color: var(--text-secondary);">';
     html += '<li>💾 Сохранение экспортируется в JSON файл</li>';
-    html += '<li>📂 Файл содержит имя персонажа, уровень, скины и дату создания</li>';
+    html += '<li>📂 Файл содержит имя, уровень, скины и дату создания</li>';
     html += '<li>📁 Для загрузки выберите ранее сохранённый JSON файл</li>';
     html += '<li>👤 Создание нового персонажа удалит текущее сохранение</li>';
     html += '<li>💡 Совет: экспортируйте текущее сохранение перед созданием нового!</li>';
@@ -554,16 +541,11 @@ function addSaveLoadButton() {
         saveLoadCard.setAttribute('onclick', 'showSaveLoadPanel()');
         saveLoadCard.innerHTML = '<div class="nav-card-icon">💾</div><div class="nav-card-title">Сохранения</div>';
         navGrid.appendChild(saveLoadCard);
-        
-        const cards = navGrid.querySelectorAll('.nav-card');
-        if (cards.length > 0) {
-            navGrid.style.display = 'grid';
-            navGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
-        }
     }
 }
 
-// Переопределяем renderGame, чтобы добавить кнопки
+// ===== НАВИГАЦИЯ =====
+
 const originalRenderGame = renderGame;
 renderGame = function() {
     originalRenderGame();
@@ -578,12 +560,12 @@ window.addEventListener('beforeunload', function() {
     }
 });
 
+// ===== МИГРАЦИЯ СТАРЫХ СОХРАНЕНИЙ =====
+
 function migrateOldSave(playerData) {
-    // Если нет schoolImg - добавляем на основе класса и ветки
     if (!playerData.schoolImg && playerData.class && playerData.branch) {
         if (typeof ABILITIES_DB !== 'undefined' && ABILITIES_DB[playerData.class] && ABILITIES_DB[playerData.class][playerData.branch]) {
             playerData.schoolImg = ABILITIES_DB[playerData.class][playerData.branch].img || '';
-            console.log('Миграция: добавлен schoolImg для', playerData.class, playerData.branch, '->', playerData.schoolImg);
         }
     }
     
@@ -602,7 +584,7 @@ function migrateOldSave(playerData) {
     if (playerData.resources === undefined) playerData.resources = {};
     if (playerData.temporaryEffects === undefined) playerData.temporaryEffects = [];
     
-    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ СКИНОВ =====
+    // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];
     if (playerData.currentSkin === undefined) playerData.currentSkin = null;
     if (playerData.gender === undefined) playerData.gender = 'male';
@@ -612,7 +594,7 @@ function migrateOldSave(playerData) {
 
 startPlayTimer();
 
-// Экспортируем функции в глобальную область
+// Экспорт функций
 window.exportSaveFile = exportSaveFile;
 window.importSaveFile = importSaveFile;
 window.showSaveLoadPanel = showSaveLoadPanel;
@@ -626,6 +608,6 @@ window.equipSkin = equipSkin;
 window.addDefaultSkinsToUnlocked = addDefaultSkinsToUnlocked;
 window.setDefaultSkin = setDefaultSkin;
 window.addSkinsButton = addSkinsButton;
+window.initSkinsSystem = initSkinsSystem;
 
-// Запуск игры
 init();
