@@ -321,6 +321,16 @@ const SKINS_DB = {
                     rarity: 'Легендарный',
                     description: 'Образ возрождающегося из пепла ада',
                     gender: 'male'
+                },
+                {
+                    id: 'mage_fire_demon_m',
+                    name: 'Феникс перерождения',
+                    icon: '🐦‍🔥',
+                    img: 'classes/mage/fire-fenix.png',
+                    price: 25000,
+                    rarity: 'Древний',
+                    description: 'Образ возрождающегося из пепла феникс',
+                    gender: 'male'
                 }
             ],
             'Школа Льда': [
