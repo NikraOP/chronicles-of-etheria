@@ -327,7 +327,7 @@ const SKINS_DB = {
                     name: 'Феникс перерождения',
                     icon: '🐦‍🔥',
                     img: 'classes/mage/fire-fenix.png',
-                    price: 2,
+                    price: 20000,
                     rarity: 'Древний',
                     description: 'Образ возрождающегося из пепла феникс',
                     gender: 'male'
