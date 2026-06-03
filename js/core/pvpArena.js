@@ -1,7 +1,7 @@
 // PvP Arena: Trystero/MQTT WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=3';
+const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=4';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v2-mqtt';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
     'wss://broker.emqx.io:8084/mqtt',
@@ -91,8 +91,48 @@ function safePvPAvatarSrc(src) {
     if (!value || /[<>"'`]/.test(value)) return '';
     if (/^(javascript|data|vbscript):/i.test(value)) return '';
     if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(value)) return '';
-    if (value.startsWith('png/') || value.startsWith('./') || value.startsWith('assets/') || value.startsWith('monsters/')) return value;
+    if (value.startsWith('png/') || value.startsWith('./') || value.startsWith('assets/')
+        || value.startsWith('monsters/') || value.startsWith('classes/')) return value;
     return '';
+}
+
+function sanitizePvPAbility(ability) {
+    if (!ability || typeof ability !== 'object') return null;
+    const name = String(ability.name || '').slice(0, 40);
+    if (!name) return null;
+    const safe = {
+        name,
+        desc: String(ability.desc || '').slice(0, 140),
+        icon: String(ability.icon || '✨').slice(0, 8),
+        lvl: clampPvPNumber(ability.lvl, 1, 999, 1),
+        cd: clampPvPNumber(ability.cd, 0, 99, 0),
+        mana: clampPvPNumber(ability.mana, 0, 9999, 0),
+        dmg: clampPvPNumber(ability.dmg, 0, 9999, 0),
+        passive: !!ability.passive,
+        heal: clampPvPNumber(ability.heal, 0, 100, 0),
+        lifesteal: clampPvPNumber(ability.lifesteal, 0, 100, 0),
+        currentCooldown: clampPvPNumber(ability.currentCooldown, 0, 99, 0),
+        guaranteedCrit: !!ability.guaranteedCrit,
+        ignoreDef: clampPvPNumber(ability.ignoreDef, 0, 100, 0),
+        comboStep: clampPvPNumber(ability.comboStep, 0, 6, 0),
+        comboId: String(ability.comboId || '').slice(0, 40)
+    };
+    if (Array.isArray(ability.combo) && ability.combo.length) {
+        safe.combo = ability.combo.slice(0, 6).map(v => clampPvPNumber(v, 0, 999, 0));
+    }
+    if (ability.multiHit && typeof ability.multiHit === 'object') {
+        safe.multiHit = {
+            hits: clampPvPNumber(ability.multiHit.hits, 1, 8, 1),
+            baseDmg: clampPvPNumber(ability.multiHit.baseDmg, 0, 999, 0),
+            increment: clampPvPNumber(ability.multiHit.increment, 0, 100, 0)
+        };
+    }
+    return safe;
+}
+
+function serializePvPAbilitiesFromPlayer() {
+    if (!player || !Array.isArray(player.abilities)) return [];
+    return player.abilities.map(sanitizePvPAbility).filter(Boolean);
 }
 
 function clampPvPNumber(value, min, max, fallback) {
@@ -115,7 +155,12 @@ function sanitizePvPSnapshot(snapshot) {
         defense: clampPvPNumber(snapshot.defense, 0, 99999, 0),
         criticalChance: clampPvPNumber(snapshot.criticalChance, 0, 100, 0),
         criticalDamage: clampPvPNumber(snapshot.criticalDamage, 100, 1000, 150),
-        dodgeChance: clampPvPNumber(snapshot.dodgeChance, 0, 100, 0)
+        dodgeChance: clampPvPNumber(snapshot.dodgeChance, 0, 100, 0),
+        mana: clampPvPNumber(snapshot.mana, 0, 99999, 0),
+        maxMana: clampPvPNumber(snapshot.maxMana, 0, 99999, 0),
+        abilities: Array.isArray(snapshot.abilities)
+            ? snapshot.abilities.map(sanitizePvPAbility).filter(Boolean)
+            : []
     };
 }
 
@@ -142,7 +187,10 @@ function getPvPPlayerSnapshot() {
         defense: Math.max(0, player.defense || 0),
         criticalChance: Math.max(0, player.criticalChance || 0),
         criticalDamage: Math.max(100, player.criticalDamage || 150),
-        dodgeChance: Math.max(0, player.dodgeChance || 0)
+        dodgeChance: Math.max(0, player.dodgeChance || 0),
+        mana: player.class === 'Маг' ? Math.max(0, player.mana || 0) : 0,
+        maxMana: player.class === 'Маг' ? Math.max(0, player.maxMana || 0) : 0,
+        abilities: serializePvPAbilitiesFromPlayer()
     });
 }
 
@@ -152,7 +200,83 @@ function clonePvPStats(snapshot) {
     s.health = Math.max(1, s.health || s.maxHealth || 1);
     s.maxHealth = Math.max(1, s.maxHealth || s.health || 1);
     s.guard = false;
+    s.dodgeActive = false;
+    s.abilities = (s.abilities || []).map(a => ({ ...a, currentCooldown: a.currentCooldown || 0 }));
+    if (s.class === 'Маг' && s.maxMana > 0) s.mana = Math.min(s.mana || s.maxMana, s.maxMana);
     return s;
+}
+
+function findPvPAbility(actor, index) {
+    if (!actor || !Array.isArray(actor.abilities)) return null;
+    const i = Number(index);
+    if (!Number.isFinite(i) || i < 0 || i >= actor.abilities.length) return null;
+    return actor.abilities[i] || null;
+}
+
+function tickPvPAbilityCooldowns(actor) {
+    if (!actor || !Array.isArray(actor.abilities)) return;
+    actor.abilities.forEach(a => {
+        if (a.currentCooldown > 0) a.currentCooldown -= 1;
+    });
+}
+
+function applyPvPDefense(dmg, defense, ignoreDef) {
+    let raw = Math.max(0, Math.floor(dmg));
+    if (raw <= 0) return 0;
+    let def = Math.max(0, defense || 0);
+    if (ignoreDef > 0) def = Math.floor(def * (1 - ignoreDef / 100));
+    if (typeof calculateDamage === 'function') return calculateDamage(raw, def);
+    const defenseReduction = Math.min(70, def / 4);
+    return Math.max(1, Math.floor(raw * (100 - defenseReduction) / 100));
+}
+
+function rollPvPCrit(attacker, guaranteed) {
+    if (guaranteed) return true;
+    return Math.random() * 100 < (attacker.criticalChance || 0);
+}
+
+function computePvPAbilityDamage(attacker, defender, ability) {
+    if (!ability || ability.passive || ability.noDamage) return { damage: 0, crit: false, healAmount: 0 };
+    let raw = 0;
+    if (ability.multiHit) {
+        const { hits, baseDmg, increment } = ability.multiHit;
+        for (let h = 0; h < hits; h++) {
+            const pct = baseDmg + increment * h;
+            raw += Math.floor((attacker.attack || 1) * pct / 100);
+        }
+    } else if (ability.combo && ability.combo.length) {
+        const step = ability.comboStep || 0;
+        const pct = ability.combo[Math.min(step, ability.combo.length - 1)] || ability.dmg || 100;
+        raw = Math.floor((attacker.attack || 1) * pct / 100);
+    } else if (ability.dmg) {
+        raw = Math.floor((attacker.attack || 1) * ability.dmg / 100);
+    }
+    const crit = rollPvPCrit(attacker, ability.guaranteedCrit);
+    if (crit && raw > 0) raw = Math.floor(raw * ((attacker.criticalDamage || 150) / 100));
+    let damage = applyPvPDefense(raw, defender.defense, ability.ignoreDef || 0);
+    if (defender.guard) damage = Math.max(1, Math.floor(damage * 0.55));
+    let healAmount = 0;
+    if (ability.heal) {
+        healAmount = Math.floor((attacker.maxHealth || 1) * ability.heal / 100);
+        attacker.health = Math.min(attacker.maxHealth, attacker.health + healAmount);
+    }
+    if (ability.lifesteal && damage > 0) {
+        const ls = Math.floor(damage * ability.lifesteal / 100);
+        attacker.health = Math.min(attacker.maxHealth, attacker.health + ls);
+        healAmount += ls;
+    }
+    return { damage, crit, healAmount };
+}
+
+function computePvPBasicAttack(attacker, defender) {
+    const dodgeChance = Math.min(55, Math.max(0, defender.dodgeChance || 0));
+    if (Math.random() * 100 < dodgeChance) return { damage: 0, crit: false, dodged: true };
+    let raw = Math.floor(attacker.attack || 1);
+    const crit = rollPvPCrit(attacker, false);
+    if (crit) raw = Math.floor(raw * ((attacker.criticalDamage || 150) / 100));
+    let damage = applyPvPDefense(raw, defender.defense, 0);
+    if (defender.guard) damage = Math.max(1, Math.floor(damage * 0.55));
+    return { damage, crit, dodged: false };
 }
 
 function hashPvPMatch(match) {
@@ -187,6 +311,14 @@ function hashPvPMatch(match) {
         guest.criticalDamage,
         guest.dodgeChance,
         guest.guard ? 1 : 0,
+        host.mana,
+        host.maxMana,
+        guest.mana,
+        guest.maxMana,
+        host.dodgeActive ? 1 : 0,
+        guest.dodgeActive ? 1 : 0,
+        (host.abilities || []).map(a => `${a.name}:${a.currentCooldown}`).join(','),
+        (guest.abilities || []).map(a => `${a.name}:${a.currentCooldown}`).join(','),
         match.winner || ''
     ].join('|');
     let hash = 0;
@@ -194,26 +326,7 @@ function hashPvPMatch(match) {
     return String(Math.abs(hash));
 }
 
-function calculatePvPDamage(attacker, defender, action) {
-    if (action === 'guard') return { damage: 0, crit: false, dodged: false };
-    const dodgeChance = Math.min(55, Math.max(0, defender.dodgeChance || 0));
-    const dodged = action !== 'quick' && Math.random() * 100 < dodgeChance;
-    if (dodged) return { damage: 0, crit: false, dodged: true };
-
-    const critChance = action === 'power'
-        ? Math.max(0, (attacker.criticalChance || 0) - 10)
-        : attacker.criticalChance || 0;
-    const crit = Math.random() * 100 < critChance;
-    const actionMultiplier = action === 'power' ? 1.35 : action === 'quick' ? 0.78 : 1;
-    const defenseReduction = Math.min(65, (defender.defense || 0) / 4);
-    let damage = Math.floor((attacker.attack || 1) * actionMultiplier);
-    if (crit) damage = Math.floor(damage * ((attacker.criticalDamage || 150) / 100));
-    damage = Math.max(1, Math.floor(damage * (100 - defenseReduction) / 100));
-    if (defender.guard) damage = Math.max(1, Math.floor(damage * 0.55));
-    return { damage, crit, dodged: false };
-}
-
-function reducePvPMatch(match, actorRole, action) {
+function reducePvPMatch(match, actorRole, action, options) {
     if (!match || match.finished) return { match, result: { ignored: true } };
     if (match.active !== actorRole) return { match, result: { ignored: true, reason: 'wrong_turn' } };
 
@@ -221,13 +334,58 @@ function reducePvPMatch(match, actorRole, action) {
     const opponentRole = actorRole === 'host' ? 'guest' : 'host';
     const actor = next.players[actorRole];
     const opponent = next.players[opponentRole];
-    actor.guard = action === 'guard';
+    const opts = options || {};
+    actor.guard = false;
 
-    let result = { action, actorRole, opponentRole, damage: 0, crit: false, dodged: false };
-    if (action !== 'guard') {
-        result = { ...result, ...calculatePvPDamage(actor, opponent, action) };
-        opponent.health = Math.max(0, opponent.health - result.damage);
+    let result = { action, actorRole, opponentRole, damage: 0, crit: false, dodged: false, abilityIndex: -1, abilityName: '' };
+
+    if (action === 'dodge') {
+        const dodgeRoll = Math.random() * 100 <= (actor.dodgeChance || 0);
+        actor.dodgeActive = dodgeRoll;
+        result.dodgeSuccess = dodgeRoll;
+    } else if (action === 'ability') {
+        const abilityIndex = Number(opts.abilityIndex);
+        const ability = findPvPAbility(actor, abilityIndex);
+        if (!ability || ability.passive) return { match, result: { ignored: true, reason: 'bad_ability' } };
+        if (ability.currentCooldown > 0) return { match, result: { ignored: true, reason: 'on_cooldown' } };
+        const manaCost = actor.class === 'Маг' ? (ability.mana || 0) : 0;
+        if (manaCost > 0 && (actor.mana || 0) < manaCost) return { match, result: { ignored: true, reason: 'no_mana' } };
+        if (manaCost > 0) actor.mana -= manaCost;
+        if (ability.cd > 0) ability.currentCooldown = ability.cd;
+        if (ability.combo && ability.combo.length) {
+            if (ability.comboId !== ability.name) {
+                ability.comboId = ability.name;
+                ability.comboStep = 0;
+            } else {
+                ability.comboStep = (ability.comboStep + 1) % ability.combo.length;
+            }
+        }
+        result.abilityIndex = abilityIndex;
+        result.abilityName = ability.name;
+        if (opponent.dodgeActive) {
+            opponent.dodgeActive = false;
+            result.dodged = true;
+            result.dodgeBlocked = true;
+        } else {
+            const hit = computePvPAbilityDamage(actor, opponent, ability);
+            result = { ...result, ...hit };
+            opponent.health = Math.max(0, opponent.health - result.damage);
+        }
+    } else if (action === 'attack') {
+        if (opponent.dodgeActive) {
+            opponent.dodgeActive = false;
+            result.dodged = true;
+            result.dodgeBlocked = true;
+        } else {
+            const hit = computePvPBasicAttack(actor, opponent);
+            result = { ...result, ...hit };
+            opponent.health = Math.max(0, opponent.health - result.damage);
+        }
+    } else {
+        return { match, result: { ignored: true, reason: 'bad_action' } };
     }
+
+    tickPvPAbilityCooldowns(actor);
 
     if (opponent.health <= 0) {
         next.finished = true;
@@ -240,22 +398,40 @@ function reducePvPMatch(match, actorRole, action) {
     return { match: next, result };
 }
 
-function getPvPMaxPlausibleDamage(attacker, defender, action) {
-    if (action === 'guard') return 0;
-    const actionMultiplier = action === 'power' ? 1.35 : action === 'quick' ? 0.78 : 1;
-    const defenseReduction = Math.min(65, (defender.defense || 0) / 4);
-    let damage = Math.floor((attacker.attack || 1) * actionMultiplier);
+function getPvPMaxPlausibleDamage(attacker, defender, action, options) {
+    const opts = options || {};
+    if (action === 'dodge') return 0;
+    if (action === 'ability') {
+        const ability = findPvPAbility(attacker, opts.abilityIndex);
+        if (!ability) return 0;
+        let maxRaw = 0;
+        if (ability.multiHit) {
+            for (let h = 0; h < ability.multiHit.hits; h++) {
+                maxRaw += Math.floor((attacker.attack || 1) * (ability.multiHit.baseDmg + ability.multiHit.increment * h) / 100);
+            }
+        } else if (ability.combo && ability.combo.length) {
+            const maxPct = Math.max(...ability.combo, ability.dmg || 0);
+            maxRaw = Math.floor((attacker.attack || 1) * maxPct / 100);
+        } else {
+            maxRaw = Math.floor((attacker.attack || 1) * (ability.dmg || 100) / 100);
+        }
+        maxRaw = Math.floor(maxRaw * ((attacker.criticalDamage || 150) / 100));
+        let damage = applyPvPDefense(maxRaw, defender.defense, ability.ignoreDef || 0);
+        if (defender.guard) damage = Math.max(1, Math.floor(damage * 0.55));
+        return damage + Math.floor((attacker.maxHealth || 1) * (ability.heal || 0) / 100) + 5;
+    }
+    let damage = Math.floor(attacker.attack || 1);
     damage = Math.floor(damage * ((attacker.criticalDamage || 150) / 100));
-    damage = Math.max(1, Math.floor(damage * (100 - defenseReduction) / 100));
+    damage = applyPvPDefense(damage, defender.defense, 0);
     if (defender.guard) damage = Math.max(1, Math.floor(damage * 0.55));
     return damage + 2;
 }
 
 function isValidPvPAction(action) {
-    return ['attack', 'power', 'quick', 'guard'].includes(action);
+    return ['attack', 'dodge', 'ability'].includes(action);
 }
 
-function validatePvPResult(match, actorRole, action, result) {
+function validatePvPResult(match, actorRole, action, result, options) {
     if (!match || !result || !isValidPvPAction(action)) return false;
     const opponentRole = actorRole === 'host' ? 'guest' : 'host';
     const attacker = match.players && match.players[actorRole];
@@ -263,17 +439,30 @@ function validatePvPResult(match, actorRole, action, result) {
     if (!attacker || !defender) return false;
     const damage = Number(result.damage || 0);
     if (!Number.isFinite(damage) || damage < 0) return false;
-    if (action === 'guard') return damage === 0;
-    if (result.dodged) return damage === 0;
-    return damage <= getPvPMaxPlausibleDamage(attacker, defender, action);
+    if (action === 'dodge') return damage === 0;
+    if (result.dodged || result.dodgeBlocked) return damage === 0;
+    return damage <= getPvPMaxPlausibleDamage(attacker, defender, action, options);
 }
 
 function applyPvPResultToMatch(match, actorRole, action, result) {
     const next = JSON.parse(JSON.stringify(match));
     const opponentRole = actorRole === 'host' ? 'guest' : 'host';
-    next.players[actorRole].guard = action === 'guard';
-    if (action !== 'guard' && !result.dodged) {
-        next.players[opponentRole].health = Math.max(0, next.players[opponentRole].health - Math.floor(result.damage || 0));
+    const actor = next.players[actorRole];
+    const opponent = next.players[opponentRole];
+    actor.guard = false;
+    if (action === 'dodge') {
+        actor.dodgeActive = !!result.dodgeSuccess;
+    } else if (!result.dodged && !result.dodgeBlocked) {
+        opponent.health = Math.max(0, opponent.health - Math.floor(result.damage || 0));
+        if (result.abilityIndex >= 0 && actor.abilities && actor.abilities[result.abilityIndex]) {
+            const ability = actor.abilities[result.abilityIndex];
+            if (ability.cd > 0) ability.currentCooldown = ability.cd;
+            if (result.healAmount) {
+                actor.health = Math.min(actor.maxHealth, actor.health + Math.floor(result.healAmount || 0));
+            }
+        }
+    } else if (result.dodgeBlocked) {
+        opponent.dodgeActive = false;
     }
     if (next.players[opponentRole].health <= 0) {
         next.finished = true;
@@ -304,6 +493,12 @@ function sanitizePvPMatch(match) {
     guest.health = clampPvPNumber(match.players.guest.health, 0, guest.maxHealth, guest.maxHealth);
     host.guard = !!match.players.host.guard;
     guest.guard = !!match.players.guest.guard;
+    host.dodgeActive = !!match.players.host.dodgeActive;
+    guest.dodgeActive = !!match.players.guest.dodgeActive;
+    host.mana = clampPvPNumber(match.players.host.mana, 0, host.maxMana || 99999, host.mana || 0);
+    guest.mana = clampPvPNumber(match.players.guest.mana, 0, guest.maxMana || 99999, guest.mana || 0);
+    host.abilities = (match.players.host.abilities || []).map(sanitizePvPAbility).filter(Boolean);
+    guest.abilities = (match.players.guest.abilities || []).map(sanitizePvPAbility).filter(Boolean);
     const safe = {
         turn: clampPvPNumber(match.turn, 1, 999999, 1),
         active: match.active === 'guest' ? 'guest' : 'host',
@@ -441,7 +636,14 @@ function renderPvPPlayerCard(title, snapshot, ready) {
     }
     const safeSnapshot = sanitizePvPSnapshot(snapshot);
     if (!safeSnapshot) return `<div class="pvp-card pvp-player-card"><h3>${escapePvPText(title)}</h3><p>Некорректные данные игрока</p></div>`;
-    const avatar = safeSnapshot.avatar ? `<img src="${escapePvPAttr(safeSnapshot.avatar)}" alt="">` : '<div class="pvp-avatar-fallback">⚔️</div>';
+    let avatar = '';
+    if (title === 'Ты' && typeof getAvatar === 'function') {
+        avatar = `<div class="pvp-avatar-live">${getAvatar()}</div>`;
+    } else {
+        avatar = safeSnapshot.avatar
+            ? `<img src="${escapePvPAttr(safeSnapshot.avatar)}" alt="">`
+            : '<div class="pvp-avatar-fallback">⚔️</div>';
+    }
     return `
         <div class="pvp-card pvp-player-card">
             <div class="pvp-player-row">
@@ -690,6 +892,7 @@ function togglePvPReady() {
 
 function hostStartPvPMatch() {
     if (pvpState.role !== 'host' || !pvpState.localReady || !pvpState.remoteReady || !pvpState.remote) return;
+    pvpState.local = getPvPPlayerSnapshot();
     pvpState.match = buildInitialPvPMatch(pvpState.local, pvpState.remote);
     pvpState.status = 'battle';
     sendPvPMessage('start', { match: pvpState.match });
@@ -730,13 +933,12 @@ function renderPvPBattle() {
             </div>
             ${renderPvPResult()}
             <div class="battle-actions pvp-action-bar">
-                <button class="action-btn" onclick="sendPvPAction('attack')" ${myTurn ? '' : 'disabled'}>⚔️ Атака</button>
-                <button class="action-btn" onclick="sendPvPAction('power')" ${myTurn ? '' : 'disabled'}>💥 Сильный удар</button>
-                <button class="action-btn" onclick="sendPvPAction('quick')" ${myTurn ? '' : 'disabled'}>💨 Быстрый удар</button>
-                <button class="action-btn" onclick="sendPvPAction('guard')" ${myTurn ? '' : 'disabled'}>🛡️ Защита</button>
-                <button class="action-btn danger" onclick="forfeitPvPMatch()" ${pvpState.status === 'battle' ? '' : 'disabled'}>Сдаться</button>
+                <button class="action-btn" onclick="sendPvPAction('attack')" id="btnPvPAtk" ${myTurn ? '' : 'disabled'}>⚔️ Атака</button>
+                <button class="action-btn" onclick="showPvPAbilities()" id="btnPvPAbi" ${myTurn ? '' : 'disabled'}>✨ Способности</button>
+                <button class="action-btn" onclick="sendPvPAction('dodge')" id="btnPvPDodge" ${myTurn ? '' : 'disabled'}>💨 Уклон</button>
+                <button class="action-btn danger" onclick="forfeitPvPMatch()" ${pvpState.status === 'battle' ? '' : 'disabled'}>🏃 Сдаться</button>
             </div>
-            <p class="pvp-hint">Сильный удар бьёт больнее, но режет шанс крита. Быстрый удар слабее, зато игнорирует уклонение. Защита снижает следующий входящий урон.</p>
+            <p class="pvp-hint">Как в бою с боссом: классовые способности, уклон и скины. Маг тратит ману на заклинания.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
             <button class="action-btn" onclick="showPvPArena()">Вернуться в лобби</button>
         </section>
@@ -745,16 +947,65 @@ function renderPvPBattle() {
 
 function renderPvPCombatant(stats, side, snapshot) {
     const hpPct = Math.max(0, Math.min(100, stats.health / Math.max(1, stats.maxHealth) * 100));
-    const safeAvatar = snapshot ? safePvPAvatarSrc(snapshot.avatar) : '';
-    const avatar = safeAvatar ? `<img class="combatant-img" src="${escapePvPAttr(safeAvatar)}" alt="">` : `<div class="combatant-icon">${side === 'enemy' ? '🛡️' : '⚔️'}</div>`;
+    let avatar = '';
+    if (side === 'player' && typeof getAvatar === 'function') {
+        avatar = `<div class="combatant-sprite"><span class="sprite-fallback">${getAvatar()}</span></div>`;
+    } else {
+        const safeAvatar = snapshot ? safePvPAvatarSrc(snapshot.avatar) : '';
+        avatar = safeAvatar
+            ? `<div class="combatant-sprite"><img class="combatant-img player-avatar" src="${escapePvPAttr(safeAvatar)}" alt="" onerror="this.style.display='none'"></div>`
+            : `<div class="combatant-sprite"><div class="combatant-icon">${side === 'enemy' ? '🛡️' : '⚔️'}</div></div>`;
+    }
+    const manaLine = stats.class === 'Маг' && stats.maxMana > 0
+        ? ` · 💎 ${escapePvPText(stats.mana)}/${escapePvPText(stats.maxMana)}`
+        : '';
+    const dodgeLine = stats.dodgeActive ? ' · 💨 Уклон активен' : '';
     return `
         <div class="combatant-wrapper ${side === 'enemy' ? 'enemy-side' : 'player-side'}">
             <div class="combatant-name">${escapePvPText(stats.name)}</div>
-            <div class="combatant-sprite">${avatar}</div>
+            ${avatar}
             <div class="health-bar"><div class="health-fill ${side === 'enemy' ? 'enemy-health' : 'player-health'}" style="width:${hpPct}%"></div></div>
-            <div class="combatant-stats">❤️ ${escapePvPText(stats.health)}/${escapePvPText(stats.maxHealth)} · ⚔️ ${escapePvPText(stats.attack)} · 🛡️ ${escapePvPText(stats.defense)}${stats.guard ? ' · Защита' : ''}</div>
+            <div class="combatant-stats">❤️ ${escapePvPText(stats.health)}/${escapePvPText(stats.maxHealth)} · ⚔️ ${escapePvPText(stats.attack)} · 🛡️ ${escapePvPText(stats.defense)}${manaLine}${dodgeLine}</div>
         </div>
     `;
+}
+
+function showPvPAbilities() {
+    const role = getLocalPvPRole();
+    if (!pvpState.match || pvpState.match.active !== role || pvpState.match.finished) return;
+    const fighter = pvpState.match.players[role];
+    if (!fighter || !Array.isArray(fighter.abilities) || !fighter.abilities.length) {
+        pvpLog('Нет доступных способностей.', 'error');
+        return;
+    }
+    let html = '<h3>✨ Способности PvP</h3><div class="ability-grid">';
+    fighter.abilities.forEach((a, i) => {
+        const onCd = a.currentCooldown > 0;
+        const noMana = fighter.class === 'Маг' && a.mana && (fighter.mana || 0) < a.mana;
+        const isPassive = a.passive;
+        let stats = '';
+        if (a.dmg) stats += '<span>⚔️' + a.dmg + '%</span>';
+        if (a.mana && fighter.class === 'Маг') stats += '<span>💎' + a.mana + '</span>';
+        if (a.cd) stats += '<span>⏱️КД:' + a.cd + '</span>';
+        if (a.heal) stats += '<span>💚' + a.heal + '%</span>';
+        if (a.lifesteal) stats += '<span>🩸' + a.lifesteal + '%</span>';
+        const disabled = onCd || noMana || isPassive;
+        html += '<div class="ability-card' + (disabled ? ' on-cooldown' : '') + '" onclick="' + (disabled ? '' : 'sendPvPAbility(' + i + ')') + '">'
+            + '<div class="ability-header"><span class="ability-icon">' + escapePvPText(a.icon || '✨') + '</span>'
+            + '<span class="ability-name">' + escapePvPText(a.name) + (onCd ? ' (⌛' + a.currentCooldown + ')' : '') + '</span></div>'
+            + '<div class="ability-desc">' + escapePvPText(a.desc) + '</div>'
+            + (stats ? '<div class="ability-stats">' + stats + '</div>' : '')
+            + (noMana ? '<div style="color:#e74c3c;font-size:9px;">❌ Нет маны</div>' : '')
+            + (isPassive ? '<div style="color:#888;font-size:9px;">Пассивная</div>' : '')
+            + '</div>';
+    });
+    html += '</div><button class="action-btn" onclick="renderPvPBattle()" style="margin-top:10px;width:100%;">↩️ Назад к бою</button>';
+    const el = document.getElementById('dynamicContent');
+    if (el) el.innerHTML = html;
+}
+
+function sendPvPAbility(index) {
+    sendPvPAction('ability', { abilityIndex: index });
 }
 
 function renderPvPResult() {
@@ -764,19 +1015,26 @@ function renderPvPResult() {
     return `<div class="pvp-result ${localWon ? 'win' : 'lose'}">${localWon ? 'Победа!' : 'Поражение'}</div>`;
 }
 
-function sendPvPAction(action) {
+function sendPvPAction(action, options) {
     const role = getLocalPvPRole();
     if (!pvpState.match || pvpState.match.active !== role || pvpState.match.finished) return;
     const prevHash = pvpState.match.hash;
     const turn = pvpState.match.turn;
-    const reduced = reducePvPMatch(pvpState.match, role, action);
-    if (reduced.result.ignored) return;
+    const opts = options || {};
+    const reduced = reducePvPMatch(pvpState.match, role, action, opts);
+    if (reduced.result.ignored) {
+        if (reduced.result.reason === 'on_cooldown') pvpLog('Способность на перезарядке.', 'error');
+        else if (reduced.result.reason === 'no_mana') pvpLog('Не хватает маны.', 'error');
+        return;
+    }
     pvpState.match = reduced.match;
     appendPvPActionLog(reduced.result, true);
     sendPvPMessage('turn', {
         actorRole: role,
         action,
+        abilityIndex: opts.abilityIndex,
         result: reduced.result,
+        match: pvpState.match,
         prevHash,
         turn,
         hash: pvpState.match.hash
@@ -799,11 +1057,17 @@ function applyPvPRemoteAction(payload) {
         pvpLog('Ход соперника не совпал с текущим состоянием. Матч рассинхронизирован.', 'error');
         return;
     }
-    if (!validatePvPResult(pvpState.match, expectedActor, payload.action, payload.result)) {
+    const remoteOpts = { abilityIndex: payload.abilityIndex };
+    if (!validatePvPResult(pvpState.match, expectedActor, payload.action, payload.result, remoteOpts)) {
         pvpLog('Некорректный результат хода соперника отклонён.', 'error');
         return;
     }
-    pvpState.match = applyPvPResultToMatch(pvpState.match, expectedActor, payload.action, payload.result);
+    const syncedMatch = sanitizePvPMatch(payload.match);
+    if (syncedMatch && syncedMatch.hash === payload.hash) {
+        pvpState.match = syncedMatch;
+    } else {
+        pvpState.match = applyPvPResultToMatch(pvpState.match, expectedActor, payload.action, payload.result);
+    }
     if (payload.hash && payload.hash !== pvpState.match.hash) {
         pvpLog('Hash хода отличается. Продолжаем по локально проверенному состоянию.', 'error');
     }
@@ -815,10 +1079,18 @@ function applyPvPRemoteAction(payload) {
 function appendPvPActionLog(result, localAction) {
     if (!result) return;
     const actorName = localAction ? 'Ты' : (pvpState.remote?.name || 'Соперник');
-    if (result.action === 'guard') {
-        pvpLog(`${actorName}: защита до следующего удара.`, 'info');
+    if (result.action === 'dodge') {
+        pvpLog(result.dodgeSuccess
+            ? `${actorName}: уклонение удалось — следующий удар соперника может промахнуться.`
+            : `${actorName}: уклонение не удалось.`, result.dodgeSuccess ? 'success' : 'info');
+    } else if (result.dodgeBlocked) {
+        pvpLog(`${actorName}: удар, но соперник уклонился.`, 'info');
     } else if (result.dodged) {
-        pvpLog(`${actorName}: атака, но цель уклонилась.`, 'info');
+        pvpLog(`${actorName}: атака, цель уклонилась.`, 'info');
+    } else if (result.action === 'ability' && result.abilityName) {
+        const crit = result.crit ? ' Крит!' : '';
+        const heal = result.healAmount ? ` (+${result.healAmount} лечения)` : '';
+        pvpLog(`${actorName}: «${result.abilityName}» — ${result.damage} урона.${crit}${heal}`, result.crit ? 'crit' : 'dmg');
     } else {
         const crit = result.crit ? ' Крит!' : '';
         pvpLog(`${actorName}: ${result.damage} урона.${crit}`, result.crit ? 'crit' : 'dmg');
@@ -864,22 +1136,28 @@ function leavePvPArena() {
 }
 
 function runPvPStressTest(iterations) {
+    const testAbility = {
+        name: 'Тест-удар', dmg: 120, cd: 0, mana: 0, passive: false, currentCooldown: 0, icon: '💥', desc: 'stress'
+    };
     const host = {
         name: 'Host', class: 'Воин', branch: 'Тест', level: 50,
         maxHealth: 1800, health: 1800, attack: 260, defense: 90,
-        criticalChance: 18, criticalDamage: 170, dodgeChance: 12
+        criticalChance: 18, criticalDamage: 170, dodgeChance: 12,
+        abilities: [testAbility]
     };
     const guest = {
         name: 'Guest', class: 'Лучник', branch: 'Тест', level: 50,
         maxHealth: 1500, health: 1500, attack: 285, defense: 70,
-        criticalChance: 24, criticalDamage: 185, dodgeChance: 22
+        criticalChance: 24, criticalDamage: 185, dodgeChance: 22,
+        abilities: [testAbility]
     };
     let match = buildInitialPvPMatch(host, guest);
-    const actions = ['attack', 'power', 'quick', 'guard'];
+    const actions = ['attack', 'dodge', 'ability'];
     const total = iterations || 300;
     for (let i = 0; i < total && !match.finished; i++) {
         const action = actions[i % actions.length];
-        const reduced = reducePvPMatch(match, match.active, action);
+        const opts = action === 'ability' ? { abilityIndex: 0 } : {};
+        const reduced = reducePvPMatch(match, match.active, action, opts);
         match = reduced.match;
         if (!match || !match.players.host || !match.players.guest || Number.isNaN(match.players.host.health) || Number.isNaN(match.players.guest.health)) {
             throw new Error('PvP stress state corrupted at turn ' + i);
@@ -894,6 +1172,9 @@ window.joinPvPRoom = joinPvPRoom;
 window.togglePvPReady = togglePvPReady;
 window.hostStartPvPMatch = hostStartPvPMatch;
 window.sendPvPAction = sendPvPAction;
+window.showPvPAbilities = showPvPAbilities;
+window.sendPvPAbility = sendPvPAbility;
+window.renderPvPBattle = renderPvPBattle;
 window.forfeitPvPMatch = forfeitPvPMatch;
 window.copyPvPCode = copyPvPCode;
 window.leavePvPArena = leavePvPArena;

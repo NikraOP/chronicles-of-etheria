@@ -83,6 +83,11 @@ function testTransportConfigRelays() {
     assert(JSON.stringify(turn).includes('turn:openrelay.metered.ca'), 'Open Relay TURN missing');
     assert(configA.turnConfig !== configB.turnConfig, 'turnConfig array must be copied');
 
+    const snap = context.getPvPPlayerSnapshot();
+    if (snap && snap.avatar && snap.avatar.startsWith('classes/')) {
+        assert(snap.avatar === snap.avatar, 'classes skin path preserved in snapshot');
+    }
+
     configA.relayConfig.urls.push('wss://mutated.example');
     assert(!configB.relayConfig.urls.includes('wss://mutated.example'), 'relay config mutation leaked');
     turn[0].urls.push('turn:mutated.example');
