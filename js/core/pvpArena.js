@@ -1,10 +1,14 @@
-// PvP Arena: PeerJS/WebRTC 1v1 for static hosting.
+// PvP Arena: Trystero/WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
+const PVP_TRYSTERO_URL = 'https://esm.sh/@trystero-p2p/torrent@0.23.0';
+const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
 
-let pvpPeer = null;
-let pvpConn = null;
+let pvpRoom = null;
+let pvpSendPacket = null;
+let pvpRemotePeerId = '';
 let pvpSessionId = 0;
+let pvpTrysteroModulePromise = null;
 let pvpState = createEmptyPvPState();
 
 function createEmptyPvPState() {
@@ -328,22 +332,22 @@ function buildInitialPvPMatch(hostSnapshot, guestSnapshot) {
 }
 
 function sendPvPMessage(type, payload) {
-    if (!pvpConn || !pvpConn.open) return false;
-    pvpConn.send({
+    if (!pvpSendPacket || !pvpRemotePeerId) return false;
+    pvpSendPacket({
         v: PVP_VERSION,
         type,
         payload: payload || {},
         sentAt: Date.now()
-    });
+    }, pvpRemotePeerId).catch(err => handlePvPError(err));
     return true;
 }
 
 function resetPvPConnection() {
     pvpSessionId++;
-    try { if (pvpConn) pvpConn.close(); } catch (e) {}
-    try { if (pvpPeer) pvpPeer.destroy(); } catch (e) {}
-    pvpConn = null;
-    pvpPeer = null;
+    try { if (pvpRoom) pvpRoom.leave(); } catch (e) {}
+    pvpRoom = null;
+    pvpSendPacket = null;
+    pvpRemotePeerId = '';
 }
 
 function showPvPArena() {
@@ -365,7 +369,7 @@ function renderPvPArena() {
             <div class="pvp-header">
                 <div>
                     <h2>🏟️ PvP Арена 1 на 1</h2>
-                    <p>Создай комнату или подключись по коду. Работает через PeerJS/WebRTC без backend.</p>
+                    <p>Создай комнату или подключись по коду. Работает через Trystero/WebRTC без backend.</p>
                 </div>
                 <span class="pvp-status pvp-status-${safePvPClass(pvpState.status)}">${escapePvPText(getPvPStatusLabel())}</span>
             </div>
@@ -402,7 +406,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">Если public PeerJS недоступен, попробуй обновить страницу и создать новый код. Для рейтинга и античита позже нужен backend.</p>
+            <p class="pvp-hint">Сигналинг идёт через Trystero torrent trackers, без 0.peerjs.com. Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
         </section>
     `;
@@ -443,15 +447,60 @@ function getPvPStatusLabel() {
     return labels[pvpState.status] || pvpState.status;
 }
 
-function createPeerOrFail(id) {
-    if (typeof Peer === 'undefined') {
-        pvpState.status = 'error';
-        pvpState.error = 'PeerJS не загрузился. Проверь интернет или CDN.';
-        pvpLog(pvpState.error, 'error');
-        renderPvPArena();
-        return null;
+function loadPvPTransport() {
+    if (!pvpTrysteroModulePromise) {
+        pvpTrysteroModulePromise = import(PVP_TRYSTERO_URL).catch(err => {
+            pvpTrysteroModulePromise = null;
+            throw err;
+        });
     }
-    return new Peer(id, { debug: 1 });
+    return pvpTrysteroModulePromise;
+}
+
+function joinPvPTransportRoom(code, sessionId) {
+    return loadPvPTransport().then(mod => {
+        if (sessionId !== pvpSessionId) return;
+        const room = mod.joinRoom({ appId: PVP_TRYSTERO_APP_ID }, pvpRoomId(code));
+        const action = room.makeAction('pvp');
+        pvpRoom = room;
+        pvpSendPacket = action[0];
+        const receivePacket = action[1];
+
+        room.onPeerJoin(peerId => {
+            if (sessionId !== pvpSessionId) return;
+            if (pvpRemotePeerId && pvpRemotePeerId !== peerId) {
+                pvpLog('В комнате уже есть соперник, лишнее подключение игнорируется.', 'error');
+                return;
+            }
+            pvpRemotePeerId = peerId;
+            pvpState.status = 'connected';
+            pvpLog('Соединение установлено.', 'success');
+            sendPvPMessage('hello', { snapshot: pvpState.local, ready: pvpState.localReady });
+            renderPvPArena();
+        });
+
+        room.onPeerLeave(peerId => {
+            if (sessionId !== pvpSessionId || peerId !== pvpRemotePeerId) return;
+            pvpRemotePeerId = '';
+            if (pvpState.status === 'battle') endPvPMatch('disconnect');
+            else if (pvpState.status === 'ended') renderPvPBattle();
+            else {
+                pvpState.status = pvpState.role === 'host' ? 'hosting' : 'idle';
+                pvpLog('Соперник отключился.', 'error');
+                renderPvPArena();
+            }
+        });
+
+        receivePacket((msg, peerId) => {
+            if (sessionId !== pvpSessionId) return;
+            if (pvpRemotePeerId && pvpRemotePeerId !== peerId) return;
+            pvpRemotePeerId = peerId;
+            handlePvPMessage(msg);
+        });
+
+        pvpLog('Комната подключена к Trystero. Ждём соперника.', 'success');
+        renderPvPArena();
+    }).catch(err => handlePvPError(err));
 }
 
 function createPvPRoom() {
@@ -464,29 +513,7 @@ function createPvPRoom() {
     pvpState.status = 'hosting';
     pvpLog('Создаём комнату...', 'info');
     renderPvPArena();
-
-    pvpPeer = createPeerOrFail(pvpRoomId(pvpState.roomCode));
-    if (!pvpPeer) return;
-    pvpPeer.on('open', () => {
-        if (sessionId !== pvpSessionId) return;
-        pvpLog(`Комната ${pvpState.roomCode} готова. Ждём соперника.`, 'success');
-        renderPvPArena();
-    });
-    pvpPeer.on('connection', conn => {
-        if (sessionId !== pvpSessionId) {
-            conn.close();
-            return;
-        }
-        if (pvpConn || pvpState.status !== 'hosting') {
-            conn.close();
-            return;
-        }
-        setupPvPConnection(conn, sessionId);
-    });
-    pvpPeer.on('error', err => {
-        if (sessionId !== pvpSessionId) return;
-        handlePvPError(err);
-    });
+    joinPvPTransportRoom(pvpState.roomCode, sessionId);
 }
 
 function joinPvPRoom() {
@@ -505,51 +532,7 @@ function joinPvPRoom() {
     pvpState.status = 'connecting';
     pvpLog('Подключаемся к комнате...', 'info');
     renderPvPArena();
-
-    pvpPeer = createPeerOrFail();
-    if (!pvpPeer) return;
-    pvpPeer.on('open', () => {
-        if (sessionId !== pvpSessionId) return;
-        const conn = pvpPeer.connect(pvpRoomId(code), { reliable: true });
-        setupPvPConnection(conn, sessionId);
-    });
-    pvpPeer.on('error', err => {
-        if (sessionId !== pvpSessionId) return;
-        handlePvPError(err);
-    });
-}
-
-function setupPvPConnection(conn, sessionId) {
-    pvpConn = conn;
-    pvpConn.on('open', () => {
-        if (sessionId !== pvpSessionId) return;
-        if (conn !== pvpConn) return;
-        pvpState.status = 'connected';
-        pvpLog('Соединение установлено.', 'success');
-        sendPvPMessage('hello', { snapshot: pvpState.local, ready: pvpState.localReady });
-        renderPvPArena();
-    });
-    pvpConn.on('data', msg => {
-        if (sessionId !== pvpSessionId) return;
-        if (conn !== pvpConn) return;
-        handlePvPMessage(msg);
-    });
-    pvpConn.on('close', () => {
-        if (sessionId !== pvpSessionId) return;
-        if (conn !== pvpConn) return;
-        if (pvpState.status === 'battle') endPvPMatch('disconnect');
-        else if (pvpState.status === 'ended') renderPvPBattle();
-        else {
-            pvpState.status = 'idle';
-            pvpLog('Соперник отключился.', 'error');
-            renderPvPArena();
-        }
-    });
-    pvpConn.on('error', err => {
-        if (sessionId !== pvpSessionId) return;
-        if (conn !== pvpConn) return;
-        handlePvPError(err);
-    });
+    joinPvPTransportRoom(code, sessionId);
 }
 
 function handlePvPMessage(msg) {
@@ -612,7 +595,7 @@ function handlePvPMessage(msg) {
 
 function handlePvPError(err) {
     pvpState.status = 'error';
-    pvpState.error = err && err.message ? err.message : String(err || 'Неизвестная ошибка PeerJS');
+    pvpState.error = err && err.message ? err.message : String(err || 'Неизвестная ошибка PvP транспорта');
     pvpLog(pvpState.error, 'error');
     renderPvPArena();
 }
