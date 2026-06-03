@@ -1,11 +1,14 @@
-// PvP Arena: Trystero/WebRTC 1v1 for static hosting.
+// PvP Arena: Trystero/Nostr WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = '../vendor/trystero-torrent.bundle.mjs';
+const PVP_TRYSTERO_URL = '../vendor/trystero-nostr.bundle.mjs';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
-    'wss://tracker.webtorrent.dev',
-    'wss://tracker.btorrent.xyz'
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://relay.primal.net',
+    'wss://nostr.mom',
+    'wss://eden.nostr.land'
 ]);
 
 let pvpRoom = null;
@@ -544,7 +547,7 @@ function joinPvPTransportRoom(code, sessionId) {
             handlePvPMessage(msg);
         });
 
-        pvpLog('PvP транспорт инициализирован. Ждём соперника.', 'success');
+        pvpLog('PvP транспорт Nostr инициализирован. Ждём соперника.', 'success');
         renderPvPArena();
     }).catch(err => handlePvPError(err));
 }

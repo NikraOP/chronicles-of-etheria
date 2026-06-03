@@ -61,10 +61,14 @@ function testTransportConfigRelays() {
     const urls = configA.relayConfig.urls;
 
     assert(configA.appId === 'chronicles-of-etheria-pvp-v1', 'transport appId mismatch');
-    assert(Array.isArray(urls), 'relay urls must be an array');
-    assert(urls.includes('wss://tracker.webtorrent.dev'), 'webtorrent relay missing');
-    assert(urls.includes('wss://tracker.btorrent.xyz'), 'btorrent relay missing');
-    assert(!urls.some(url => url.includes('tracker.openwebtorrent.com')), 'openwebtorrent relay must be disabled');
+    assert(Array.isArray(urls), 'Nostr relay urls must be an array');
+    assert(urls.length >= 4, 'Nostr transport needs several relays');
+    assert(urls.includes('wss://relay.damus.io'), 'damus relay missing');
+    assert(urls.includes('wss://nos.lol'), 'nos.lol relay missing');
+    assert(urls.includes('wss://relay.primal.net'), 'primal relay missing');
+    assert(!JSON.stringify(configA).includes('tracker.webtorrent.dev'), 'webtorrent relay must not be configured');
+    assert(!JSON.stringify(configA).includes('tracker.btorrent.xyz'), 'btorrent relay must not be configured');
+    assert(!JSON.stringify(configA).includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
 
     configA.relayConfig.urls.push('wss://mutated.example');
