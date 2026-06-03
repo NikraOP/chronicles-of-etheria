@@ -196,6 +196,167 @@ body.low-hp .main-content {
 @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes progressPulse { 0%,100%{box-shadow:0 0 6px rgba(232,184,74,0.25)} 50%{box-shadow:0 0 18px rgba(232,184,74,0.55)} }
 
+.pvp-panel,
+.pvp-battle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    animation: fadeInUp 0.25s ease;
+}
+
+.pvp-header,
+.pvp-battle-top,
+.pvp-room-card,
+.pvp-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pvp-header p,
+.pvp-hint {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.pvp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+}
+
+.pvp-card,
+.pvp-room-card {
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.pvp-status,
+.pvp-ready {
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-full);
+    color: var(--gold-light);
+    font-size: 11px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pvp-ready.ready,
+.pvp-status.ready {
+    border-color: rgba(61, 214, 140, 0.45);
+    color: var(--green);
+}
+
+.pvp-room-label {
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.pvp-room-code {
+    color: var(--gold-light);
+    font-family: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 0.16em;
+}
+
+.pvp-code-input {
+    width: 100%;
+    margin: 8px 0 10px;
+    text-transform: uppercase;
+}
+
+.pvp-player-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pvp-avatar {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    display: flex;
+    height: 74px;
+    justify-content: center;
+    overflow: hidden;
+    width: 74px;
+}
+
+.pvp-avatar img {
+    height: 100%;
+    object-fit: contain;
+    width: 100%;
+}
+
+.pvp-avatar-fallback {
+    font-size: 32px;
+}
+
+.pvp-log {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin: 14px 0;
+    max-height: 180px;
+    overflow: auto;
+    padding: 10px;
+}
+
+.pvp-log-entry {
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 3px 0;
+}
+
+.pvp-log-entry span {
+    color: var(--text-muted);
+    margin-right: 6px;
+}
+
+.pvp-log-entry.success { color: var(--green); }
+.pvp-log-entry.error { color: var(--red); }
+.pvp-log-entry.dmg { color: var(--orange); }
+.pvp-log-entry.crit { color: var(--gold-light); }
+
+.pvp-battle-arena {
+    margin: 16px 0;
+}
+
+.pvp-action-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.pvp-result {
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 24px;
+    margin: 12px 0;
+    padding: 12px;
+    text-align: center;
+}
+
+.pvp-result.win {
+    background: rgba(61, 214, 140, 0.14);
+    color: var(--green);
+}
+
+.pvp-result.lose {
+    background: rgba(232, 85, 69, 0.14);
+    color: var(--red);
+}
+
 .player-attacking {
     animation: playerLungeStrike 0.78s cubic-bezier(0.16, 0.84, 0.32, 1) forwards;
     z-index: 100;
