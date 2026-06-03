@@ -457,16 +457,49 @@ function loadPvPTransport() {
     return pvpTrysteroModulePromise;
 }
 
+function setPvPRoomHandler(room, eventName, handler) {
+    if (!room) throw new Error('PvP room is not initialized');
+    if (typeof room[eventName] === 'function') {
+        room[eventName](handler);
+        return;
+    }
+    if (eventName in room) {
+        room[eventName] = handler;
+        return;
+    }
+    throw new Error(`PvP room does not support ${eventName}`);
+}
+
+function createPvPActionAdapter(action) {
+    if (Array.isArray(action) && typeof action[0] === 'function' && typeof action[1] === 'function') {
+        return {
+            send: (message, peerId) => action[0](message, peerId),
+            receive: handler => action[1](handler)
+        };
+    }
+    if (action && typeof action.send === 'function' && 'onMessage' in action) {
+        return {
+            send: (message, peerId) => action.send(message, { target: peerId }),
+            receive: handler => {
+                action.onMessage = (message, meta) => {
+                    const peerId = typeof meta === 'string' ? meta : meta?.peerId;
+                    if (peerId) handler(message, peerId);
+                };
+            }
+        };
+    }
+    throw new Error('Unsupported PvP transport action API');
+}
+
 function joinPvPTransportRoom(code, sessionId) {
     return loadPvPTransport().then(mod => {
         if (sessionId !== pvpSessionId) return;
         const room = mod.joinRoom({ appId: PVP_TRYSTERO_APP_ID }, pvpRoomId(code));
-        const action = room.makeAction('pvp');
+        const actionAdapter = createPvPActionAdapter(room.makeAction('pvp'));
         pvpRoom = room;
-        pvpSendPacket = action[0];
-        const receivePacket = action[1];
+        pvpSendPacket = actionAdapter.send;
 
-        room.onPeerJoin(peerId => {
+        setPvPRoomHandler(room, 'onPeerJoin', peerId => {
             if (sessionId !== pvpSessionId) return;
             if (pvpRemotePeerId && pvpRemotePeerId !== peerId) {
                 pvpLog('В комнате уже есть соперник, лишнее подключение игнорируется.', 'error');
@@ -479,7 +512,7 @@ function joinPvPTransportRoom(code, sessionId) {
             renderPvPArena();
         });
 
-        room.onPeerLeave(peerId => {
+        setPvPRoomHandler(room, 'onPeerLeave', peerId => {
             if (sessionId !== pvpSessionId || peerId !== pvpRemotePeerId) return;
             pvpRemotePeerId = '';
             if (pvpState.status === 'battle') endPvPMatch('disconnect');
@@ -491,7 +524,7 @@ function joinPvPTransportRoom(code, sessionId) {
             }
         });
 
-        receivePacket((msg, peerId) => {
+        actionAdapter.receive((msg, peerId) => {
             if (sessionId !== pvpSessionId) return;
             if (pvpRemotePeerId && pvpRemotePeerId !== peerId) return;
             pvpRemotePeerId = peerId;

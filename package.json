@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:pvp-transport": "esbuild js/vendor/trystero-torrent.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-torrent.bundle.mjs",
+    "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
