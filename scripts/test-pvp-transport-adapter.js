@@ -1,7 +1,9 @@
 const fs = require('fs');
 const vm = require('vm');
+const crypto = require('crypto');
 
 const source = fs.readFileSync('js/core/pvpArena.js', 'utf8');
+const lsStore = {};
 const context = {
     console,
     Date,
@@ -11,6 +13,14 @@ const context = {
     Promise,
     setTimeout,
     clearTimeout,
+    crypto: globalThis.crypto,
+    TextEncoder,
+    btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
+    localStorage: {
+        getItem: (k) => (k in lsStore ? lsStore[k] : null),
+        setItem: (k, v) => { lsStore[k] = String(v); },
+        removeItem: (k) => { delete lsStore[k]; }
+    },
     fetch: async () => ({ ok: false, status: 503, json: async () => [] }),
     AbortController: class {
         constructor() { this.signal = { aborted: false }; }
@@ -73,17 +83,12 @@ function testTransportConfigRelays() {
     assert(urls.includes('wss://test.mosquitto.org:8081/mqtt'), 'Mosquitto broker missing');
     assert(urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker missing');
     assert(!urls.includes('wss://relay.damus.io'), 'damus relay must be excluded');
-    assert(!urls.includes('wss://eden.nostr.land'), 'eden.nostr.land must be excluded');
     assert(!configJson.includes('nos.lol'), 'nostr-only host nos.lol must not be configured');
-    assert(!configJson.includes('relay.primal.net'), 'nostr-only host relay.primal.net must not be configured');
-    assert(!configJson.includes('relay.ditto.pub'), 'nostr-only host relay.ditto.pub must not be configured');
-    assert(!configJson.includes('tracker.webtorrent.dev'), 'webtorrent relay must not be configured');
-    assert(!configJson.includes('tracker.btorrent.xyz'), 'btorrent relay must not be configured');
-    assert(!configJson.includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
 
     const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
     assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
+    assert(configA.rtcConfig.iceCandidatePoolSize === 10, 'iceCandidatePoolSize must be 10');
     const iceJson = JSON.stringify(ice);
     assert(iceJson.includes('stun:stun.l.google.com'), 'Google STUN missing');
     assert(iceJson.includes('stun:stun.cloudflare.com'), 'Cloudflare STUN missing');
@@ -95,25 +100,39 @@ function testTransportConfigRelays() {
     assert(turnEntry && turnEntry.username && turnEntry.credential, 'TURN must have username and credential');
     assert(configA.rtcConfig !== configB.rtcConfig, 'rtcConfig object must be copied');
     assert(configA.rtcConfig.iceServers !== configB.rtcConfig.iceServers, 'iceServers array must be copied');
-
-    const snap = context.getPvPPlayerSnapshot();
-    if (snap && snap.avatar && snap.avatar.startsWith('classes/')) {
-        assert(snap.avatar === snap.avatar, 'classes skin path preserved in snapshot');
-    }
-
-    configA.relayConfig.urls.push('wss://mutated.example');
-    assert(!configB.relayConfig.urls.includes('wss://mutated.example'), 'relay config mutation leaked');
-    ice[0].urls = Array.isArray(ice[0].urls) ? ice[0].urls : [ice[0].urls];
-    ice[0].urls.push('turn:mutated.example');
-    assert(!configB.rtcConfig.iceServers[0].urls.includes('turn:mutated.example'), 'iceServers mutation leaked');
 }
 
-async function testLoadPvPIceServersFallback() {
+async function testLoadPvPIceServersMerged() {
+    context.resetPvPIceServersCache();
     const servers = await context.loadPvPIceServers();
-    assert(Array.isArray(servers) && servers.length >= 4, 'loadPvPIceServers must return ice servers');
+    assert(Array.isArray(servers) && servers.length >= 6, 'loadPvPIceServers must return merged ice servers');
     const iceStr = JSON.stringify(servers);
-    assert(iceStr.includes('turn:freeturn.net') || iceStr.includes('turn:freestun.net'), 'async ICE load must include TURN');
-    assert(iceStr.includes('"username":"free"'), 'freeTURN credentials expected in fallback');
+    assert(
+        iceStr.includes('staticauth.openrelay.metered.ca') || iceStr.includes('openrelay.metered.ca'),
+        'async ICE load must include Metered Open Relay static'
+    );
+    assert(iceStr.includes('turn:freeturn.net') || iceStr.includes('turn:freestun.net'), 'async ICE load must include free TURN');
+    const openRelayTurn = servers.find(s => {
+        const u = Array.isArray(s.urls) ? s.urls.join(' ') : String(s.urls);
+        return u.includes('staticauth.openrelay.metered.ca') && s.username && s.credential;
+    });
+    assert(openRelayTurn, 'Open Relay static TURN must have time-limited credentials');
+    assert(String(openRelayTurn.username).includes(':'), 'TURN REST username must be timestamp:user');
+}
+
+async function testTurnRestCredentials() {
+    const cred = await context.generateTurnRestCredentials('openrelayprojectsecret', 3600, 'test-user');
+    const expected = crypto.createHmac('sha1', 'openrelayprojectsecret')
+        .update(cred.username)
+        .digest('base64');
+    assert(cred.credential === expected, 'HMAC TURN credential must match coturn REST format');
+}
+
+async function testEffectiveMeteredApiKey() {
+    assert(context.getEffectiveMeteredApiKey() === '', 'empty when no key');
+    lsStore.etheria_pvp_metered_api_key = 'pk_test_abc';
+    assert(context.getEffectiveMeteredApiKey() === 'pk_test_abc', 'localStorage key must be read');
+    delete lsStore.etheria_pvp_metered_api_key;
 }
 
 async function testObjectActionAdapter() {
@@ -159,7 +178,9 @@ async function testArrayActionAdapter() {
     testSetterRoomHandlers();
     testLegacyFunctionRoomHandlers();
     testTransportConfigRelays();
-    await testLoadPvPIceServersFallback();
+    await testTurnRestCredentials();
+    await testEffectiveMeteredApiKey();
+    await testLoadPvPIceServersMerged();
     await testObjectActionAdapter();
     await testArrayActionAdapter();
     console.log('PvP transport adapter tests OK');

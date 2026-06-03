@@ -223,6 +223,19 @@ body.low-hp .main-content {
     font-size: 12px;
 }
 
+.pvp-metered-key-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 12px;
+}
+
+.pvp-metered-key-row .pvp-code-input {
+    flex: 1 1 200px;
+    min-width: 160px;
+}
+
 .pvp-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1903,16 +1916,16 @@ h3 { font-size: 18px; }
         justify-content: center !important;
         gap: 15px;
     }
-
+    
     .combatant-wrapper {
         width: 100% !important;
         max-width: 180px;
         margin: 0 !important;
     }
-
+    
     #enemyWrapper { margin: 0 !important; }
     #playerWrapper { margin: 0 !important; }
-
+    
     .vs-badge {
         position: relative !important;
         left: auto !important;
