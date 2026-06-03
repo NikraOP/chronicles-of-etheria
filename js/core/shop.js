@@ -3,8 +3,8 @@
 function showShop() {
     stopGathering();
     let html = '<h2>🏪 Магазин</h2><p>💰 Золото: <span style="color:var(--gold);" id="shopGoldAmount">' + player.gold + '</span></p><div class="shop-tabs">';
-    const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', 'Продажа ресурсов', 'Продажа предметов', '🎨 Скины'];
-    const categories = ['weapons', 'helmet', 'chest', 'pants', 'boots', 'sellResources', 'sellItems', 'skins'];
+    const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', '📜 Свитки добычи', 'Продажа ресурсов', 'Продажа предметов', '🎨 Скины'];
+    const categories = ['weapons', 'helmet', 'chest', 'pants', 'boots', 'gatherScrolls', 'sellResources', 'sellItems', 'skins'];
     
     tabs.forEach((t, i) => {
         const isActive = (window.currentShopCategory === categories[i]) || (i === 0 && !window.currentShopCategory);
@@ -33,10 +33,73 @@ function showShopCategory(cat) {
         renderSellItems();
     } else if (cat === 'skins') {
         renderSkins();
+    } else if (cat === 'gatherScrolls') {
+        renderGatherScrollShop();
     } else {
         renderBuyItems(cat);
     }
 }
+
+function renderGatherScrollShop() {
+    if (typeof GATHER_SCROLL_TIERS === 'undefined') {
+        document.getElementById('shopItems').innerHTML = '<p style="color:#666;">Свитки добычи не загружены</p>';
+        return;
+    }
+    let html = '<h3>📜 Свитки добычи</h3>';
+    html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Активируются в меню профессии (сбор ресурсов). Авто-сбор только пока вы в этом меню. Тир свитка ограничивает тир ресурса. Опыт снижен.</p>';
+    html += '<div class="item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+    GATHER_SCROLL_TIERS.forEach(meta => {
+        const canBuy = player.gold >= meta.shopPrice && player.level >= meta.minPlayerLevel;
+        const locked = player.level < meta.minPlayerLevel;
+        const rarityColor = getRarityColor(meta.rarity);
+        const mins = Math.round(meta.durationMs / 60000);
+        html += '<div class="item-card gather-scroll-shop-card" style="' + (canBuy ? 'cursor:pointer;' : 'opacity:0.75;') + 'background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:14px;" onclick="' +
+            (canBuy ? "buyGatherScroll('" + meta.name.replace(/'/g, "\\'") + "')" : '') + '">';
+        html += '<div style="display:flex;gap:12px;align-items:flex-start;">';
+        html += '<div style="font-size:40px;">' + meta.icon + '</div>';
+        html += '<div style="flex:1;"><div style="font-weight:700;color:' + rarityColor + ';">' + meta.name + '</div>';
+        html += '<div style="font-size:11px;margin:6px 0;">Тир ресурсов ≤ ' + meta.scrollTier + ' · ' + meta.maxGathers + ' сборов · ' + mins + ' мин · XP ×' + Math.round(meta.expMultiplier * 100) + '%</div>';
+        html += '<div style="font-size:10px;color:' + rarityColor + ';">' + getRarityDisplay(meta.rarity) + '</div>';
+        html += locked ? '<div style="font-size:10px;color:#e74c3c;margin-top:4px;">🔒 Ур. ' + meta.minPlayerLevel + '+</div>' : '';
+        html += '</div><div style="color:var(--gold);font-weight:700;">💰 ' + meta.shopPrice + '</div></div></div>';
+    });
+    html += '</div>';
+    document.getElementById('shopItems').innerHTML = html;
+}
+
+function buyGatherScroll(name) {
+    const meta = typeof getGatherScrollMetaByName === 'function' ? getGatherScrollMetaByName(name) : null;
+    if (!meta) return;
+    if (player.level < meta.minPlayerLevel) {
+        addMessage('❌ Недостаточный уровень для покупки!', 'error');
+        return;
+    }
+    if (player.gold < meta.shopPrice) {
+        addMessage('❌ Не хватает золота!', 'error');
+        return;
+    }
+    if (!player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
+    player.gold -= meta.shopPrice;
+    player.inventory.gatherScrolls.push({
+        name: meta.name,
+        icon: meta.icon,
+        rarity: meta.rarity,
+        type: 'gather_scroll',
+        effect: 'auto_gather',
+        scrollTier: meta.scrollTier,
+        durationMs: meta.durationMs,
+        maxGathers: meta.maxGathers,
+        expMultiplier: meta.expMultiplier,
+        tier: meta.tier
+    });
+    saveGame();
+    addMessage('📜 Куплен ' + meta.name + '!', 'success');
+    const goldSpan = document.getElementById('shopGoldAmount');
+    if (goldSpan) goldSpan.textContent = player.gold;
+    renderGatherScrollShop();
+}
+
+window.buyGatherScroll = buyGatherScroll;
 
 // Цвета для всех редкостей
 function getRarityColor(rarity) {

@@ -15,6 +15,11 @@ function init() {
                 
                 if (!player.professions) player.professions = {};
                 if (!player.resources) player.resources = {};
+                if (player.inventory && !player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
+                if (player.autoGather) {
+                    const ag = player.autoGather;
+                    if (Date.now() >= (ag.expiresAt || 0) || (ag.gathersLeft || 0) <= 0) player.autoGather = null;
+                }
                 
                 // ИНИЦИАЛИЗАЦИЯ СКИНОВ
                 initSkinsSystem();

@@ -36,7 +36,7 @@ function getAllRecipesForProfession(profId) {
     if (!recipesData) return [];
     
     let allRecipes = [];
-    const categories = ['weapons', 'armor', 'potions', 'scrolls', 'foods', 'gems', 'rings', 'amulets', 'consumables', 'items', 'stones'];
+    const categories = ['weapons', 'armor', 'potions', 'gather_scrolls', 'scrolls', 'foods', 'gems', 'rings', 'amulets', 'consumables', 'items', 'stones'];
     
     for (const category of categories) {
         if (recipesData[category] && Array.isArray(recipesData[category])) {
@@ -70,6 +70,10 @@ function completeCrafting(profId, options) {
         class: recipe.class || null,
         effect: recipe.effect || null,
         value: recipe.value || null,
+        scrollTier: recipe.scrollTier || null,
+        durationMs: recipe.durationMs || null,
+        maxGathers: recipe.maxGathers || null,
+        expMultiplier: recipe.expMultiplier != null ? recipe.expMultiplier : null,
         dmg: recipe.dmg || 0,
         def: recipe.def || 0,
         hp: recipe.hp || 0,
@@ -145,6 +149,10 @@ function completeCrafting(profId, options) {
         if (!player.inventory.foods) player.inventory.foods = [];
         player.inventory.foods.push(newItem);
         addMessage(`🍖 Создана еда: ${recipe.name}!`, 'success');
+    } else if (itemType === 'gather_scroll') {
+        if (!player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
+        player.inventory.gatherScrolls.push(newItem);
+        addMessage(`📜 Создан ${recipe.name}! Активируйте в меню добычи профессии.`, 'success');
     } else if (itemType === 'scroll' || itemType === 'battle_scroll') {
         if (!player.inventory.scrolls) player.inventory.scrolls = [];
         player.inventory.scrolls.push(newItem);
@@ -281,7 +289,8 @@ function showCraftingRecipes(profId) {
             'elixir': '💪 Эликсиры',
             'scroll': '📜 Свитки',
             'battle_scroll': '⚔️ Боевые свитки',
-            'food': '🍖 Еда'
+            'food': '🍖 Еда',
+            'gather_scroll': '📜 Свитки добычи'
         };
         
         for (const [itemType, recipes] of Object.entries(grouped)) {

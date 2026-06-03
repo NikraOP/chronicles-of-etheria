@@ -222,7 +222,10 @@ const CRAFTING_RECIPES = {
             {name:'Эликсир неуязвимости',icon:'✨',img:'',tier:4,exp:250,time:10,resources:{'Звездная пыльца':3,'Огненный цветок':3,'Сердце леса':3},type:'elixir',effect:'immortal',value:0,rarity:'Эпический'},
             {name:'Эликсир прилива',icon:'🌊',img:'',tier:6,exp:420,time:12,resources:{'Богиня моря':1,'Сапфир':2,'Синий корень':4,'Звездная пыльца':3},type:'elixir',effect:'dodge',value:32,rarity:'Мифический'},
             {name:'Божественный эликсир',icon:'🌟',img:'',tier:6,exp:500,time:15,resources:{'Звездная пыльца':8,'Огненный цветок':5,'Сердце леса':5},type:'elixir',effect:'immortal',value:0,rarity:'Легендарный'}
-        ]
+        ],
+        gather_scrolls: typeof buildGatherScrollCraftRecipes === 'function'
+            ? buildGatherScrollCraftRecipes()
+            : []
     },
 
     // ===== СВИТКОТВОРЧЕСТВО (для всех классов) - ресурсов на 50% больше =====

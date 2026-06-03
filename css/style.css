@@ -970,6 +970,53 @@ body.low-hp .main-content {
 }
 .gather-resource-card:active:not(.locked) { transform: scale(0.98); }
 .gather-grid-locked .gather-resource-card { pointer-events: none; opacity: 0.55; }
+.gather-scroll-panel {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12), rgba(124, 92, 191, 0.1));
+    border: 1px solid rgba(52, 152, 219, 0.35);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+.gather-scroll-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; color: var(--gold-light); }
+.gather-scroll-hint { font-size: 11px; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.5; }
+.gather-scroll-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.gather-scroll-btn {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 12px;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.gather-scroll-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+.gather-scroll-tag { display: block; font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+.gather-auto-active {
+    background: linear-gradient(135deg, rgba(241, 196, 15, 0.15), rgba(46, 204, 113, 0.12));
+    border: 1px solid rgba(241, 196, 15, 0.45);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    animation: gatherToastIn 0.35s ease-out;
+}
+.gather-auto-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.gather-auto-meta { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; }
+.gather-auto-target { font-size: 12px; margin-bottom: 10px; }
+.gather-auto-pick { color: var(--gold-light); font-style: italic; }
+.gather-auto-stop { width: 100%; margin-top: 4px; font-size: 12px; padding: 10px; }
+.gather-resource-card.gather-auto-selected {
+    border-color: rgba(241, 196, 15, 0.7);
+    box-shadow: 0 0 12px rgba(241, 196, 15, 0.25);
+}
+.gather-resource-card.gather-scroll-blocked { opacity: 0.45; cursor: not-allowed; }
+.gather-auto-badge {
+    font-size: 10px;
+    color: #f1c40f;
+    font-weight: 700;
+    margin-top: 4px;
+}
+.gather-scroll-shop-card:hover { border-color: var(--accent); }
 .gather-auto-toast {
     margin-top: 14px;
     padding: 14px 16px;

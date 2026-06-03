@@ -387,6 +387,7 @@ function showInventory() {
     if (!player.inventory.foods) player.inventory.foods = [];
     if (!player.inventory.elixirs) player.inventory.elixirs = [];
     if (!player.inventory.scrolls) player.inventory.scrolls = [];
+    if (!player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
     if (!player.inventory.stones) player.inventory.stones = [];
     if (!player.resources) player.resources = {};
     
@@ -611,6 +612,24 @@ function showInventory() {
         html += '</div>';
     }
     
+    if (player.inventory.gatherScrolls.length > 0) {
+        html += `<h3 style="margin-top: 20px; color: #5dade2;">📜 Свитки добычи (${player.inventory.gatherScrolls.length})</h3>`;
+        html += '<p style="font-size:11px;color:#aaa;margin:0 0 8px;">Активируются в меню профессии → сбор ресурсов</p>';
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
+        for (let i = 0; i < player.inventory.gatherScrolls.length; i++) {
+            const item = player.inventory.gatherScrolls[i];
+            const st = item.scrollTier || item.tier || 1;
+            html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
+                ${renderItemIconHTML(item, { size: 36, fallback: '📜' })}
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 13px; color: #5dade2;">${item.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">Тир ресурсов ≤ ${st} · ${item.maxGathers || '?'} сборов</div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
     // Свитки
     if (player.inventory.scrolls.length > 0) {
         html += `<h3 style="margin-top: 20px; color: #3498db;">📜 Свитки (${player.inventory.scrolls.length})</h3>`;

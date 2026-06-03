@@ -162,6 +162,7 @@ function finalizeCharacter() {
             foods: [],
             elixirs: [],
             scrolls: [],
+            gatherScrolls: [],
             stones: []
         },
         equipment: {

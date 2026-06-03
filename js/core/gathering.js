@@ -2,6 +2,164 @@ let gatheringRafId = null;
 let isGatheringLocked = false;
 let pendingGatherData = null;
 let activeGatherSession = null;
+let autoGatherUiTimerId = null;
+
+function ensureGatherScrollInventory() {
+    if (!player.inventory) player.inventory = {};
+    if (!player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
+}
+
+function getAutoGatherSession() {
+    return player && player.autoGather ? player.autoGather : null;
+}
+
+function isAutoGatherSessionValid(session) {
+    if (!session) return false;
+    if (Date.now() >= (session.expiresAt || 0)) return false;
+    if ((session.gathersLeft || 0) <= 0) return false;
+    return true;
+}
+
+function isAutoGatherActiveForProf(profId) {
+    const session = getAutoGatherSession();
+    return !!(session && session.profId === profId && isAutoGatherSessionValid(session));
+}
+
+function formatGatherScrollTimeLeft(ms) {
+    const sec = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function stopAutoGatherSession(reason) {
+    if (autoGatherUiTimerId != null) {
+        clearInterval(autoGatherUiTimerId);
+        autoGatherUiTimerId = null;
+    }
+    if (!player || !player.autoGather) return;
+    const name = player.autoGather.scrollName || 'Свиток добычи';
+    player.autoGather = null;
+    saveGame();
+    if (reason) addMessage(reason, 'info');
+    else addMessage('📜 Авто-добыча остановлена.', 'info');
+}
+
+function stopGatheringAnimation() {
+    if (gatheringRafId != null) {
+        cancelAnimationFrame(gatheringRafId);
+        gatheringRafId = null;
+    }
+    settlePendingCriticalGather();
+    isGatheringLocked = false;
+    activeGatherSession = null;
+    const grid = document.getElementById('gatherResourceGrid');
+    if (grid) grid.classList.remove('gather-grid-locked');
+}
+
+function activateGatherScroll(scrollIndex, profId) {
+    ensureGatherScrollInventory();
+    const scroll = player.inventory.gatherScrolls[scrollIndex];
+    if (!scroll) {
+        addMessage('❌ Свиток не найден!', 'error');
+        return;
+    }
+    if (!player.professions[profId]) {
+        addMessage('❌ Профессия не изучена!', 'error');
+        return;
+    }
+    if (getAutoGatherSession()) {
+        addMessage('❌ Уже активен свиток добычи! Сначала завершите или выйдите из меню.', 'error');
+        return;
+    }
+    player.inventory.gatherScrolls.splice(scrollIndex, 1);
+    player.autoGather = {
+        scrollName: scroll.name,
+        scrollTier: scroll.scrollTier || scroll.tier || 1,
+        profId: profId,
+        resourceName: null,
+        expiresAt: Date.now() + (scroll.durationMs || 240000),
+        gathersLeft: scroll.maxGathers || 15,
+        expMultiplier: scroll.expMultiplier != null ? scroll.expMultiplier : 0.65
+    };
+    saveGame();
+    addMessage(`📜 Активирован ${scroll.name}! Выберите ресурс тира ≤ ${player.autoGather.scrollTier}.`, 'success');
+    showGatheringResources(profId);
+}
+
+function deactivateGatherScrollManual(profId) {
+    stopAutoGatherSession('📜 Вы отключили авто-добычу.');
+    showGatheringResources(profId);
+}
+
+function canAutoGatherResource(resource, scrollTier) {
+    if (!resource || resource.battle) return false;
+    return (resource.tier || 1) <= scrollTier;
+}
+
+function tickAutoGatherUi(profId) {
+    const el = document.getElementById('gatherAutoStatus');
+    const session = getAutoGatherSession();
+    if (!el || !session || session.profId !== profId) return;
+    if (!isAutoGatherSessionValid(session)) {
+        stopAutoGatherSession('📜 Свиток добычи истёк или лимит сборов исчерпан.');
+        showGatheringResources(profId);
+        return;
+    }
+    const left = session.expiresAt - Date.now();
+    el.innerHTML =
+        '<div class="gather-auto-active">' +
+        '<div class="gather-auto-title">⚡ Авто-добыча: <strong>' + (session.scrollName || 'Свиток') + '</strong></div>' +
+        '<div class="gather-auto-meta">Тир ресурсов ≤ ' + session.scrollTier +
+        ' · осталось сборов: <strong>' + session.gathersLeft + '</strong>' +
+        ' · время: <strong>' + formatGatherScrollTimeLeft(left) + '</strong></div>' +
+        (session.resourceName
+            ? '<div class="gather-auto-target">🎯 ' + session.resourceName + '</div>'
+            : '<div class="gather-auto-target gather-auto-pick">Выберите ресурс ниже</div>') +
+        '<button type="button" class="action-btn gather-auto-stop" onclick="deactivateGatherScrollManual(\'' + profId + '\')">⏹ Остановить авто-добычу</button>' +
+        '</div>';
+}
+
+function scheduleAutoGatherContinue(profId, delayMs) {
+    const delay = delayMs == null ? 350 : delayMs;
+    setTimeout(() => {
+        const session = getAutoGatherSession();
+        if (!session || session.profId !== profId) {
+            showGatheringResources(profId);
+            return;
+        }
+        if (!document.getElementById('gatherResourceGrid')) return;
+        if (!isAutoGatherSessionValid(session)) {
+            stopAutoGatherSession('📜 Свиток добычи завершён.');
+            showGatheringResources(profId);
+            return;
+        }
+        if (!session.resourceName) {
+            showGatheringResources(profId);
+            return;
+        }
+        const resources = RESOURCES_DB[profId] || [];
+        const resource = resources.find(r => r.name === session.resourceName);
+        if (!resource || !canAutoGatherResource(resource, session.scrollTier)) {
+            stopAutoGatherSession('❌ Ресурс недоступен для этого свитка.');
+            showGatheringResources(profId);
+            return;
+        }
+        if (resource.locations.indexOf(player.location) === -1) {
+            stopAutoGatherSession('❌ Ресурс недоступен в этой локации.');
+            showGatheringResources(profId);
+            return;
+        }
+        const playerProf = player.professions[profId];
+        const currentTier = playerProf ? (playerProf.tier || 1) : 1;
+        if (currentTier < resource.tier) {
+            stopAutoGatherSession('❌ Недостаточный тир профессии для ресурса.');
+            showGatheringResources(profId);
+            return;
+        }
+        startGathering(profId, resource.name, resource.time, resource.exp, resource.tier, { auto: true });
+    }, delay);
+}
 
 function settlePendingCriticalGather() {
     if (!pendingGatherData || !activeGatherSession || !activeGatherSession.outcome) return;
@@ -14,13 +172,8 @@ function settlePendingCriticalGather() {
 }
 
 function stopGathering() {
-    if (gatheringRafId != null) {
-        cancelAnimationFrame(gatheringRafId);
-        gatheringRafId = null;
-    }
-    settlePendingCriticalGather();
-    isGatheringLocked = false;
-    activeGatherSession = null;
+    stopGatheringAnimation();
+    stopAutoGatherSession();
 }
 
 function getProfessionBonuses(tier) {
@@ -143,7 +296,11 @@ function releaseGatherLockAndRefresh(profId, delayMs) {
     const grid = document.getElementById('gatherResourceGrid');
     if (grid) grid.classList.remove('gather-grid-locked');
     saveGame();
-    setTimeout(() => showGatheringResources(profId), delayMs == null ? 300 : delayMs);
+    if (isAutoGatherActiveForProf(profId) && getAutoGatherSession().resourceName) {
+        scheduleAutoGatherContinue(profId, delayMs);
+    } else {
+        setTimeout(() => showGatheringResources(profId), delayMs == null ? 300 : delayMs);
+    }
 }
 
 function claimCriticalGather() {
@@ -169,7 +326,15 @@ function claimCriticalGather() {
     releaseGatherLockAndRefresh(profId, 400);
 }
 
-function onGatheringComplete(profId, resourceName, adjustedExp, outcome) {
+function onGatheringComplete(profId, resourceName, adjustedExp, outcome, gatherOptions) {
+    gatherOptions = gatherOptions || {};
+    if (gatherOptions.auto) {
+        const session = getAutoGatherSession();
+        if (session && session.profId === profId) {
+            session.gathersLeft = Math.max(0, (session.gathersLeft || 0) - 1);
+            saveGame();
+        }
+    }
     addResourceToPlayer(resourceName, outcome.autoCount);
 
     if (!outcome.hasCritical) {
@@ -217,13 +382,17 @@ function onGatheringComplete(profId, resourceName, adjustedExp, outcome) {
             e.stopPropagation();
             claimCriticalGather();
         }, { once: true });
+        if (gatherOptions.auto) setTimeout(() => claimCriticalGather(), 900);
+    } else if (gatherOptions.auto) {
+        setTimeout(() => claimCriticalGather(), 900);
     }
 
     addMessage(`⛏️ Базовая добыча +${outcome.autoCount} ${resourceName}. Заберите критический бонус!`, 'info');
     isGatheringLocked = true;
 }
 
-function startGathering(profId, resourceName, time, exp, requiredTier) {
+function startGathering(profId, resourceName, time, exp, requiredTier, gatherOptions) {
+    gatherOptions = gatherOptions || {};
     if (isGatheringLocked) {
         addMessage('⏳ Добыча уже идёт! Дождитесь завершения.', 'error');
         return;
@@ -244,7 +413,23 @@ function startGathering(profId, resourceName, time, exp, requiredTier) {
     const progressDiv = document.getElementById('gatheringProgress');
     if (!progressDiv) return;
 
-    stopGathering();
+    if (gatherOptions.auto) {
+        const session = getAutoGatherSession();
+        if (!session || session.profId !== profId || !isAutoGatherSessionValid(session)) {
+            addMessage('❌ Свиток добычи не активен!', 'error');
+            return;
+        }
+        const resources = RESOURCES_DB[profId] || [];
+        const resMeta = resources.find(r => r.name === resourceName);
+        if (!resMeta || !canAutoGatherResource(resMeta, session.scrollTier)) {
+            addMessage('❌ Этот ресурс недоступен для тира свитка!', 'error');
+            return;
+        }
+        session.resourceName = resourceName;
+        saveGame();
+    }
+
+    stopGatheringAnimation();
     isGatheringLocked = true;
     pendingGatherData = null;
     const grid = document.getElementById('gatherResourceGrid');
@@ -252,11 +437,16 @@ function startGathering(profId, resourceName, time, exp, requiredTier) {
 
     const bonuses = getProfessionBonuses(currentTier);
     const adjustedTime = Math.max(2, Math.floor(time * (1 - bonuses.gatherSpeedBonus)));
-    const adjustedExp = Math.floor(exp * (1 + bonuses.expBonus));
+    let adjustedExp = Math.floor(exp * (1 + bonuses.expBonus));
+    if (gatherOptions.auto) {
+        const session = getAutoGatherSession();
+        const mult = session && session.expMultiplier != null ? session.expMultiplier : 0.65;
+        adjustedExp = Math.floor(adjustedExp * mult);
+    }
     const totalTime = adjustedTime * 1000;
     const startTime = performance.now();
 
-    activeGatherSession = { profId, resourceName, adjustedExp, bonuses };
+    activeGatherSession = { profId, resourceName, adjustedExp, bonuses, gatherOptions };
 
     progressDiv.innerHTML = `
         <div class="gathering-progress gather-active" id="gatherProgressPanel">
@@ -297,7 +487,7 @@ function startGathering(profId, resourceName, time, exp, requiredTier) {
         const panel = document.getElementById('gatherProgressPanel');
         if (panel) panel.classList.add('gather-complete');
 
-        onGatheringComplete(profId, resourceName, adjustedExp, outcome);
+        onGatheringComplete(profId, resourceName, adjustedExp, outcome, activeGatherSession.gatherOptions);
     };
 
     gatheringRafId = requestAnimationFrame(tick);
@@ -325,6 +515,15 @@ function bindGatheringResourceGrid(profId, availableResources) {
             startFishingBossBattle(r);
             return;
         }
+        const session = getAutoGatherSession();
+        if (session && session.profId === profId) {
+            if (!canAutoGatherResource(r, session.scrollTier)) {
+                addMessage('❌ Свиток добычи не может собирать ресурсы выше своего тира!', 'error');
+                return;
+            }
+            startGathering(profId, r.name, r.time, r.exp, r.tier, { auto: true });
+            return;
+        }
         startGathering(profId, r.name, r.time, r.exp, r.tier);
     };
 }
@@ -345,13 +544,37 @@ function startFishingBossBattle(resource) {
         return;
     }
     
-    stopGathering();
+    stopGatheringAnimation();
+    stopAutoGatherSession();
     addMessage(`🌊 Вы вытянули из глубин: ${boss.name}!`, 'warning');
     startBattleWithMonster(boss, { goldMult: boss.goldMult || 18 });
 }
 
+function renderGatherScrollPanel(profId) {
+    ensureGatherScrollInventory();
+    const session = getAutoGatherSession();
+    let html = '<div id="gatherAutoStatus"></div>';
+
+    if (session && session.profId === profId && isAutoGatherSessionValid(session)) {
+        html += '';
+    } else if (player.inventory.gatherScrolls.length > 0) {
+        html += '<div class="gather-scroll-panel"><div class="gather-scroll-title">📜 Свитки добычи</div>';
+        html += '<p class="gather-scroll-hint">Активируйте свиток — пока вы в этом меню, выбранный ресурс собирается автоматически. Тир свитка = макс. тир ресурса.</p>';
+        html += '<div class="gather-scroll-list">';
+        player.inventory.gatherScrolls.forEach((scroll, idx) => {
+            const tier = scroll.scrollTier || scroll.tier || 1;
+            const mins = Math.round((scroll.durationMs || 240000) / 60000);
+            html += '<button type="button" class="gather-scroll-btn" onclick="activateGatherScroll(' + idx + ',\'' + profId + '\')">' +
+                (scroll.icon || '📜') + ' ' + scroll.name +
+                ' <span class="gather-scroll-tag">T' + tier + ' · ' + (scroll.maxGathers || '?') + ' сборов · ' + mins + ' мин</span></button>';
+        });
+        html += '</div></div>';
+    }
+    return html;
+}
+
 function showGatheringResources(profId) {
-    stopGathering();
+    stopGatheringAnimation();
     pendingGatherData = null;
 
     const prof = PROFESSIONS_DB.gathering.find(p => p.id === profId);
@@ -387,21 +610,31 @@ function showGatheringResources(profId) {
     html += '<span>✨ Редкое: ' + Math.floor(bonuses.rareResourceChance * 100) + '%</span>';
     html += '</div></div>';
 
-    html += '<p class="gather-hint">После 100% обычный ресурс попадает в инвентарь сам. Кнопка «Забрать» — только при критическом сборе.</p>';
+    html += renderGatherScrollPanel(profId);
+    html += '<p class="gather-hint">После 100% обычный ресурс попадает в инвентарь сам. Кнопка «Забрать» — только при критическом сборе (в авто-режиме забирается сама).</p>';
 
     if (availableResources.length === 0) {
         html += '<p class="gather-empty">Нет ресурсов в этой локации или не хватает тира профессии.</p>';
     } else {
         html += '<div class="resource-grid" id="gatherResourceGrid" data-prof-id="' + profId + '">';
+        const autoSession = getAutoGatherSession();
+        const scrollTier = autoSession && autoSession.profId === profId ? autoSession.scrollTier : 0;
         availableResources.forEach((r, idx) => {
             const locked = currentTier < r.tier;
-            html += '<div class="resource-card gather-resource-card' + (locked ? ' locked' : '') + '" data-resource-idx="' + idx + '" role="button" tabindex="0">';
+            const scrollBlocked = scrollTier > 0 && !canAutoGatherResource(r, scrollTier);
+            const isAutoTarget = autoSession && autoSession.resourceName === r.name;
+            html += '<div class="resource-card gather-resource-card' + (locked ? ' locked' : '') +
+                (scrollBlocked ? ' gather-scroll-blocked' : '') +
+                (isAutoTarget ? ' gather-auto-selected' : '') +
+                '" data-resource-idx="' + idx + '" role="button" tabindex="0">';
             html += '<div class="resource-icon">' + (typeof renderItemIconHTML === 'function' ? renderItemIconHTML(r, { size: 48, fallback: r.icon || '📦' }) : r.icon) + '</div>';
             html += '<div class="resource-info">';
             html += '<div class="resource-name">' + r.name + '</div>';
             html += '<div class="resource-desc">⭐ Тир ' + r.tier + (r.battle ? ' · ⚔️ Бой' : '') + '</div>';
             html += '<div class="resource-req">' + (r.battle ? '⚔️ Победите, чтобы получить тушку' : '⏱️ ' + r.time + ' с · +' + r.exp + ' XP') + '</div>';
             if (locked) html += '<div class="resource-locked">🔒 Нужен ' + r.tier + ' тир</div>';
+            else if (scrollBlocked) html += '<div class="resource-locked">📜 Выше тира свитка (' + scrollTier + ')</div>';
+            else if (isAutoTarget) html += '<div class="gather-auto-badge">⚡ Авто</div>';
             html += '</div></div>';
         });
         html += '</div>';
@@ -412,9 +645,23 @@ function showGatheringResources(profId) {
     document.getElementById('dynamicContent').innerHTML = html;
 
     if (availableResources.length > 0) bindGatheringResourceGrid(profId, availableResources);
+
+    if (isAutoGatherActiveForProf(profId)) {
+        tickAutoGatherUi(profId);
+        if (autoGatherUiTimerId != null) clearInterval(autoGatherUiTimerId);
+        autoGatherUiTimerId = setInterval(() => tickAutoGatherUi(profId), 1000);
+        const session = getAutoGatherSession();
+        if (session && session.resourceName && !isGatheringLocked) {
+            scheduleAutoGatherContinue(profId, 500);
+        }
+    }
 }
 
 window.stopGathering = stopGathering;
+window.stopGatheringAnimation = stopGatheringAnimation;
+window.stopAutoGatherSession = stopAutoGatherSession;
+window.activateGatherScroll = activateGatherScroll;
+window.deactivateGatherScrollManual = deactivateGatherScrollManual;
 window.startGathering = startGathering;
 window.showGatheringResources = showGatheringResources;
 window.claimCriticalGather = claimCriticalGather;
