@@ -11,6 +11,11 @@ const context = {
     Promise,
     setTimeout,
     clearTimeout,
+    fetch: async () => ({ ok: false, status: 503, json: async () => [] }),
+    AbortController: class {
+        constructor() { this.signal = { aborted: false }; }
+        abort() { this.signal.aborted = true; }
+    },
     document: { createElement: () => ({ innerHTML: '', querySelector: () => null }) },
     player: {}
 };
@@ -77,11 +82,19 @@ function testTransportConfigRelays() {
     assert(!configJson.includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
 
-    const turn = configA.turnConfig;
-    assert(Array.isArray(turn) && turn.length >= 1, 'turnConfig must include TURN servers');
-    assert(turn[0].username && turn[0].credential, 'TURN must have username and credential');
-    assert(JSON.stringify(turn).includes('turn:openrelay.metered.ca'), 'Open Relay TURN missing');
-    assert(configA.turnConfig !== configB.turnConfig, 'turnConfig array must be copied');
+    const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
+    assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
+    const iceJson = JSON.stringify(ice);
+    assert(iceJson.includes('stun:stun.l.google.com'), 'Google STUN missing');
+    assert(iceJson.includes('stun:stun.cloudflare.com'), 'Cloudflare STUN missing');
+    assert(iceJson.includes('turn:freeturn.net') || iceJson.includes('turn:freestun.net'), 'free TURN missing');
+    const turnEntry = ice.find(s => {
+        const u = Array.isArray(s.urls) ? s.urls.join(' ') : String(s.urls);
+        return u.includes('turn:') && s.username && s.credential;
+    });
+    assert(turnEntry && turnEntry.username && turnEntry.credential, 'TURN must have username and credential');
+    assert(configA.rtcConfig !== configB.rtcConfig, 'rtcConfig object must be copied');
+    assert(configA.rtcConfig.iceServers !== configB.rtcConfig.iceServers, 'iceServers array must be copied');
 
     const snap = context.getPvPPlayerSnapshot();
     if (snap && snap.avatar && snap.avatar.startsWith('classes/')) {
@@ -90,8 +103,17 @@ function testTransportConfigRelays() {
 
     configA.relayConfig.urls.push('wss://mutated.example');
     assert(!configB.relayConfig.urls.includes('wss://mutated.example'), 'relay config mutation leaked');
-    turn[0].urls.push('turn:mutated.example');
-    assert(!configB.turnConfig[0].urls.includes('turn:mutated.example'), 'turnConfig mutation leaked');
+    ice[0].urls = Array.isArray(ice[0].urls) ? ice[0].urls : [ice[0].urls];
+    ice[0].urls.push('turn:mutated.example');
+    assert(!configB.rtcConfig.iceServers[0].urls.includes('turn:mutated.example'), 'iceServers mutation leaked');
+}
+
+async function testLoadPvPIceServersFallback() {
+    const servers = await context.loadPvPIceServers();
+    assert(Array.isArray(servers) && servers.length >= 4, 'loadPvPIceServers must return ice servers');
+    const iceStr = JSON.stringify(servers);
+    assert(iceStr.includes('turn:freeturn.net') || iceStr.includes('turn:freestun.net'), 'async ICE load must include TURN');
+    assert(iceStr.includes('"username":"free"'), 'freeTURN credentials expected in fallback');
 }
 
 async function testObjectActionAdapter() {
@@ -137,6 +159,7 @@ async function testArrayActionAdapter() {
     testSetterRoomHandlers();
     testLegacyFunctionRoomHandlers();
     testTransportConfigRelays();
+    await testLoadPvPIceServersFallback();
     await testObjectActionAdapter();
     await testArrayActionAdapter();
     console.log('PvP transport adapter tests OK');
