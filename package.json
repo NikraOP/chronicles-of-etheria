@@ -1,0 +1,28 @@
+{
+  "name": "chronicles-of-etheria-main",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:pvp-transport": "esbuild js/vendor/trystero-torrent.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-torrent.bundle.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NikraOP/chronicles-of-etheria.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/NikraOP/chronicles-of-etheria/issues"
+  },
+  "homepage": "https://github.com/NikraOP/chronicles-of-etheria#readme",
+  "dependencies": {
+    "@trystero-p2p/torrent": "^0.25.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

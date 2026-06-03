@@ -5,6 +5,7 @@ AGENTS.md
 .cursorrules
 
 # Прочее локальное
+node_modules/
 .DS_Store
 Thumbs.db
 *.log

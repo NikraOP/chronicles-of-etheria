@@ -1,7 +1,7 @@
 // PvP Arena: Trystero/WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = 'https://esm.sh/@trystero-p2p/torrent@0.23.0';
+const PVP_TRYSTERO_URL = '../vendor/trystero-torrent.bundle.mjs';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
 
 let pvpRoom = null;
@@ -406,7 +406,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">Сигналинг идёт через Trystero torrent trackers, без 0.peerjs.com. Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
+            <p class="pvp-hint">PvP загружает Trystero локально, без 0.peerjs.com и esm.sh. Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
         </section>
     `;
