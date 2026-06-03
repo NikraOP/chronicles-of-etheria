@@ -14,6 +14,7 @@ const ctx = {
     addMessage: () => {}
 };
 ctx.window = ctx;
+ctx.CRAFTING_RECIPES = { tailoring: { weapons: [] } };
 vm.runInNewContext(src, ctx, { filename: 'craftingSystem.js' });
 
 function assert(cond, msg) {
@@ -49,5 +50,12 @@ ctx.player.professions.tailoring.exp = 5000;
 assert(ctx.applyProfessionTierUps(ctx.player.professions.tailoring), 'auto tier up at 5000 exp');
 assert(ctx.player.professions.tailoring.tier === 6, 'becomes tier 6');
 assert(ctx.getCraftBlockReason(starRobe, 'tailoring') === '', 'tier 6 craft after level up');
+
+const ancient = { name: 'X', tier: 5, rarity: 'Древний', class: 'Маг', resources: {} };
+const normAncient = ctx.normalizeRecipeForCraft(ancient);
+assert(normAncient.tier === 6, 'ancient rarity forces tier 6 recipe');
+
+assert(ctx.getCraftRarityColor('Древний') === '#e67e22', 'ancient color');
+assert(ctx.getCraftRarityColor('Божественный') === '#1abc9c', 'divine color');
 
 console.log('Crafting profession tests OK');
