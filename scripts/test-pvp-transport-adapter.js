@@ -62,10 +62,12 @@ function testTransportConfigRelays() {
 
     assert(configA.appId === 'chronicles-of-etheria-pvp-v1', 'transport appId mismatch');
     assert(Array.isArray(urls), 'Nostr relay urls must be an array');
-    assert(urls.length >= 4, 'Nostr transport needs several relays');
-    assert(urls.includes('wss://relay.damus.io'), 'damus relay missing');
+    assert(urls.length >= 6 && urls.length <= 10, 'Nostr transport needs 6-10 relays');
     assert(urls.includes('wss://nos.lol'), 'nos.lol relay missing');
     assert(urls.includes('wss://relay.primal.net'), 'primal relay missing');
+    assert(urls.includes('wss://relay.ditto.pub'), 'ditto relay missing');
+    assert(!urls.includes('wss://relay.damus.io'), 'damus relay must be excluded');
+    assert(!urls.includes('wss://eden.nostr.land'), 'eden.nostr.land must be excluded');
     assert(!JSON.stringify(configA).includes('tracker.webtorrent.dev'), 'webtorrent relay must not be configured');
     assert(!JSON.stringify(configA).includes('tracker.btorrent.xyz'), 'btorrent relay must not be configured');
     assert(!JSON.stringify(configA).includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');

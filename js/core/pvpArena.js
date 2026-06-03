@@ -4,11 +4,14 @@ const PVP_VERSION = 1;
 const PVP_TRYSTERO_URL = '../vendor/trystero-nostr.bundle.mjs';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
-    'wss://relay.damus.io',
     'wss://nos.lol',
     'wss://relay.primal.net',
     'wss://nostr.mom',
-    'wss://eden.nostr.land'
+    'wss://relay.ditto.pub',
+    'wss://relay.nostr.net',
+    'wss://relay.mostr.pub',
+    'wss://relay.angor.io',
+    'wss://nostr.wine'
 ]);
 
 let pvpRoom = null;
@@ -510,7 +513,14 @@ function createPvPActionAdapter(action) {
 function joinPvPTransportRoom(code, sessionId) {
     return loadPvPTransport().then(mod => {
         if (sessionId !== pvpSessionId) return;
-        const room = mod.joinRoom(getPvPTransportConfig(), pvpRoomId(code));
+        const room = mod.joinRoom(getPvPTransportConfig(), pvpRoomId(code), {
+            onJoinError(details) {
+                if (sessionId !== pvpSessionId) return;
+                const err = details && details.error ? String(details.error) : 'ошибка P2P';
+                pvpLog(`PvP: ${err}`, 'error');
+                renderPvPArena();
+            }
+        });
         const actionAdapter = createPvPActionAdapter(room.makeAction('pvp'));
         pvpRoom = room;
         pvpSendPacket = actionAdapter.send;
