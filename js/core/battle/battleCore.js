@@ -16,6 +16,12 @@ let lingeringCloud = false;
 let deathSaveActive = false;
 let reviveUsed = false;
 let summonedSpirit = false;
+let nextCritGuaranteed = false;
+let playerSkipNextTurn = false;
+let ignoreShieldsThisHit = false;
+let playerFrozenTurns = 0;
+let monsterCritBuff = 0;
+let globalBattleTurn = 0;
 
 // Хранилище оригинальных статов монстра для восстановления после баффов
 let originalMonsterStats = {
@@ -83,13 +89,109 @@ function updateBattleButtons() {
     btns.forEach(btn => { if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn; });
 }
 
-function reduceAllCooldowns() {
-    if (!player || !player.abilities) return;
-    player.abilities.forEach(ab => { if (ab && ab.currentCooldown > 0) ab.currentCooldown--; });
+/** Вызывать, когда ход переходит к игроку после хода монстра */
+function onPlayerTurnStart() {
+    if (playerFrozenTurns > 0) {
+        playerFrozenTurns--;
+        const freezeFx = player.temporaryEffects.find(e => e.type === 'debuff_freeze');
+        if (freezeFx) {
+            freezeFx.dur--;
+            if (freezeFx.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== freezeFx);
+        }
+        addBattleLog(`❄️ Заморозка — вы не можете действовать!`, 'info');
+        isPlayerTurn = false;
+        updateBattleButtons();
+        renderBattle();
+        setTimeout(() => monsterTurn(), 120);
+        return false;
+    }
+    if (playerSkipNextTurn) {
+        playerSkipNextTurn = false;
+        isPlayerTurn = false;
+        addBattleLog('💫 Вы пропускаете ход...', 'info');
+        updateBattleButtons();
+        renderBattle();
+        setTimeout(() => monsterTurn(), 120);
+        return false;
+    }
+    isPlayerTurn = true;
+    updateBattleButtons();
+    return true;
+}
+
+/** Перед атакой/способностью игрока */
+function beginPlayerAction() {
+    if (!isPlayerTurn) return false;
+    if (playerFrozenTurns > 0) {
+        onPlayerTurnStart();
+        return false;
+    }
+    return true;
+}
+
+/** Снятие длительности дебаффов с игрока — только после его хода (не в конце хода монстра). */
+function tickPlayerDebuffsAfterPlayerTurn() {
+    if (!player || !player.temporaryEffects) return;
+    player.temporaryEffects = player.temporaryEffects.filter(e => {
+        if (!e.type || !e.type.startsWith('debuff_') || typeof e.dur !== 'number') {
+            return true;
+        }
+        e.dur--;
+        if (e.dur > 0) return true;
+        const debuffName = e.type.replace('debuff_', '');
+        const endMessages = {
+            atk: '⚔️ Проклятие слабости спало.',
+            def: '🛡️ Снижение защиты спало.',
+            dodge: '💨 Замедление реакции спало.',
+            slow: '🐢 Паутина ослабла — скорость восстановлена.',
+            blind: '👁️ Ослепление прошло.',
+            freeze: '❄️ Заморозка растаяла.',
+            all: '😵 Проклятие спало.',
+            hp: '❤️ Максимальное здоровье восстановлено.'
+        };
+        if (e.type === 'debuff_hp' && player.originalMaxHealth) {
+            const oldMaxHp = player.maxHealth;
+            player.maxHealth = player.originalMaxHealth;
+            const healthPercent = player.health / Math.max(1, oldMaxHp);
+            player.health = Math.min(player.maxHealth, Math.floor(player.maxHealth * healthPercent));
+            player.originalMaxHealth = null;
+        }
+        if (endMessages[debuffName]) addBattleLog(endMessages[debuffName], 'info');
+        return false;
+    });
+}
+
+function endPlayerActionChain() {
+    tickPlayerDebuffsAfterPlayerTurn();
+    setTimeout(() => monsterTurn(), 60);
+}
+
+function getGlobalBattleTurn() {
+    return globalBattleTurn;
+}
+
+/** Один глобальный ход = игрок сходил + фаза монстра завершена. КД только здесь. */
+function endGlobalTurn() {
+    globalBattleTurn++;
+    if (player && player.abilities) {
+        player.abilities.forEach(ab => {
+            if (ab && ab.currentCooldown > 0) ab.currentCooldown--;
+        });
+    }
     window.reduceItemCooldowns();
     for (let key in monsterAbilityCooldowns) {
         if (monsterAbilityCooldowns[key] > 0) monsterAbilityCooldowns[key]--;
     }
+}
+
+function finishMonsterPhase() {
+    endGlobalTurn();
+    if (typeof saveGame === 'function') saveGame();
+}
+
+/** @deprecated Используй endGlobalTurn / finishMonsterPhase */
+function reduceAllCooldowns() {
+    endGlobalTurn();
 }
 
 function resetAllCooldowns() {
@@ -109,6 +211,12 @@ function resetAllCooldowns() {
     deathSaveActive = false;
     reviveUsed = false;
     summonedSpirit = false;
+    nextCritGuaranteed = false;
+    playerSkipNextTurn = false;
+    ignoreShieldsThisHit = false;
+    playerFrozenTurns = 0;
+    monsterCritBuff = 0;
+    globalBattleTurn = 0;
     
     // Восстанавливаем оригинальные статы монстра
     if (originalMonsterStats.attack > 0 && currentMonster) {
@@ -159,8 +267,21 @@ function startBattle() {
         fireVuln: 0,
         armorShred: 0,
         abilities: monsterAbilities,
-        activeBuffs: {}  // { type: { value, remainingTurns } }
+        activeBuffs: {},
+        dotOverTime: null,
+        damageAmp: 1
     };
+    
+    if (player.abilities) {
+        const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
+        if (passiveCounter) {
+            player.temporaryEffects.push({
+                counterChance: passiveCounter.counterChance,
+                counterDmg: passiveCounter.counterDmg || 80,
+                dur: 999
+            });
+        }
+    }
     
     // Сохраняем оригинальные статы
     originalMonsterStats.attack = currentMonster.attack;

@@ -1,6 +1,8 @@
 // js/core/battle/battleUI.js
 
-function renderBattle() {
+function renderBattle(options) {
+    options = options || {};
+    if (options.skipIfAnimating && window._strikeAnimActive) return;
     if (!currentMonster) return;
     const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
     const av = getAvatar();
@@ -38,8 +40,8 @@ function renderBattle() {
             }
             if (ability.duration) tooltipText += `Длительность: ${ability.duration} ход(а)\n`;
             if (ability.chance) tooltipText += `Шанс: ${ability.chance}%\n`;
-            if (ability.cooldown) tooltipText += `Перезарядка: ${ability.cooldown} ход(а)\n`;
-            tooltipText += isOnCooldown ? `⏳ Осталось: ${currentCD} ход(а)` : `✅ Готово к использованию`;
+            if (ability.cooldown) tooltipText += `Перезарядка: ${ability.cooldown} глоб. ход(а)\n`;
+            tooltipText += isOnCooldown ? `⏳ Осталось: ${currentCD} глоб. ход(а)` : `✅ Готово к использованию`;
             tooltipText = tooltipText.replace(/'/g, "\\'");
             abilitiesHTML += `<div class="ability-badge" style="display: inline-flex; align-items: center; gap: 4px; background: ${isOnCooldown ? 'rgba(50,50,50,0.8)' : 'rgba(0,0,0,0.5)'}; border: 1px solid ${isOnCooldown ? '#555' : abilityColor}; border-radius: 20px; padding: 3px 8px; font-size: 11px; cursor: help; transition: all 0.2s; opacity: ${isOnCooldown ? 0.6 : 1};" title="${tooltipText}">
                 <span style="font-size: 12px;">${abilityIcon}</span>
@@ -83,7 +85,7 @@ function renderBattle() {
             <div class="shield-bar" style="width: 100%; height: 4px; background: rgba(52,152,219,0.3); border-radius: 2px; margin-top: 2px; overflow: hidden;">
                 <div class="shield-fill" style="width: ${Math.min(100, shieldPercent)}%; height: 100%; background: #3498db;"></div>
             </div>
-            <div style="font-size: 9px; color: #3498db; margin-top: 2px;">🛡️ Щит: ${monsterShieldValue} HP (${monsterShieldRemaining} ход.)</div>
+            <div class="shield-hp-label" style="font-size: 9px; color: #3498db; margin-top: 2px;">🛡️ Щит: ${monsterShieldValue} HP (${monsterShieldRemaining} ход.)</div>
         `;
     }
 
@@ -107,6 +109,9 @@ function renderBattle() {
         if (currentMonster.activeBuffs.reflect) {
             buffs.push(`🔄 Отражение ${currentMonster.activeBuffs.reflect.value}% (${currentMonster.activeBuffs.reflect.remainingTurns} ход.)`);
         }
+        if (currentMonster.activeBuffs.crit) {
+            buffs.push(`💥 Крит +${currentMonster.activeBuffs.crit.value}% (${currentMonster.activeBuffs.crit.remainingTurns} ход.)`);
+        }
         
         if (buffs.length > 0) {
             monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
@@ -127,7 +132,7 @@ function renderBattle() {
             else if (debuffType === 'all') { icon = '😵'; text = `Все -${effect.value}%`; }
             else if (debuffType === 'freeze') { icon = '❄️'; text = `Заморозка`; }
             else if (debuffType === 'blind') { icon = '👁️'; text = `Ослепление -${effect.value}%`; }
-            else if (debuffType === 'slow') { icon = '🐢'; text = `Замедление -${effect.value}%`; }
+            else if (debuffType === 'slow') { icon = '🕸️'; text = `Паутина −${effect.value}% атаки (${effect.dur} ход.)`; }
             playerEffectsHTML += `<div class="effect-icon debuff" style="display: inline-block; background: rgba(155,89,182,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${text} (${effect.dur} ход.)">${icon} ${effect.value}%</div>`;
         }
         playerEffectsHTML += '</div>';
@@ -155,7 +160,7 @@ function renderBattle() {
             <div class="shield-bar" style="width: 100%; height: 4px; background: rgba(52,152,219,0.3); border-radius: 2px; margin-top: 2px; overflow: hidden;">
                 <div class="shield-fill" style="width: ${Math.min(100, shieldPercent)}%; height: 100%; background: #3498db;"></div>
             </div>
-            <div style="font-size: 9px; color: #3498db; margin-top: 2px;">🛡️ Щит: ${playerShield.shield} HP</div>
+            <div class="shield-hp-label" style="font-size: 9px; color: #3498db; margin-top: 2px;">🛡️ Щит: ${playerShield.shield} HP</div>
         `;
     }
 
@@ -200,7 +205,7 @@ function renderBattle() {
                 abilitiesHTML +
             '</div>' +
         '</div>' +
-        '<div class="vs-badge">⚔️ VS ⚔️</div>' +
+        '<div class="vs-badge">⚔️ Ход ' + (typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0) + ' ⚔️</div>' +
         '<div class="combatant-wrapper" id="playerWrapper">' +
             '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
             '<div class="combatant-info">' +
@@ -220,60 +225,341 @@ function renderBattle() {
     updateBattleButtons();
 }
 
-// Анимации
-function animatePlayerAttack(callback) {
-    const ps = document.getElementById('playerSprite');
-    const es = document.getElementById('enemySprite');
-    if (ps) {
-        ps.classList.remove('player-attacking');
-        void ps.offsetWidth;
-        ps.classList.add('player-attacking');
-        setTimeout(() => ps.classList.remove('player-attacking'), 850);
+function setCombatantShieldDisplay(wrapper, shieldValue, maxHp, remainingTurns) {
+    const info = wrapper && wrapper.querySelector('.combatant-info');
+    if (!info) return;
+    const healthBar = info.querySelector('.health-bar');
+    if (!healthBar) return;
+
+    let shieldBar = info.querySelector('.shield-bar');
+    let shieldLabel = info.querySelector('.shield-hp-label');
+
+    if (!shieldValue || shieldValue <= 0) {
+        if (shieldBar) shieldBar.remove();
+        if (shieldLabel) shieldLabel.remove();
+        return;
     }
-    if (es) {
-        setTimeout(() => {
-            es.classList.remove('taking-damage');
-            void es.offsetWidth;
-            es.classList.add('taking-damage');
-            setTimeout(() => es.classList.remove('taking-damage'), 400);
-        }, 380);
+
+    const shieldPercent = Math.min(100, (shieldValue / maxHp) * 100);
+    const labelText = remainingTurns != null
+        ? `🛡️ Щит: ${shieldValue} HP (${remainingTurns} ход.)`
+        : `🛡️ Щит: ${shieldValue} HP`;
+
+    if (!shieldBar) {
+        shieldBar = document.createElement('div');
+        shieldBar.className = 'shield-bar';
+        shieldBar.style.cssText = 'width: 100%; height: 4px; background: rgba(52,152,219,0.3); border-radius: 2px; margin-top: 2px; overflow: hidden;';
+        const fill = document.createElement('div');
+        fill.className = 'shield-fill';
+        fill.style.cssText = 'height: 100%; background: #3498db;';
+        shieldBar.appendChild(fill);
+        healthBar.insertAdjacentElement('afterend', shieldBar);
     }
-    if (callback) setTimeout(callback, 850);
+    const fill = shieldBar.querySelector('.shield-fill');
+    if (fill) fill.style.width = shieldPercent + '%';
+
+    if (!shieldLabel) {
+        shieldLabel = document.createElement('div');
+        shieldLabel.className = 'shield-hp-label';
+        shieldLabel.style.cssText = 'font-size: 9px; color: #3498db; margin-top: 2px;';
+        const healthText = info.querySelector('.health-text');
+        if (healthText) healthText.insertAdjacentElement('beforebegin', shieldLabel);
+        else info.appendChild(shieldLabel);
+    }
+    shieldLabel.textContent = labelText;
 }
 
-function animateEnemyAttack(callback) {
-    const ps = document.getElementById('playerSprite');
-    const es = document.getElementById('enemySprite');
-    if (es) {
-        es.classList.remove('enemy-attacking');
-        void es.offsetWidth;
-        es.classList.add('enemy-attacking');
-        setTimeout(() => es.classList.remove('enemy-attacking'), 850);
+/** Обновляет HP/щиты/ману без пересборки спрайтов (во время анимации удара). */
+function updateBattleVitality() {
+    if (!currentMonster) return;
+
+    const playerWrapper = document.getElementById('playerWrapper');
+    const enemyWrapper = document.getElementById('enemyWrapper');
+    if (!playerWrapper || !enemyWrapper) return;
+
+    const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
+    const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
+
+    const playerHpFill = playerWrapper.querySelector('.health-fill.player-hp');
+    if (playerHpFill) playerHpFill.style.width = pHp + '%';
+
+    const enemyHpFill = enemyWrapper.querySelector('.health-fill.enemy-hp');
+    if (enemyHpFill) enemyHpFill.style.width = mHp + '%';
+
+    const playerHealthText = playerWrapper.querySelector('.health-text');
+    if (playerHealthText) {
+        playerHealthText.textContent = player.health + '/' + player.maxHealth +
+            (player.class === 'Маг' ? ' | 💎' + player.mana : '');
     }
-    if (ps) {
-        setTimeout(() => {
-            ps.classList.remove('taking-damage');
-            void ps.offsetWidth;
-            ps.classList.add('taking-damage');
-            setTimeout(() => ps.classList.remove('taking-damage'), 400);
-        }, 380);
+
+    const enemyHealthText = enemyWrapper.querySelector('.health-text');
+    if (enemyHealthText) {
+        enemyHealthText.textContent = currentMonster.health + '/' + currentMonster.maxHealth;
     }
-    if (callback) setTimeout(callback, 850);
+
+    const playerShieldFx = player.temporaryEffects.find(e => e.shield !== undefined && e.shield > 0);
+    setCombatantShieldDisplay(
+        playerWrapper,
+        playerShieldFx ? playerShieldFx.shield : 0,
+        player.maxHealth,
+        null
+    );
+
+    let monsterShieldValue = 0;
+    let monsterShieldRemaining = null;
+    if (currentMonster.activeBuffs && currentMonster.activeBuffs.shield) {
+        monsterShieldValue = currentMonster.activeBuffs.shield.value;
+        monsterShieldRemaining = currentMonster.activeBuffs.shield.remainingTurns;
+    }
+    setCombatantShieldDisplay(
+        enemyWrapper,
+        monsterShieldValue,
+        currentMonster.maxHealth,
+        monsterShieldRemaining
+    );
+}
+
+// Анимации боя: визуал — полная длительность; ход — fastResolve (не ждать конца анимации)
+const STRIKE_DURATION_MS = 720;
+const STRIKE_HEAVY_MS = 810;
+const ENEMY_STRIKE_MS = 720;
+const CAST_VISUAL_MS = 500;
+const CAST_RESOLVE_MS = 120;
+let pendingStrikeImpact = null;
+
+function abilityNeedsStrike(ability, appliedDamage) {
+    if (appliedDamage > 0) return true;
+    if (!ability) return false;
+    return !!(ability.dmg || ability.doubleHit || ability.tripleHit || ability.quadHit ||
+        ability.multiHit || ability.bleedPercent || ability.hpLoss || ability.manaDrain);
+}
+
+function setStrikeImpact(fn) {
+    pendingStrikeImpact = typeof fn === 'function' ? fn : null;
+}
+
+function getLungeDistance() {
+    const arena = document.getElementById('battleArena');
+    if (!arena) return 140;
+    return Math.min(200, Math.max(64, Math.floor(arena.clientWidth * 0.17)));
+}
+
+function spawnCombatSlash(attackerSide) {
+    const defenderWrap = document.getElementById(
+        attackerSide === 'player' ? 'enemyWrapper' : 'playerWrapper'
+    );
+    if (!defenderWrap) return;
+    const slash = document.createElement('div');
+    slash.className = 'combat-slash ' + (
+        attackerSide === 'player' ? 'combat-slash--from-right' : 'combat-slash--from-left'
+    );
+    defenderWrap.style.position = 'relative';
+    defenderWrap.appendChild(slash);
+    setTimeout(() => slash.remove(), 420);
+}
+
+/** Полная перерисовка боя, но не во время анимации удара/каста (чтобы не сбивать спрайт). */
+function safeRenderBattle() {
+    if (window._strikeAnimActive) {
+        setTimeout(safeRenderBattle, 50);
+        return;
+    }
+    renderBattle();
+}
+
+/** Лёгкое обновление после анимации — без пересборки спрайтов (нет «телепорта»). */
+function syncBattleDisplayAfterAnim() {
+    updateBattleVitality();
+    updateBattleButtons();
+}
+
+/** Снимает CSS-классы анимации по animationend (с запасным таймаутом). */
+function bindAnimationEndCleanup(el, classNames, maxMs, afterCleanup, requiredAnimName) {
+    if (!el) {
+        if (afterCleanup) afterCleanup();
+        return;
+    }
+    const names = Array.isArray(classNames) ? classNames : [classNames];
+    let done = false;
+    const finish = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener('animationend', onEnd);
+        el.removeEventListener('animationcancel', onEnd);
+        names.forEach(c => el.classList.remove(c));
+        el.style.animationDuration = '';
+        if (afterCleanup) afterCleanup();
+    };
+    const onEnd = (ev) => {
+        if (ev.target !== el) return;
+        if (requiredAnimName && ev.animationName && ev.animationName !== requiredAnimName) return;
+        finish();
+    };
+    el.addEventListener('animationend', onEnd);
+    el.addEventListener('animationcancel', onEnd);
+    setTimeout(finish, (maxMs || 720) + 80);
+}
+
+function playPlayerCast(callback, options) {
+    options = options || {};
+    window._strikeAnimActive = true;
+    const el = document.getElementById('playerSprite');
+    const onCastVisualEnd = () => {
+        window._strikeAnimActive = false;
+        if (typeof options.onAnimEnd === 'function') options.onAnimEnd();
+    };
+    if (el) {
+        el.classList.remove('casting-ability');
+        void el.offsetWidth;
+        el.style.animationDuration = (CAST_VISUAL_MS / 1000) + 's';
+        el.classList.add('casting-ability');
+        bindAnimationEndCleanup(el, 'casting-ability', CAST_VISUAL_MS, onCastVisualEnd, 'castGlow');
+    } else {
+        setTimeout(onCastVisualEnd, CAST_VISUAL_MS);
+    }
+    setTimeout(() => { if (callback) callback(); }, CAST_RESOLVE_MS);
+}
+
+function playStrikeAnimation(attackerSide, callback, options) {
+    options = options || {};
+    window._strikeAnimActive = true;
+    const isPlayer = attackerSide === 'player';
+    const attackerEl = document.getElementById(isPlayer ? 'playerSprite' : 'enemySprite');
+    const defenderEl = document.getElementById(isPlayer ? 'enemySprite' : 'playerSprite');
+    const defenderWrap = document.getElementById(isPlayer ? 'enemyWrapper' : 'playerWrapper');
+    const arena = document.getElementById('battleArena');
+    const isCrit = !!options.isCrit;
+    const heavy = !!options.heavy;
+    let duration = options.duration;
+    if (duration == null) {
+        if (isPlayer) duration = heavy ? STRIKE_HEAVY_MS : STRIKE_DURATION_MS;
+        else duration = heavy ? ENEMY_STRIKE_MS + 50 : ENEMY_STRIKE_MS;
+    }
+    const impactMs = Math.round(duration * 0.4);
+    const animSec = (duration / 1000) + 's';
+
+    const dist = getLungeDistance();
+    if (arena) {
+        arena.style.setProperty('--lunge-dist', dist + 'px');
+        arena.style.setProperty('--kb-x', Math.max(10, Math.round(dist * 0.14)) + 'px');
+    }
+
+    const hitClass = isPlayer ? 'taking-damage-from-player' : 'taking-damage-from-enemy';
+    const attackClass = isPlayer ? 'player-attacking' : 'enemy-attacking';
+
+    let animEndHandled = false;
+    const onAttackAnimComplete = () => {
+        if (animEndHandled) return;
+        animEndHandled = true;
+        window._strikeAnimActive = false;
+        if (callback && !options.fastResolve) callback();
+        if (typeof options.onAnimEnd === 'function') options.onAnimEnd();
+    };
+
+    if (attackerEl) {
+        attackerEl.classList.remove('player-attacking', 'enemy-attacking', 'is-striking');
+        void attackerEl.offsetWidth;
+        attackerEl.style.animationDuration = animSec;
+        attackerEl.classList.add(attackClass, 'is-striking');
+        bindAnimationEndCleanup(
+            attackerEl,
+            [attackClass, 'is-striking'],
+            duration,
+            onAttackAnimComplete,
+            isPlayer ? 'playerLungeStrike' : 'enemyLungeStrike'
+        );
+    } else {
+        setTimeout(onAttackAnimComplete, duration);
+    }
+
+    let impactFired = false;
+    const fireImpact = () => {
+        if (impactFired) return;
+        impactFired = true;
+
+        if (duration >= 280) spawnCombatSlash(attackerSide);
+
+        if (defenderEl) {
+            defenderEl.classList.remove(hitClass, 'taking-damage');
+            void defenderEl.offsetWidth;
+            defenderEl.classList.add(hitClass);
+            bindAnimationEndCleanup(defenderEl, hitClass, 500);
+        }
+        if (defenderWrap) {
+            defenderWrap.classList.remove('combat-hit-flash');
+            void defenderWrap.offsetWidth;
+            defenderWrap.classList.add('combat-hit-flash');
+            bindAnimationEndCleanup(defenderWrap, 'combat-hit-flash', 480);
+        }
+        if (arena && heavy) {
+            arena.classList.remove('arena-hit-flash');
+            void arena.offsetWidth;
+            arena.classList.add('arena-hit-flash');
+            bindAnimationEndCleanup(arena, 'arena-hit-flash', 350);
+        }
+
+        if (typeof options.onImpact === 'function') options.onImpact();
+        else if (typeof pendingStrikeImpact === 'function') {
+            pendingStrikeImpact();
+            pendingStrikeImpact = null;
+        }
+    };
+
+    setTimeout(fireImpact, impactMs);
+
+    if (callback && options.fastResolve) {
+        setTimeout(() => callback(), impactMs + 40);
+    }
+}
+
+function animatePlayerAbility(callback, ability, appliedDamage, crit, extraOptions) {
+    extraOptions = extraOptions || {};
+    if (!abilityNeedsStrike(ability, appliedDamage)) {
+        playPlayerCast(callback, { onAnimEnd: extraOptions.onAnimEnd });
+        return;
+    }
+    const atk = typeof getPlayerEffectiveAttack === 'function' ? getPlayerEffectiveAttack() : (player ? player.attack : 0);
+    const heavy = !!extraOptions.heavy || !!crit || appliedDamage >= Math.floor(atk * 1.2);
+    playStrikeAnimation('player', callback, {
+        onImpact: extraOptions.onImpact,
+        onAnimEnd: extraOptions.onAnimEnd,
+        isCrit: crit,
+        heavy: heavy,
+        duration: heavy ? STRIKE_HEAVY_MS : STRIKE_DURATION_MS,
+        fastResolve: true
+    });
+}
+
+function animatePlayerAttack(callback, options) {
+    options = options || {};
+    options.fastResolve = options.fastResolve !== false;
+    if (options.duration == null) {
+        options.duration = options.heavy || options.isCrit ? STRIKE_HEAVY_MS : STRIKE_DURATION_MS;
+    }
+    playStrikeAnimation('player', callback, options);
+}
+
+function animateEnemyAttack(callback, options) {
+    options = options || {};
+    // У монстра ход игрока после полной анимации; у игрока — fastResolve (см. animatePlayerAttack)
+    if (options.fastResolve === undefined) options.fastResolve = false;
+    if (options.duration == null) {
+        options.duration = options.heavy ? STRIKE_HEAVY_MS : ENEMY_STRIKE_MS;
+    }
+    playStrikeAnimation('enemy', callback, options);
 }
 
 function floatDamage(target, amount, isCrit) {
     const wrapper = target === 'player' ? document.getElementById('playerWrapper') : document.getElementById('enemyWrapper');
     if (!wrapper) return;
     const el = document.createElement('div');
-    el.className = 'damage-float';
+    el.className = 'damage-float' + (isCrit ? ' damage-float--crit' : '');
     el.textContent = (isCrit ? '💥 ' : '') + '-' + amount;
-    el.style.color = target === 'player' ? '#ff4444' : '#ffaa00';
-    if (isCrit) { el.style.fontSize = '32px'; el.style.color = '#ff5500'; }
-    el.style.left = '50%';
-    el.style.top = '10px';
-    el.style.transform = 'translateX(-50%)';
+    if (!isCrit) el.style.color = target === 'player' ? '#ff5555' : '#ffcc44';
+    el.style.top = '8px';
+    wrapper.style.position = 'relative';
     wrapper.appendChild(el);
-    setTimeout(() => el.remove(), 1200);
+    setTimeout(() => el.remove(), isCrit ? 1200 : 1050);
 }
 
 function showFloatingText(target, text, type) {
@@ -309,10 +595,21 @@ function showFloatingText(target, text, type) {
 }
 
 function showHitEffect(target) {
-    const wrapper = target === 'player' ? document.getElementById('playerWrapper') : document.getElementById('enemyWrapper');
-    if (!wrapper) return;
-    wrapper.style.animation = 'hitShake 0.3s ease-in-out';
-    setTimeout(() => { wrapper.style.animation = ''; }, 300);
+    const sprite = document.getElementById(target === 'player' ? 'playerSprite' : 'enemySprite');
+    const wrap = target === 'player' ? document.getElementById('playerWrapper') : document.getElementById('enemyWrapper');
+    if (sprite) {
+        const cls = target === 'player' ? 'taking-damage-from-enemy' : 'taking-damage-from-player';
+        sprite.classList.remove(cls);
+        void sprite.offsetWidth;
+        sprite.classList.add(cls);
+        setTimeout(() => sprite.classList.remove(cls), 450);
+    }
+    if (wrap) {
+        wrap.classList.remove('combat-hit-flash');
+        void wrap.offsetWidth;
+        wrap.classList.add('combat-hit-flash');
+        setTimeout(() => wrap.classList.remove('combat-hit-flash'), 420);
+    }
 }
 
 function showHealEffect(target, amount) {
@@ -473,3 +770,7 @@ function showReflectEffect(target, value) {
 }
 
 window.showReflectEffect = showReflectEffect;
+window.setStrikeImpact = setStrikeImpact;
+window.safeRenderBattle = safeRenderBattle;
+window.syncBattleDisplayAfterAnim = syncBattleDisplayAfterAnim;
+window.updateBattleVitality = updateBattleVitality;

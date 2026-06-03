@@ -1,7 +1,23 @@
 // js/core/battle/battlePlayer.js
 
 function playerAttack() {
-    if (!isPlayerTurn) return;
+    if (!beginPlayerAction()) return;
+    if (playerAttackMissesFromBlind()) {
+        addBattleLog('👁️ Ослепление — промах!', 'error');
+        isPlayerTurn = false;
+        updateBattleButtons();
+        endPlayerActionChain();
+        renderBattle();
+        return;
+    }
+    if (monsterDodgesPlayerHit()) {
+        addBattleLog(`💨 ${currentMonster.name} уклонился от атаки!`, 'info');
+        isPlayerTurn = false;
+        updateBattleButtons();
+        endPlayerActionChain();
+        renderBattle();
+        return;
+    }
     isPlayerTurn = false;
     updateBattleButtons();
     
@@ -12,52 +28,41 @@ function playerAttack() {
         addBattleLog(`⚡ Бонус следующей атаки: +${nextAttackBonus}%!`, 'crit');
         nextAttackBonus = 0;
     }
-    const crit = Math.random() * 100 <= player.criticalChance;
-    if (crit) dmg = Math.floor(dmg * (player.criticalDamage / 100));
-    dmg = calculateDamage(dmg, currentMonster.defense);
-
-     // ОБЪЯВЛЯЕМ ПЕРЕМЕННУЮ ДО ИСПОЛЬЗОВАНИЯ
-    let reflectedDamage = 0;
-    
-    // Проверка на отражение урона от монстра
-    if (currentMonster.activeBuffs && currentMonster.activeBuffs.reflect) {
-        const reflectValue = currentMonster.activeBuffs.reflect.value;
-        reflectedDamage = Math.floor(dmg * reflectValue / 100);
-        if (reflectedDamage > 0) {
-            addBattleLog(`🔄 ${currentMonster.name} отражает ${reflectedDamage} урона!`, 'info');
-            showReflectEffect('player', reflectedDamage);
-        }
+    dmg = Math.floor(dmg * getWeakspotDamageMultiplier());
+    if (currentMonster.damageAmp > 1) {
+        dmg = Math.floor(dmg * currentMonster.damageAmp);
+        currentMonster.damageAmp = 1;
+        addBattleLog(`☠️ Удвоенный урон от яда!`, 'crit');
     }
-    
+    let crit = nextCritGuaranteed || Math.random() * 100 <= player.criticalChance;
+    if (nextCritGuaranteed) nextCritGuaranteed = false;
+    if (crit) dmg = Math.floor(dmg * (player.criticalDamage / 100));
+    dmg = calculateDamageWithShred(dmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+
     const appliedDamage = applyDamageToMonster(dmg);
+    applyMonsterReflectDamage(appliedDamage);
     const msg = (crit ? '💥 КРИТ! ' : '⚔️ ') + appliedDamage + ' урона';
     addBattleLog(msg, crit ? 'crit' : 'dmg');
-    
-    // ПРИМЕНЯЕМ ОТРАЖЁННЫЙ УРОН К ИГРОКУ
-    if (reflectedDamage > 0) {
-        applyDamageToPlayer(reflectedDamage);
-        floatDamage('player', reflectedDamage, false);
-        showHitEffect('player');
-    }
 
     animatePlayerAttack(() => {
-        floatDamage('enemy', appliedDamage, crit);
         if (currentMonster.health <= 0) { victory(); return; }
-        setTimeout(() => { monsterTurn(); }, 300);
+        endPlayerActionChain();
+    }, {
+        onImpact: () => floatDamage('enemy', appliedDamage, crit),
+        isCrit: crit,
+        fastResolve: true,
+        onAnimEnd: () => syncBattleDisplayAfterAnim()
     });
-    renderBattle();
-    saveGame();
+    updateBattleVitality();
+    setTimeout(() => { if (typeof saveGame === 'function') saveGame(); }, 0);
 }
 
 function attemptDodge() {
-    if (!isPlayerTurn) return;
+    if (!beginPlayerAction()) return;
     isPlayerTurn = false;
     updateBattleButtons();
     
-    let totalDodge = player.dodgeChance;
-    const dodgeBonus = player.temporaryEffects.reduce((s, e) => s + (e.dodge || 0), 0);
-    totalDodge = totalDodge + dodgeBonus;
-    totalDodge = Math.min(70, totalDodge);
+    const totalDodge = getPlayerEffectiveDodge();
     
     addBattleLog(`💨 Попытка уклониться... (шанс ${totalDodge}%)`, 'info');
     
@@ -70,10 +75,9 @@ function attemptDodge() {
             addBattleLog(`🔄 Уклонение активировало бесплатный выстрел!`, 'info');
         }
         
-        reduceAllCooldowns();
-        isPlayerTurn = true;
+        finishMonsterPhase();
+        onPlayerTurnStart();
         renderBattle();
-        updateBattleButtons();
     } else {
         addBattleLog('❌ Не удалось уклониться! Монстр атакует!', 'error');
         setTimeout(() => { monsterTurn(); }, 500);
@@ -86,9 +90,10 @@ function showBattleAbilities() {
     player.abilities.forEach((a, i) => {
         const onCd = a.currentCooldown > 0;
         const noMana = player.class === 'Маг' && a.mana && player.mana < a.mana;
+        const isPassive = a.passive;
         let stats = '';
         if (a.dmg) stats += '<span>⚔️' + a.dmg + '%</span>';
-        if (a.mana) stats += '<span>💎' + a.mana + '</span>';
+        if (a.mana && player.class === 'Маг') stats += '<span>💎' + a.mana + '</span>';
         if (a.cd) stats += '<span>⏱️КД:' + a.cd + '</span>';
         if (a.lifesteal) stats += '<span>🩸' + a.lifesteal + '%</span>';
         if (a.heal) stats += '<span>💚' + a.heal + '%</span>';
@@ -100,23 +105,28 @@ function showBattleAbilities() {
         let cdText = '';
         if (onCd) {
             const remaining = a.currentCooldown;
-            const word = getWordForm(remaining, ['ход', 'хода', 'ходов']);
+            const word = getWordForm(remaining, ['гл. ход', 'гл. хода', 'гл. ходов']);
             cdText = ` (⌛ ${remaining} ${word})`;
         } else if (a.cd && a.cd > 0) cdText = ` (⚡ готово)`;
         
-        html += '<div class="ability-card' + (onCd || noMana || !isPlayerTurn ? ' on-cooldown' : '') + '" onclick="' + (onCd || noMana || !isPlayerTurn ? '' : 'useBattleAbility(' + i + ')') + '"><div class="ability-header"><span class="ability-icon">' + (a.icon || '✨') + '</span><span class="ability-name">' + a.name + cdText + '</span>' + (onCd ? '<span class="cooldown-badge">' + a.currentCooldown + '</span>' : '') + '</div><div class="ability-desc">' + a.desc + '</div>' + (stats ? '<div class="ability-stats">' + stats + '</div>' : '') + (noMana ? '<div style="color:#e74c3c;font-size:9px;">❌ Нет маны</div>' : '') + '</div>';
+        html += '<div class="ability-card' + (onCd || noMana || !isPlayerTurn || isPassive ? ' on-cooldown' : '') + '" onclick="' + (onCd || noMana || !isPlayerTurn || isPassive ? '' : 'useBattleAbility(' + i + ')') + '"><div class="ability-header"><span class="ability-icon">' + (a.icon || '✨') + '</span><span class="ability-name">' + a.name + cdText + '</span>' + (onCd ? '<span class="cooldown-badge">' + a.currentCooldown + '</span>' : '') + '</div><div class="ability-desc">' + a.desc + '</div>' + (stats ? '<div class="ability-stats">' + stats + '</div>' : '') + (noMana ? '<div style="color:#e74c3c;font-size:9px;">❌ Нет маны</div>' : '') + '</div>';
     });
     html += '</div><button class="action-btn" onclick="renderBattle()" style="margin-top:10px;width:100%;">↩️ Назад к бою</button>';
     document.getElementById('dynamicContent').innerHTML = html;
 }
 
 function useBattleAbility(index) {
-    if (!isPlayerTurn) return;
+    if (!beginPlayerAction()) return;
     const a = player.abilities[index];
+    
+    if (a.passive) {
+        addBattleLog(`ℹ️ «${a.name}» — пассивная способность (уже действует).`, 'info');
+        return;
+    }
     
     if (a.currentCooldown > 0 && !nextNoCd) {
         const remaining = a.currentCooldown;
-        const word = getWordForm(remaining, ['ход', 'хода', 'ходов']);
+        const word = getWordForm(remaining, ['гл. ход', 'гл. хода', 'гл. ходов']);
         addBattleLog(`❌ "${a.name}" перезаряжается (ещё ${remaining} ${word})!`, 'error');
         return;
     }
@@ -131,17 +141,37 @@ function useBattleAbility(index) {
         addBattleLog(`❌ Не хватает маны! (нужно ${manaCost})`, 'error');
         return;
     }
+
+    renderBattle();
+
+    if (playerAttackMissesFromBlind() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
+        addBattleLog('👁️ Ослепление — способность промахнулась!', 'error');
+        if (!nextNoCd) a.currentCooldown = a.cd;
+        isPlayerTurn = false;
+        endPlayerActionChain();
+        renderBattle();
+        return;
+    }
+    if (monsterDodgesPlayerHit() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
+        addBattleLog(`💨 ${currentMonster.name} уклонился!`, 'info');
+        if (!nextNoCd) a.currentCooldown = a.cd;
+        isPlayerTurn = false;
+        endPlayerActionChain();
+        renderBattle();
+        return;
+    }
     
     isPlayerTurn = false;
     updateBattleButtons();
-    
+
     if (manaCost > 0) player.mana -= manaCost;
     if (nextDoubleEffect) {
         addBattleLog(`🔁 Удвоенный эффект!`, 'crit');
         nextDoubleEffect = false;
     }
     
-    let dmg = a.dmg ? Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) : 0;
+    let dmg = (a.noDamage || !a.dmg) ? 0 : Math.floor(getPlayerEffectiveAttack() * a.dmg / 100);
+    ignoreShieldsThisHit = !!a.ignoreShields;
     
     if (a.rampUp && rageStack > 0) {
         const bonus = Math.min(a.rampUp.maxStack, rageStack) * a.rampUp.perStack;
@@ -235,9 +265,46 @@ function useBattleAbility(index) {
         }
     }
     
-    if (a.executeOnLowHp && player.health < player.maxHealth * a.executeOnLowHp / 100) {
+    if (a.executeOnLowHp && currentMonster.health < currentMonster.maxHealth * a.executeOnLowHp / 100) {
         dmg = Math.floor(dmg * (1 + (a.lowHpBonus || 0) / 100));
-        addBattleLog(`⚡ Эффект казни! Урон +${a.lowHpBonus}%`, 'crit');
+        addBattleLog(`⚡ Удар по ослабленной цели! Урон +${a.lowHpBonus}%`, 'crit');
+    }
+    
+    if (a.consumeBurn && currentMonster.effects.some(e => e.type === 'Горение')) {
+        dmg = Math.floor(dmg * (1 + a.consumeBurn / 100));
+        currentMonster.effects = currentMonster.effects.filter(e => e.type !== 'Горение');
+        addBattleLog(`🔥 Поглощено горение: +${a.consumeBurn}% урона!`, 'crit');
+    }
+    
+    if (a.splash && dmg > 0) {
+        dmg += Math.floor(dmg * a.splash / 100);
+        addBattleLog(`☄️ Разброс урона +${a.splash}%!`, 'info');
+    }
+    
+    if (a.dotOverTime) {
+        currentMonster.dotOverTime = { remaining: a.dotOverTime.dur, dmgPercent: a.dotOverTime.dmgPerTurn };
+        addBattleLog(`🌪️ Урон в течение ${a.dotOverTime.dur} ходов!`, 'info');
+    }
+    
+    if (a.dispelBuffs && currentMonster.activeBuffs) {
+        currentMonster.activeBuffs = {};
+        if (originalMonsterStats.attack) currentMonster.attack = originalMonsterStats.attack;
+        if (originalMonsterStats.defense) currentMonster.defense = originalMonsterStats.defense;
+        addBattleLog(`✨ Баффы врага сняты!`, 'info');
+    }
+    
+    if (a.hpLoss) {
+        const hpLossDmg = Math.floor(currentMonster.maxHealth * a.hpLoss / 100);
+        if (hpLossDmg > 0) {
+            applyDamageToMonster(hpLossDmg, ignoreShieldsThisHit);
+            addBattleLog(`💀 Потеря ${a.hpLoss}% HP цели (-${hpLossDmg})!`, 'dmg');
+        }
+    }
+    
+    if (a.manaDrain && dmg > 0) {
+        const drainDmg = Math.floor(currentMonster.maxHealth * a.manaDrain / 100);
+        applyDamageToMonster(drainDmg, ignoreShieldsThisHit);
+        addBattleLog(`🏔️ Мороз высасывает силы: -${drainDmg} HP!`, 'dmg');
     }
     
     if (a.freezeExtend) {
@@ -250,11 +317,6 @@ function useBattleAbility(index) {
         addBattleLog(`🌋 Поле лавы! Уязвимость к огню +${a.value}%`, 'info');
     }
     
-    if (a.effect && a.effect.type === 'Ослепление') {
-        player.temporaryEffects.push({ blind: true, dur: a.effect.dur, value: a.effect.value });
-        addBattleLog(`👁️ Цель ослеплена! Точность -${a.effect.value}%`, 'info');
-    }
-    
     if (a.armorShred) {
         currentMonster.armorShred += a.armorShred;
         addBattleLog(`🛡️ Защита цели снижена на ${currentMonster.armorShred}%`, 'info');
@@ -262,8 +324,8 @@ function useBattleAbility(index) {
     }
     
     if (a.ignoreDef) {
-        const defAfterIgnore = Math.max(0, currentMonster.defense - a.ignoreDef);
-        dmg = Math.max(1, Math.floor(dmg * (100 - defAfterIgnore / 3) / 100));
+        const effDef = Math.floor(getMonsterCurrentDefense() * (1 - a.ignoreDef / 100));
+        dmg = calculateDamage(dmg, effDef);
     }
     
     if (a.ignoreAll) {
@@ -278,13 +340,22 @@ function useBattleAbility(index) {
     
     if (a.effect) {
         let effectDur = a.effect.dur;
-        let effectVal = a.effect.val;
+        let effectVal = a.effect.val ?? a.effect.value;
         if (nextDoubleEffect) {
             effectDur = Math.floor(effectDur * 1.5);
             effectVal = Math.floor(effectVal * 1.5);
         }
-        currentMonster.effects.push({ type: a.effect.type, dur: effectDur, val: effectVal, spread: a.effect.spread, manaRegen: a.effect.manaRegen });
-        addBattleLog(`🌀 Наложен эффект "${a.effect.type}" на ${effectDur} хода!`, 'info');
+        if (a.effect.type === 'Смертельный яд') {
+            currentMonster.damageAmp = 2;
+            addBattleLog(`☠️ Следующий удар по цели удвоит урон!`, 'info');
+        } else {
+            currentMonster.effects.push({ type: a.effect.type, dur: effectDur, val: effectVal, spread: a.effect.spread, manaRegen: a.effect.manaRegen });
+            addBattleLog(`🌀 Наложен эффект «${a.effect.type}» на ${effectDur} хода!`, 'info');
+        }
+        if (a.manaPerFrozen && player.class === 'Маг' && a.effect.type === 'Заморозка') {
+            player.mana = Math.min(player.maxMana, player.mana + a.manaPerFrozen);
+            addBattleLog(`💎 +${a.manaPerFrozen} маны за заморозку`, 'heal');
+        }
     }
     
     if (a.enemyDebuff) {
@@ -292,17 +363,36 @@ function useBattleAbility(index) {
         addBattleLog(`🛡️ Защита врага снижена на ${a.enemyDebuff.value}%!`, 'info');
     }
     
+    if (a.partyBuff) {
+        const pbDur = a.partyBuff.dur || 3;
+        player.temporaryEffects.push({ def: a.partyBuff.def || 0, dur: pbDur });
+        addBattleLog(`🌟 Аура: +${a.partyBuff.def || 0}% защиты на ${pbDur} хода!`, 'heal');
+    }
+    
+    if (a.healBonus && a.buff) {
+        player.temporaryEffects.push({ healBonus: a.healBonus, dur: a.buff.dur || 3 });
+    }
+    
+    if (a.regen) {
+        player.temporaryEffects.push({ regen: a.regen, dur: (a.buff && a.buff.dur) || a.dur || 3 });
+    }
+    
+    if (a.nextCrit) nextCritGuaranteed = true;
+    if (a.skipNextTurn) playerSkipNextTurn = true;
+    
     if (a.buff) {
         let buffDur = a.buff.dur;
         if (nextDoubleEffect) buffDur = Math.floor(buffDur * 1.5);
-        player.temporaryEffects.push({ atk: a.buff.atk || 0, def: a.buff.def || 0, dodge: a.buff.dodge || 0, crit: a.buff.crit || 0, critDmg: a.buff.critDmg || 0, dur: buffDur, cdReduction: a.buff.cdReduction, freezeOnHit: a.freezeOnHit, counterChance: a.counterChance, counterDmg: a.counterDmg, freeOnDodge: a.freeOnDodge, ccImmune: a.ccImmune });
+        const buffFx = { atk: a.buff.atk || 0, def: a.buff.def || 0, dodge: a.buff.dodge || 0, crit: a.buff.crit || 0, critDmg: a.buff.critDmg || 0, dur: buffDur, cdReduction: a.buff.cdReduction, freezeOnHit: a.freezeOnHit, counterChance: a.counterChance, counterDmg: a.counterDmg, freeOnDodge: a.freeOnDodge, ccImmune: a.ccImmune };
+        player.temporaryEffects.push(buffFx);
         let buffText = [];
         if (a.buff.atk) buffText.push(`+${a.buff.atk}% атаки`);
         if (a.buff.def) buffText.push(`+${a.buff.def}% защиты`);
         if (a.buff.dodge) buffText.push(`+${a.buff.dodge}% уклонения`);
         if (a.buff.crit) buffText.push(`+${a.buff.crit}% крита`);
         if (a.buff.critDmg) buffText.push(`+${a.buff.critDmg}% крит урона`);
-        addBattleLog(`💪 Наложен бафф: ${buffText.join(', ')} на ${buffDur} хода!`, 'heal');
+        const effDef = getPlayerEffectiveDefense();
+        addBattleLog(`💪 ${buffText.length ? buffText.join(', ') : 'Бафф'} на ${buffDur} хода! (🛡️ защита сейчас: ${effDef})`, 'heal');
     }
     
     if (a.selfBuff) {
@@ -310,7 +400,7 @@ function useBattleAbility(index) {
         addBattleLog(`😤 ${a.selfBuff.type}! Следующий удар +${a.selfBuff.value}%`, 'info');
     }
     
-    if (a.skipNextTurn) addBattleLog(`💫 Мощный удар! Следующий ход пропускается...`, 'info');
+    if (a.skipNextTurn) addBattleLog(`💫 Следующий ход пропускается...`, 'info');
     
     if (a.bleedPercent) {
         const bleedDamage = Math.floor(currentMonster.maxHealth * a.bleedPercent / 100);
@@ -409,8 +499,9 @@ function useBattleAbility(index) {
     }
     
     if (a.echo) { 
-        window.echoActive = true; 
-        addBattleLog(`🔁 Эхо заклинания! Следующее заклинание сработает дважды`, 'info');
+        window.echoActive = true;
+        window.echoMultiplier = a.echo;
+        addBattleLog(`🔁 Эхо: следующее заклинание повторится с ${Math.floor(a.echo * 100)}% силы`, 'info');
     }
     
     if (a.immune) { 
@@ -419,13 +510,15 @@ function useBattleAbility(index) {
     }
     
     if (a.reflect) {
-        player.temporaryEffects.push({ reflect: a.reflect, dur: a.dur || 1 });
-        addBattleLog(`↩️ Отражение ${a.reflect}% урона на ${a.dur || 1} ход!`, 'info');
+        const reflectDur = a.dur || (a.buff && a.buff.dur) || 1;
+        player.temporaryEffects.push({ reflect: a.reflect, dur: reflectDur });
+        addBattleLog(`↩️ Отражение ${a.reflect}% урона на ${reflectDur} ход(ов)!`, 'info');
     }
     
     if (a.damageReduction) {
-        player.temporaryEffects.push({ damageReduction: a.damageReduction, dur: a.dur || 1 });
-        addBattleLog(`🛡️ Получаемый урон снижен на ${a.damageReduction}%!`, 'info');
+        const drDur = a.dur || 2;
+        player.temporaryEffects.push({ damageReduction: a.damageReduction, dur: drDur });
+        addBattleLog(`🛡️ Получаемый урон снижен на ${a.damageReduction}% (${drDur} хода)!`, 'info');
     }
     
     if (a.deathSave) {
@@ -433,23 +526,50 @@ function useBattleAbility(index) {
         addBattleLog(`💪 Инстинкт выживания! Вы не умрёте от одного удара!`, 'success');
     }
     
-    let crit = Math.random() * 100 <= player.criticalChance;
+    let critChance = player.criticalChance + (a.critBonus || 0);
+    let crit = a.guaranteedCrit || nextCritGuaranteed || Math.random() * 100 <= critChance;
+    if (nextCritGuaranteed) nextCritGuaranteed = false;
     if (crit && !a.guaranteedCrit) {
         dmg = Math.floor(dmg * (player.criticalDamage / 100));
         addBattleLog(`💥 КРИТИЧЕСКИЙ УДАР!`, 'crit');
     }
     
+    dmg = Math.floor(dmg * getWeakspotDamageMultiplier());
+    if (currentMonster.damageAmp > 1) {
+        dmg = Math.floor(dmg * currentMonster.damageAmp);
+        currentMonster.damageAmp = 1;
+    }
+    
+    const defenseAlreadyApplied = a.ignoreDef || a.armorShred || a.ignoreAll;
+    if (dmg > 0 && !defenseAlreadyApplied) {
+        dmg = calculateDamageWithShred(dmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+    }
+    
     if (a.doubleHit) {
         dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * 2;
         addBattleLog(`🏹 Двойной выстрел!`, 'info');
+        if (a.manaPerHit && player.class === 'Маг') {
+            player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 2);
+        }
     }
     if (a.tripleHit) {
         dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * 3;
         addBattleLog(`🏹 Тройной выстрел!`, 'info');
+        if (a.manaPerHit && player.class === 'Маг') {
+            player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 3);
+        }
     }
     if (a.quadHit) {
-        dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * 4;
-        addBattleLog(`🏹 Четыре выстрела!`, 'info');
+        const hits = a.hitCount || 4;
+        dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * hits;
+        addBattleLog(`🏹 ${hits} выстрела!`, 'info');
+        if (a.manaPerHit && player.class === 'Маг') {
+            player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * hits);
+        }
+        if (a.stunChance && Math.random() * 100 <= a.stunChance) {
+            currentMonster.effects.push({ type: 'Оглушение', dur: 1, val: 0 });
+            addBattleLog(`😵 Оглушение сработало!`, 'info');
+        }
     }
     if (a.multiHit) {
         let totalDmg = 0;
@@ -472,17 +592,21 @@ function useBattleAbility(index) {
     if (a.aoe) addBattleLog(`🌪️ Урон наносится по всем врагам!`, 'info');
     if (a.chain) addBattleLog(`⚡ Цепная молния!`, 'info');
     
-    const appliedDamage = applyDamageToMonster(dmg);
-    addBattleLog(`✨ ${a.name}: ${appliedDamage} урона!`, 'dmg');
+    const appliedDamage = applyDamageToMonster(dmg, ignoreShieldsThisHit);
+    ignoreShieldsThisHit = false;
+    applyMonsterReflectDamage(appliedDamage);
+    if (appliedDamage > 0) addBattleLog(`✨ ${a.name}: ${appliedDamage} урона!`, 'dmg');
+    else addBattleLog(`✨ ${a.name}!`, 'info');
     
     if (!nextNoCd) a.currentCooldown = a.cd;
     else {
         nextNoCd = false;
         addBattleLog(`⚡ Способность использована без перезарядки!`, 'info');
     }
-    
-    animatePlayerAttack(() => {
-        floatDamage('enemy', appliedDamage, crit);
+
+    updateBattleVitality();
+
+    const afterAbilityResolve = () => {
         if (currentMonster.health <= 0) { 
             if (extraTurn) {
                 addBattleLog(`⚡ Дополнительный ход за убийство!`, 'crit');
@@ -494,18 +618,31 @@ function useBattleAbility(index) {
             victory(); 
             return; 
         }
-        setTimeout(() => { monsterTurn(); }, 300);
+        endPlayerActionChain();
+    };
+
+    animatePlayerAbility(afterAbilityResolve, a, appliedDamage, crit, {
+        onImpact: () => {
+            if (appliedDamage > 0) floatDamage('enemy', appliedDamage, crit);
+        },
+        onAnimEnd: () => syncBattleDisplayAfterAnim()
     });
     
     if (window.echoActive && appliedDamage > 0) { 
-        window.echoActive = false; 
-        const echoDamage = applyDamageToMonster(appliedDamage);
+        window.echoActive = false;
+        const echoDmg = Math.floor(appliedDamage * (window.echoMultiplier || 0.6));
+        const echoDamage = applyDamageToMonster(echoDmg);
         addBattleLog(`🔁 Эхо: +${echoDamage} урона!`, 'info'); 
         if (currentMonster.health <= 0) setTimeout(() => victory(), 100);
     }
     
-    renderBattle();
-    saveGame();
+    if (a.revive && player.health <= 0) {
+        player.health = Math.floor(player.maxHealth * (a.revive / 100));
+        addBattleLog(`✨ Возрождение духа! ${player.health} HP`, 'success');
+        updateBattleVitality();
+    }
+
+    setTimeout(() => { if (typeof saveGame === 'function') saveGame(); }, 0);
 }
 
 function fleeBattle() {

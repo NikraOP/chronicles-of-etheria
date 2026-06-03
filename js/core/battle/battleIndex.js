@@ -16,13 +16,20 @@ if (typeof gameOver !== 'undefined') window.gameOver = gameOver;
 
 // Функции из UI
 if (typeof renderBattle !== 'undefined') window.renderBattle = renderBattle;
+if (typeof updateBattleVitality !== 'undefined') window.updateBattleVitality = updateBattleVitality;
+if (typeof safeRenderBattle !== 'undefined') window.safeRenderBattle = safeRenderBattle;
+if (typeof syncBattleDisplayAfterAnim !== 'undefined') window.syncBattleDisplayAfterAnim = syncBattleDisplayAfterAnim;
 if (typeof updateBattleButtons !== 'undefined') window.updateBattleButtons = updateBattleButtons;
+if (typeof getGlobalBattleTurn !== 'undefined') window.getGlobalBattleTurn = getGlobalBattleTurn;
+if (typeof finishMonsterPhase !== 'undefined') window.finishMonsterPhase = finishMonsterPhase;
 if (typeof showItemCooldownsInBattle !== 'undefined') window.showItemCooldownsInBattle = showItemCooldownsInBattle;
 if (typeof getAbilityTypeName !== 'undefined') window.getAbilityTypeName = getAbilityTypeName;
 
 // Анимации
 if (typeof animatePlayerAttack !== 'undefined') window.animatePlayerAttack = animatePlayerAttack;
+if (typeof animatePlayerAbility !== 'undefined') window.animatePlayerAbility = animatePlayerAbility;
 if (typeof animateEnemyAttack !== 'undefined') window.animateEnemyAttack = animateEnemyAttack;
+if (typeof setStrikeImpact !== 'undefined') window.setStrikeImpact = setStrikeImpact;
 if (typeof floatDamage !== 'undefined') window.floatDamage = floatDamage;
 if (typeof showFloatingText !== 'undefined') window.showFloatingText = showFloatingText;
 if (typeof showHitEffect !== 'undefined') window.showHitEffect = showHitEffect;

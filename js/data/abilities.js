@@ -23,17 +23,17 @@ const ABILITIES_DB = {
         'Школа Защиты': {
             img: 'classes/warrior/zach.png',
             abilities: [
-                {name:'Железная воля',desc:'+30% защиты, отражает 25% урона',lvl:1,cd:5,mana:10,icon:'🛡️',buff:{def:30,dur:3},reflect:25},
-                {name:'Щитовой удар',desc:'120% урона, создаёт щит на 50% от урона',lvl:5,cd:5,mana:15,dmg:120,icon:'💢',shieldFromDamage:50},
-                {name:'Стойкость',desc:'+40% защиты, +25% к лечению',lvl:10,cd:6,mana:20,icon:'🏰',buff:{def:40,dur:3},healBonus:25},
-                {name:'Контратака',desc:'50% шанс контратаки (80% урона)',lvl:15,cd:0,icon:'↩️',passive:true,counterChance:50,counterDmg:80},
-                {name:'Несокрушимый',desc:'Иммунитет 1 ход, лечение 15% HP',lvl:20,cd:8,mana:30,icon:'💎',immune:true,dur:1,heal:15},
-                {name:'Стальная крепость',desc:'+50% защиты, реген 1% HP',lvl:25,cd:6,mana:25,icon:'🏯',buff:{def:50,dur:3},regen:1},
-                {name:'Стена стали',desc:'-30% входящего урона на 2 хода',lvl:30,cd:7,mana:35,icon:'🧱',damageReduction:30,dur:2},
-                {name:'Отражение боли',desc:'Отражает 80% урона 1 ход',lvl:35,cd:6,mana:40,icon:'🔮',reflect:80,dur:1},
-                {name:'Небесный щит',desc:'Щит 100% от макс. HP на 2 хода',lvl:40,cd:8,mana:50,icon:'😇',maxHpShield:100,dur:2},
-                {name:'Аура защиты',desc:'+50% защиты союзникам, +10% HP',lvl:45,cd:7,mana:60,icon:'🌟',partyBuff:{def:50,dur:3},heal:10},
-                {name:'Абсолютная защита',desc:'Иммунитет + отражение 100%, +20% HP',lvl:50,cd:9,mana:70,icon:'🛡️',immune:true,dur:1,reflect:100,heal:20}
+                {name:'Железная воля',desc:'+35% защиты, отражает 30% входящего урона (3 хода)',lvl:1,cd:4,mana:0,icon:'🛡️',buff:{def:35,dur:3},reflect:30},
+                {name:'Щитовой удар',desc:'135% урона, щит = 60% нанесённого урона',lvl:5,cd:4,mana:0,dmg:135,icon:'💢',shieldFromDamage:60},
+                {name:'Стойкость',desc:'+45% защиты, +30% к лечению (3 хода)',lvl:10,cd:5,mana:0,icon:'🏰',buff:{def:45,dur:3},healBonus:30},
+                {name:'Контратака',desc:'55% шанс контратаки (100% силы удара)',lvl:15,cd:0,icon:'↩️',passive:true,counterChance:55,counterDmg:100},
+                {name:'Несокрушимый',desc:'Иммунитет 1 ход, лечение 20% HP',lvl:20,cd:7,mana:0,icon:'💎',immune:true,dur:1,heal:20},
+                {name:'Стальная крепость',desc:'+55% защиты, реген 2% HP/ход (3 хода)',lvl:25,cd:5,mana:0,icon:'🏯',buff:{def:55,dur:3},regen:2},
+                {name:'Стена стали',desc:'−35% входящего урона на 2 хода',lvl:30,cd:6,mana:0,icon:'🧱',damageReduction:35,dur:2},
+                {name:'Отражение боли',desc:'Отражает 80% входящего урона (2 хода)',lvl:35,cd:5,mana:0,icon:'🔮',reflect:80,dur:2},
+                {name:'Небесный щит',desc:'Щит 100% от макс. HP на 2 хода',lvl:40,cd:7,mana:0,icon:'😇',maxHpShield:100,dur:2},
+                {name:'Аура защиты',desc:'+55% защиты, +15% HP (соло: на себя)',lvl:45,cd:6,mana:0,icon:'🌟',partyBuff:{def:55,dur:3},heal:15},
+                {name:'Абсолютная защита',desc:'Иммунитет 1 ход, отражение 100%, +25% HP',lvl:50,cd:8,mana:0,icon:'🛡️',immune:true,dur:1,reflect:100,heal:25}
             ]
         },
         'Школа Оружия': {
@@ -147,7 +147,7 @@ const ABILITIES_DB = {
                 {name:'Инстинкт выживания',desc:'+20% уклонения, реген 2%, спасение от смерти',lvl:25,cd:7,mana:35,icon:'💪',buff:{dodge:20,dur:3},regen:2,deathSave:true},
                 {name:'Танец смерти',desc:'+40% уклонения, 30% контратаки, при уклонении бесплатный выстрел',lvl:30,cd:7,mana:40,icon:'💃',buff:{dodge:40,dur:2},counterChance:30,counterDmg:60,freeOnDodge:true},
                 {name:'Призрачный охотник',desc:'+50% уклонения 2 хода',lvl:35,cd:6,mana:45,icon:'👻',buff:{dodge:50,dur:2}},
-                {name:'Град стрел',desc:'5×55% урона, 15% шанс оглушения',lvl:40,cd:7,mana:50,icon:'🌪️',quadHit:true,dmg:55,stunChance:15},
+                {name:'Град стрел',desc:'5×55% урона, 15% шанс оглушения',lvl:40,cd:7,mana:50,icon:'🌪️',quadHit:true,hitCount:5,dmg:55,stunChance:15},
                 {name:'Элитный выживальщик',desc:'+30% уклонения, +15% крита',lvl:45,cd:7,mana:55,icon:'🛡️',buff:{dodge:30,crit:15,dur:3}},
                 {name:'Бессмертный охотник',desc:'Иммунитет + 30% вампиризм, воскрешение 1 раз',lvl:50,cd:9,mana:70,icon:'🌟',immune:true,dur:1,lifesteal:30,reviveOnce:true,reviveHp:25}
             ]

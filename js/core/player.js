@@ -226,6 +226,30 @@ function updateAllAbilities() {
         ...a, currentCooldown: 0
     }));
     console.log(`Загружено способностей: ${player.abilities.length}`);
+    applyPassiveAbilityBonuses();
+}
+
+/** Пассивные способности школы (permAtk, контратака и т.д.) */
+function applyPassiveAbilityBonuses() {
+    if (!player || !player.abilities) return;
+    player._passiveWeakspot = 0;
+    player._passiveCounterChance = 0;
+    player._passiveCounterDmg = 80;
+    let permAtk = 0, permCrit = 0, permCritDmg = 0;
+    for (const ab of player.abilities) {
+        if (!ab.passive) continue;
+        permAtk += ab.permAtk || 0;
+        permCrit += ab.permCrit || 0;
+        permCritDmg += ab.permCritDmg || 0;
+        player._passiveWeakspot += ab.weakspot || 0;
+        if (ab.counterChance) {
+            player._passiveCounterChance = Math.max(player._passiveCounterChance, ab.counterChance);
+            player._passiveCounterDmg = ab.counterDmg || player._passiveCounterDmg;
+        }
+    }
+    player._passiveAtkPercent = permAtk;
+    player._passiveCritFlat = permCrit;
+    player._passiveCritDmgFlat = permCritDmg;
 }
 
 function resetBaseStats() {
@@ -274,6 +298,17 @@ function resetBaseStats() {
     player.criticalChance = Math.min(50, player.criticalChance);
     player.criticalDamage = Math.min(250, player.criticalDamage);
     player.dodgeChance = Math.min(70, player.dodgeChance);
+    
+    applyPassiveAbilityBonuses();
+    if (player._passiveAtkPercent) {
+        player.attack = Math.floor(player.attack * (1 + player._passiveAtkPercent / 100));
+    }
+    if (player._passiveCritFlat) {
+        player.criticalChance = Math.min(50, player.criticalChance + player._passiveCritFlat);
+    }
+    if (player._passiveCritDmgFlat) {
+        player.criticalDamage = Math.min(250, player.criticalDamage + player._passiveCritDmgFlat);
+    }
     
     if (player.health > player.maxHealth) player.health = player.maxHealth;
 }

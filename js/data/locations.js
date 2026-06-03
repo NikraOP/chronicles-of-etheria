@@ -16,7 +16,7 @@ const LOCATIONS = [
             {name:'Ядовитый паук',icon:'🕷️',img:'./monsters/spider.png',hp:180,atk:35,exp:35,def:4,
                 abilities:[
                     {name:'Ядовитый укус',type:'dot',effect:'poison',value:8,duration:2,chance:50,cooldown:2},
-                    {name:'Паутина',type:'debuff',effect:'slow',value:20,duration:1,chance:30,cooldown:3}
+                    {name:'Паутина',type:'debuff',effect:'slow',value:30,duration:2,chance:45,cooldown:3}
                 ]}
         ]},
         
@@ -107,7 +107,7 @@ const LOCATIONS = [
             {name:'Пламенный саламандр',icon:'🦎',img:'./monsters/fireSlamandr.png',hp:1400,atk:150,exp:210,def:30,
                 abilities:[
                     {name:'Огненное дыхание',type:'damage',multiplier:1.4,chance:55,cooldown:2},
-                    {name:'Горение',type:'dot' ,target:'player' ,effect:'burn',value:10,duration:3,chance:50,cooldown:3},
+                    {name:'Горение',type:'dot',target:'player',effect:'burn',value:10,duration:3,chance:50,cooldown:3},
                     {name:'Огненный щит',type:'buff',effect:'reflect',value:30,duration:2,chance:30,cooldown:4}
                 ]},
             {name:'Магмовый голем',icon:'🗿',img:'./monsters/laveGolem.png',hp:1680,atk:125,exp:200,def:44,

@@ -23,6 +23,16 @@ function calculateDamageWithShred(dmg, defense, shred) {
 
 function getPlayerEffectiveDefense() {
     let defense = player.defense;
+    let defBonusPercent = 0;
+    if (player.temporaryEffects) {
+        player.temporaryEffects.forEach(e => {
+            if (e.def) defBonusPercent += e.def;
+        });
+    }
+    if (defBonusPercent > 0) {
+        defBonusPercent = Math.min(120, defBonusPercent);
+        defense = Math.floor(defense * (1 + defBonusPercent / 100));
+    }
     const defDebuff = player.temporaryEffects.find(e => e.type === 'debuff_def');
     if (defDebuff) defense = Math.floor(defense * (1 - defDebuff.value / 100));
     const allDebuff = player.temporaryEffects.find(e => e.type === 'debuff_all');
@@ -36,16 +46,63 @@ function getPlayerEffectiveAttack() {
     if (atkDebuff) attack = Math.floor(attack * (1 - atkDebuff.value / 100));
     const allDebuff = player.temporaryEffects.find(e => e.type === 'debuff_all');
     if (allDebuff) attack = Math.floor(attack * (1 - allDebuff.value / 100));
+    const slowDebuff = player.temporaryEffects.find(e => e.type === 'debuff_slow');
+    if (slowDebuff) attack = Math.floor(attack * (1 - slowDebuff.value / 100));
+    const atkBuff = player.temporaryEffects.find(e => e.atk);
+    if (atkBuff && atkBuff.atk) attack = Math.floor(attack * (1 + atkBuff.atk / 100));
     return Math.max(1, attack);
 }
 
+function getPlayerEffectiveDodge() {
+    let dodge = player.dodgeChance;
+    const dodgeBuff = player.temporaryEffects.reduce((s, e) => s + (e.dodge || 0), 0);
+    dodge += dodgeBuff;
+    const dodgeDebuff = player.temporaryEffects.find(e => e.type === 'debuff_dodge');
+    if (dodgeDebuff) dodge = Math.max(0, dodge - dodgeDebuff.value);
+    const allDebuff = player.temporaryEffects.find(e => e.type === 'debuff_all');
+    if (allDebuff) dodge = Math.max(0, Math.floor(dodge * (1 - allDebuff.value / 100)));
+    return Math.min(70, dodge);
+}
+
+function playerAttackMissesFromBlind() {
+    const blind = player.temporaryEffects.find(e => e.type === 'debuff_blind');
+    if (!blind) return false;
+    const missChance = blind.value || 40;
+    return Math.random() * 100 < missChance;
+}
+
+function monsterDodgesPlayerHit() {
+    const dodgeBuff = currentMonster.activeBuffs && currentMonster.activeBuffs.dodge;
+    if (!dodgeBuff || dodgeBuff.remainingTurns <= 0) return false;
+    const chance = Math.min(50, dodgeBuff.value);
+    return Math.random() * 100 <= chance;
+}
+
+function getWeakspotDamageMultiplier() {
+    if (!currentMonster || !player._passiveWeakspot) return 1;
+    if (currentMonster.health < currentMonster.maxHealth * 0.5) {
+        return 1 + player._passiveWeakspot / 100;
+    }
+    return 1;
+}
+
 function getMonsterCurrentAttack() {
-    // Если есть активный бафф атаки - возвращаем увеличенное значение
+    let atk = currentMonster.attack;
     if (currentMonster.activeBuffs && currentMonster.activeBuffs.atk) {
         const buff = currentMonster.activeBuffs.atk;
-        return Math.floor(originalMonsterStats.attack * (1 + buff.value / 100));
+        atk = Math.floor(originalMonsterStats.attack * (1 + buff.value / 100));
     }
-    return currentMonster.attack;
+    const slow = currentMonster.effects && currentMonster.effects.find(e => e.type === 'slow');
+    if (slow && slow.val) atk = Math.floor(atk * (1 - slow.val / 100));
+    return atk;
+}
+
+function monsterAttackMissesFromBlind() {
+    if (!currentMonster.effects) return false;
+    const blind = currentMonster.effects.find(e => e.type === 'Ослепление');
+    if (!blind) return false;
+    const missChance = blind.val || blind.value || 40;
+    return Math.random() * 100 < missChance;
 }
 
 function getMonsterCurrentDefense() {
@@ -66,6 +123,10 @@ function getMonsterCurrentShield() {
 
 function applyDamageToPlayer(damage) {
     let remainingDamage = damage;
+    const dr = player.temporaryEffects.find(e => e.damageReduction);
+    if (dr && remainingDamage > 0) {
+        remainingDamage = Math.max(1, Math.floor(remainingDamage * (1 - dr.damageReduction / 100)));
+    }
     const playerShieldIndex = player.temporaryEffects.findIndex(e => e.shield !== undefined && e.shield > 0);
     if (playerShieldIndex !== -1) {
         const playerShield = player.temporaryEffects[playerShieldIndex];
@@ -82,9 +143,22 @@ function applyDamageToPlayer(damage) {
     return remainingDamage;
 }
 
-function applyDamageToMonster(damage) {
+/** Урон игроку от отражения монстра (огненный щит и т.п.) */
+function applyMonsterReflectDamage(appliedDamage) {
+    if (!currentMonster || !currentMonster.activeBuffs || !currentMonster.activeBuffs.reflect || appliedDamage <= 0) return 0;
+    const reflected = Math.floor(appliedDamage * currentMonster.activeBuffs.reflect.value / 100);
+    if (reflected > 0) {
+        applyDamageToPlayer(reflected);
+        addBattleLog(`🔄 ${currentMonster.name} отражает ${reflected} урона!`, 'info');
+        if (typeof showReflectEffect === 'function') showReflectEffect('player', reflected);
+        if (typeof floatDamage === 'function') floatDamage('player', reflected, false);
+    }
+    return reflected;
+}
+
+function applyDamageToMonster(damage, ignoreShields) {
     let remainingDamage = damage;
-    const monsterShield = getMonsterCurrentShield();
+    const monsterShield = ignoreShields ? 0 : getMonsterCurrentShield();
     if (monsterShield > 0) {
         const absorbed = Math.min(monsterShield, remainingDamage);
         currentMonster.activeBuffs.shield.value -= absorbed;
