@@ -20,7 +20,10 @@ function playerAttack() {
     }
     isPlayerTurn = false;
     updateBattleButtons();
-    
+    if (typeof recordPlayerActionForMonsterAi === 'function') {
+        recordPlayerActionForMonsterAi({ kind: 'attack' });
+    }
+
     let dmg = getPlayerEffectiveAttack();
     
     if (nextAttackBonus > 0) {
@@ -158,6 +161,10 @@ function useBattleAbility(index) {
     isPlayerTurn = false;
     updateBattleButtons();
     renderBattle({ force: true });
+
+    if (typeof recordPlayerActionForMonsterAi === 'function') {
+        recordPlayerActionForMonsterAi(a);
+    }
 
     if (playerAttackMissesFromBlind() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
         addBattleLog('👁️ Ослепление — способность промахнулась!', 'error');

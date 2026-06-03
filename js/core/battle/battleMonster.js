@@ -359,20 +359,21 @@ function monsterTurn() {
     
     let abilityUsed = false;
     if (currentMonster.abilities && currentMonster.abilities.length > 0) {
-        const sortedAbilities = [...currentMonster.abilities].sort((a, b) => {
-            const priority = { 'heal': 1, 'buff': 2, 'shield': 2, 'debuff': 3, 'dot': 3, 'damage': 4 };
-            return (priority[a.type] || 5) - (priority[b.type] || 5);
-        });
-        
-        for (let ability of sortedAbilities) {
-            if (ability.type === 'buff' && ability.effect === 'atk' && currentMonster.activeBuffs && currentMonster.activeBuffs.atk) continue;
-            if (ability.type === 'buff' && ability.effect === 'def' && currentMonster.activeBuffs && currentMonster.activeBuffs.def) continue;
-            if (ability.type === 'buff' && ability.effect === 'dodge' && currentMonster.activeBuffs && currentMonster.activeBuffs.dodge) continue;
-            if (ability.type === 'buff' && ability.effect === 'shield' && currentMonster.activeBuffs && currentMonster.activeBuffs.shield) continue;
-            if (ability.type === 'buff' && ability.effect === 'reflect' && currentMonster.activeBuffs && currentMonster.activeBuffs.reflect) continue;
-            if (ability.type === 'buff' && ability.effect === 'lifesteal' && currentMonster.activeBuffs && currentMonster.activeBuffs.lifesteal) continue;
-            if (ability.type === 'heal' && currentMonster.health > currentMonster.maxHealth * 0.5) continue;
-            if (useMonsterAbility(ability)) { abilityUsed = true; break; }
+        const ranked = typeof pickMonsterTacticalAbilities === 'function'
+            ? pickMonsterTacticalAbilities(currentMonster.abilities)
+            : currentMonster.abilities.map(a => ({ ability: a, score: 0 }));
+        const aiCtx = typeof buildMonsterAiContext === 'function' ? buildMonsterAiContext() : null;
+
+        for (let i = 0; i < ranked.length; i++) {
+            const ability = ranked[i].ability;
+            const hint = aiCtx && typeof getMonsterTacticalHint === 'function'
+                ? getMonsterTacticalHint(ability, aiCtx)
+                : '';
+            if (hint) addBattleLog(`${hint}: ${currentMonster.name} выбирает «${ability.name}»`, 'info');
+            if (useMonsterAbility(ability)) {
+                abilityUsed = true;
+                break;
+            }
         }
     }
 

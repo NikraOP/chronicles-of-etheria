@@ -239,6 +239,7 @@ function resetAllCooldowns() {
     player.abilities.forEach(ab => { if (ab) ab.currentCooldown = 0; });
     window.resetItemCooldowns();
     monsterAbilityCooldowns = {};
+    if (typeof resetMonsterAiState === 'function') resetMonsterAiState();
     rageStack = 0;
     abilityComboStep = 0;
     comboAbilityId = null;
