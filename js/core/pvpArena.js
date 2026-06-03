@@ -76,13 +76,41 @@ function safePvPClass(value) {
 }
 
 function safePvPAvatarSrc(src) {
-    const value = String(src || '').trim();
+    let value = String(src || '').trim().replace(/\\/g, '/');
+    if (value.startsWith('/')) value = value.slice(1);
     if (!value || /[<>"'`]/.test(value)) return '';
     if (/^(javascript|data|vbscript):/i.test(value)) return '';
     if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(value)) return '';
     if (value.startsWith('png/') || value.startsWith('./') || value.startsWith('assets/')
-        || value.startsWith('monsters/') || value.startsWith('classes/')) return value;
+        || value.startsWith('monsters/') || value.startsWith('classes/') || value.startsWith('skins/')) {
+        return value;
+    }
     return '';
+}
+
+function resolveEquippedSkinImgPath() {
+    if (!player) return '';
+    if (player.currentSkin && typeof getSkinsForCurrentSchool === 'function') {
+        const skins = getSkinsForCurrentSchool();
+        const equipped = skins.find(s => s && s.id === player.currentSkin);
+        if (equipped && equipped.img) {
+            const safe = safePvPAvatarSrc(equipped.img);
+            if (safe) {
+                if (player.schoolImg !== equipped.img) player.schoolImg = equipped.img;
+                return safe;
+            }
+        }
+    }
+    return safePvPAvatarSrc(player.schoolImg || '');
+}
+
+function getPvPRemoteAvatarSrc() {
+    const remoteRole = typeof getRemotePvPRole === 'function' ? getRemotePvPRole() : 'guest';
+    const fromRemote = pvpState.remote && pvpState.remote.avatar;
+    const fromMatch = pvpState.match && pvpState.match.players[remoteRole]
+        ? pvpState.match.players[remoteRole].avatar
+        : '';
+    return safePvPAvatarSrc(fromRemote || fromMatch || '');
 }
 
 function sanitizePvPAbility(ability) {
@@ -150,13 +178,18 @@ function sanitizePvPSnapshot(snapshot) {
 }
 
 function getPvPAvatar() {
+    const fromSkin = resolveEquippedSkinImgPath();
+    if (fromSkin) return fromSkin;
     if (typeof getAvatar === 'function') {
         const div = document.createElement('div');
         div.innerHTML = getAvatar();
         const img = div.querySelector('img');
-        if (img) return img.getAttribute('src') || '';
+        if (img) {
+            const safe = safePvPAvatarSrc(img.getAttribute('src') || '');
+            if (safe) return safe;
+        }
     }
-    return player.schoolImg || '';
+    return safePvPAvatarSrc(player.schoolImg || '');
 }
 
 function getPvPPlayerSnapshot() {
@@ -731,16 +764,37 @@ function describePvPJoinError(details) {
     return `PvP: ${err}.`;
 }
 
+function resetPvPLobbyForRematch() {
+    const returningFromMatch = pvpState.status === 'battle'
+        || pvpState.status === 'ended'
+        || !!pvpState.match;
+    if (!returningFromMatch) return;
+    pvpState.match = null;
+    pvpState.localReady = false;
+    pvpState.remoteReady = false;
+    if (pvpRemotePeerId) pvpState.status = 'connected';
+    pvpState.local = getPvPPlayerSnapshot();
+    if (pvpRemotePeerId) {
+        sendPvPMessage('ready', { ready: false, snapshot: pvpState.local });
+        pvpLog('Лобби сброшено — нажмите «Готов» для нового матча.', 'info');
+    }
+}
+
 function showPvPArena() {
     if (!player) return;
     stopGathering();
     if (typeof flushPendingCraft === 'function') flushPendingCraft();
-    if (!pvpState.local) pvpState.local = getPvPPlayerSnapshot();
+    if (typeof leavePvPBossBattle === 'function') leavePvPBossBattle();
+    resetPvPLobbyForRematch();
+    pvpState.local = getPvPPlayerSnapshot();
     loadPvPIceServers().catch(() => {});
     renderPvPArena();
 }
 
 function renderPvPArena() {
+    if (pvpState.status === 'ended' || (pvpState.match && pvpState.match.finished)) {
+        resetPvPLobbyForRematch();
+    }
     const el = document.getElementById('dynamicContent');
     if (!el) return;
     const canStart = pvpState.role === 'host' && pvpState.status === 'connected' && pvpState.localReady && pvpState.remoteReady && !pvpState.match;
@@ -804,8 +858,11 @@ function renderPvPPlayerCard(title, snapshot, ready) {
     if (title === 'Ты' && typeof getAvatar === 'function') {
         avatar = `<div class="pvp-avatar-live">${getAvatar()}</div>`;
     } else {
-        avatar = safeSnapshot.avatar
-            ? `<img src="${escapePvPAttr(safeSnapshot.avatar)}" alt="">`
+        const remoteAvatar = title !== 'Ты' && typeof getPvPRemoteAvatarSrc === 'function'
+            ? getPvPRemoteAvatarSrc()
+            : safeSnapshot.avatar;
+        avatar = remoteAvatar
+            ? `<img src="${escapePvPAttr(remoteAvatar)}" alt="">`
             : '<div class="pvp-avatar-fallback">⚔️</div>';
     }
     return `
@@ -922,6 +979,7 @@ function joinPvPTransportRoom(code, sessionId) {
             pvpRemotePeerId = peerId;
             pvpState.status = 'connected';
             pvpLog('Соединение установлено.', 'success');
+            pvpState.local = getPvPPlayerSnapshot();
             sendPvPMessage('hello', { snapshot: pvpState.local, ready: pvpState.localReady });
             renderPvPArena();
         });
@@ -994,6 +1052,7 @@ function handlePvPMessage(msg) {
         pvpState.remote = remote;
         pvpState.remoteReady = !!payload.ready;
         pvpLog(`Соперник в лобби: ${pvpState.remote?.name || 'игрок'}.`, 'success');
+        pvpState.local = getPvPPlayerSnapshot();
         sendPvPMessage('ready', { ready: pvpState.localReady, snapshot: pvpState.local });
         renderPvPArena();
     } else if (msg.type === 'ready') {
@@ -1006,9 +1065,17 @@ function handlePvPMessage(msg) {
             pvpState.remote = remote;
         }
         pvpState.remoteReady = !!payload.ready;
+        if (!payload.ready && (pvpState.status === 'ended' || pvpState.status === 'battle')) {
+            resetPvPLobbyForRematch();
+        }
         pvpLog(`Соперник ${pvpState.remoteReady ? 'готов' : 'не готов'}.`, 'info');
         renderPvPArena();
     } else if (msg.type === 'start') {
+        if (pvpState.role === 'guest' && pvpRemotePeerId
+            && (pvpState.status === 'ended' || pvpState.status === 'battle')) {
+            pvpState.match = null;
+            pvpState.status = 'connected';
+        }
         if (pvpState.role !== 'guest' || pvpState.status !== 'connected' || !pvpState.localReady || !pvpState.remoteReady) {
             pvpLog('Старт матча отклонён: неверное состояние лобби.', 'error');
             return;
@@ -1143,7 +1210,12 @@ function renderPvPCombatant(stats, side, snapshot) {
     if (side === 'player' && typeof getAvatar === 'function') {
         avatar = `<div class="combatant-sprite"><span class="sprite-fallback">${getAvatar()}</span></div>`;
     } else {
-        const safeAvatar = snapshot ? safePvPAvatarSrc(snapshot.avatar) : '';
+        let safeAvatar = '';
+        if (side === 'enemy' && typeof getPvPRemoteAvatarSrc === 'function') {
+            safeAvatar = getPvPRemoteAvatarSrc();
+        }
+        if (!safeAvatar && snapshot) safeAvatar = safePvPAvatarSrc(snapshot.avatar);
+        if (!safeAvatar && stats && stats.avatar) safeAvatar = safePvPAvatarSrc(stats.avatar);
         avatar = safeAvatar
             ? `<div class="combatant-sprite"><img class="combatant-img player-avatar" src="${escapePvPAttr(safeAvatar)}" alt="" onerror="this.style.display='none'"></div>`
             : `<div class="combatant-sprite"><div class="combatant-icon">${side === 'enemy' ? '🛡️' : '⚔️'}</div></div>`;
@@ -1373,3 +1445,6 @@ window.forfeitPvPMatch = forfeitPvPMatch;
 window.copyPvPCode = copyPvPCode;
 window.leavePvPArena = leavePvPArena;
 window.runPvPStressTest = runPvPStressTest;
+window.getPvPPlayerSnapshot = getPvPPlayerSnapshot;
+window.safePvPAvatarSrc = safePvPAvatarSrc;
+window.getPvPRemoteAvatarSrc = getPvPRemoteAvatarSrc;

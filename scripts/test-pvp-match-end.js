@@ -26,6 +26,10 @@ assert(bridgeSrc.includes('pvpFinishPvPBattle(localWon, true)'), 'remote finish 
 assert(bridgeSrc.includes('syncPvPRemoteFromMonster'), 'immediate remote sync');
 assert(damageSrc.includes('syncPvPRemoteFromMonster'), 'damage syncs to match');
 assert(arenaSrc.includes('applyPvPRemoteBattleState'), 'end handler uses applyPvPRemoteBattleState');
+assert(arenaSrc.includes('resetPvPLobbyForRematch'), 'lobby reset helper exists');
+assert(arenaSrc.includes('resetPvPLobbyForRematch();') && arenaSrc.includes('function showPvPArena'), 'showPvPArena resets lobby');
+assert(arenaSrc.includes('resolveEquippedSkinImgPath'), 'skin path resolver exists');
+assert(arenaSrc.includes('function renderPvPArena') && arenaSrc.includes("pvpState.status === 'ended'"), 'renderPvPArena resets after match');
 
 if (failed) process.exit(1);
 console.log('\nPvP match-end checks passed.');

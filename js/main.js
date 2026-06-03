@@ -50,6 +50,8 @@ function initSkinsSystem() {
     // Устанавливаем базовый скин если нет текущего
     if (!player.currentSkin) {
         setDefaultSkin();
+    } else if (typeof syncSchoolImgFromCurrentSkin === 'function') {
+        syncSchoolImgFromCurrentSkin();
     }
     
     saveGame();

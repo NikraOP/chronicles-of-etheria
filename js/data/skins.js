@@ -914,6 +914,13 @@ function isSkinUnlocked(skinId) {
     return player.unlockedSkins.includes(skinId);
 }
 
+function syncSchoolImgFromCurrentSkin() {
+    if (!player || !player.currentSkin) return;
+    const skins = typeof getSkinsForCurrentSchool === 'function' ? getSkinsForCurrentSchool() : [];
+    const skin = skins.find(s => s && s.id === player.currentSkin);
+    if (skin && skin.img) player.schoolImg = skin.img;
+}
+
 // Функция для инициализации скинов при загрузке игры
 function initSkins() {
     if (!player) return;
@@ -933,6 +940,8 @@ function initSkins() {
             player.currentSkin = defaultSkin.id;
             player.schoolImg = defaultSkin.img;
         }
+    } else {
+        syncSchoolImgFromCurrentSkin();
     }
     
     saveGame();
@@ -945,3 +954,4 @@ window.equipSkin = equipSkin;
 window.buySkin = buySkin;
 window.isSkinUnlocked = isSkinUnlocked;
 window.initSkins = initSkins;
+window.syncSchoolImgFromCurrentSkin = syncSchoolImgFromCurrentSkin;

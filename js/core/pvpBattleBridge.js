@@ -172,6 +172,9 @@
             f.maxMana = player.maxMana;
             f.mana = player.mana;
         }
+        if (typeof getPvPAvatar === 'function') {
+            f.avatar = getPvPAvatar();
+        }
         f.combat = {
             rageStack: typeof rageStack !== 'undefined' ? rageStack : 0,
             comboAbilityId: typeof comboAbilityId !== 'undefined' ? comboAbilityId : null,
@@ -294,6 +297,13 @@
         guest.health = Math.max(1, guest.maxHealth || guest.health || 1);
         if (host.class === 'Маг' && host.maxMana > 0) host.mana = Math.min(host.maxMana, host.mana || host.maxMana);
         if (guest.class === 'Маг' && guest.maxMana > 0) guest.mana = Math.min(guest.maxMana, guest.mana || guest.maxMana);
+        if (typeof safePvPAvatarSrc === 'function') {
+            host.avatar = safePvPAvatarSrc(hostSnap.avatar);
+            guest.avatar = safePvPAvatarSrc(guestSnap.avatar);
+        } else {
+            host.avatar = hostSnap.avatar ? String(hostSnap.avatar).trim() : '';
+            guest.avatar = guestSnap.avatar ? String(guestSnap.avatar).trim() : '';
+        }
         return { host, guest };
     }
 
@@ -318,7 +328,16 @@
         const remoteRole = localRole === 'host' ? 'guest' : 'host';
         const localFighter = ensureFighterShape(pvpState.match.players[localRole]);
         const remoteFighter = ensureFighterShape(pvpState.match.players[remoteRole]);
-        const remoteAvatar = pvpState.remote && pvpState.remote.avatar ? pvpState.remote.avatar : '';
+        let remoteAvatar = '';
+        if (typeof safePvPAvatarSrc === 'function') {
+            remoteAvatar = safePvPAvatarSrc(remoteFighter.avatar || '');
+        }
+        if (!remoteAvatar && typeof getPvPRemoteAvatarSrc === 'function') {
+            remoteAvatar = getPvPRemoteAvatarSrc();
+        }
+        if (!remoteAvatar && pvpState.remote && pvpState.remote.avatar) {
+            remoteAvatar = String(pvpState.remote.avatar).trim();
+        }
 
         applyPlayerFromFighter(localFighter);
         applyCombatGlobalsFromFighter(localFighter);
