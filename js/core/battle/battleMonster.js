@@ -293,6 +293,9 @@ function useMonsterAbility(ability) {
     } else {
         renderBattle();
     }
+    if (typeof recordMonsterAbilityForMonsterAi === 'function') {
+        recordMonsterAbilityForMonsterAi(ability);
+    }
     return true;
 }
 

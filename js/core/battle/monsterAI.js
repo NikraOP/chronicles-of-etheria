@@ -1,13 +1,13 @@
-// js/core/battle/monsterAI.js — тактический выбор способностей монстра (PvE).
+// js/core/battle/monsterAI.js — тактический ИИ монстров: адаптация, комбо, максимум урона (PvE).
 
 const monsterAiState = {
     lastPlayerAction: null,
-    playerActionTurn: 0
+    lastMonsterAbility: null
 };
 
 function resetMonsterAiState() {
     monsterAiState.lastPlayerAction = null;
-    monsterAiState.playerActionTurn = 0;
+    monsterAiState.lastMonsterAbility = null;
 }
 
 function estimatePlayerAbilityThreat(ability) {
@@ -31,12 +31,7 @@ function recordPlayerActionForMonsterAi(action) {
     if (!action) return;
     const turn = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
     if (action.kind === 'attack') {
-        monsterAiState.lastPlayerAction = {
-            kind: 'attack',
-            name: 'Атака',
-            threat: 25,
-            turn
-        };
+        monsterAiState.lastPlayerAction = { kind: 'attack', name: 'Атака', threat: 25, turn };
         return;
     }
     monsterAiState.lastPlayerAction = {
@@ -48,6 +43,82 @@ function recordPlayerActionForMonsterAi(action) {
     };
 }
 
+function classifyMonsterAbilityRole(ability) {
+    if (!ability) return 'other';
+    if (ability.type === 'heal' || ability.type === 'shield') return 'defense';
+    if (ability.type === 'damage') return 'finisher';
+    if (ability.type === 'dot' || ability.type === 'debuff') return 'setup';
+    if (ability.type === 'buff') {
+        if (ability.effect === 'reflect' || ability.effect === 'def') return 'defense';
+        if (ability.effect === 'atk' || ability.effect === 'all' || ability.effect === 'crit') return 'setup';
+        return 'setup';
+    }
+    if (ability.type === 'lifesteal') return 'finisher';
+    return 'other';
+}
+
+function recordMonsterAbilityForMonsterAi(ability) {
+    if (!ability) return;
+    const turn = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
+    monsterAiState.lastMonsterAbility = {
+        name: ability.name,
+        type: ability.type,
+        effect: ability.effect,
+        role: classifyMonsterAbilityRole(ability),
+        turn
+    };
+}
+
+function getMonsterAttackPower() {
+    if (typeof getMonsterCurrentAttack === 'function') return getMonsterCurrentAttack();
+    if (typeof currentMonster !== 'undefined' && currentMonster) return currentMonster.attack || 1;
+    return 1;
+}
+
+function estimateMonsterAbilityValue(ability, ctx) {
+    if (!ability) return 0;
+    const atk = getMonsterAttackPower();
+    const playerMaxHp = ctx.playerMaxHealth || 100;
+
+    switch (ability.type) {
+        case 'damage': {
+            const mult = ability.multiplier || 1;
+            const hits = ability.hits || 1;
+            let dmg = Math.floor(atk * mult * hits);
+            if (ctx.monsterAtkBuffActive) dmg = Math.floor(dmg * (1 + (ctx.monsterAtkBuffValue || 25) / 100));
+            if (ctx.monsterCritBuffActive) dmg = Math.floor(dmg * 1.25);
+            if (ctx.playerDebuffedDef) dmg = Math.floor(dmg * 1.12);
+            return dmg;
+        }
+        case 'dot': {
+            const v = ability.value || 5;
+            const d = ability.duration || 2;
+            return Math.floor(playerMaxHp * v / 100 * Math.min(d, 4) * 0.75);
+        }
+        case 'debuff': {
+            if (ability.effect === 'def' || ability.effect === 'all') return Math.floor(atk * 0.9);
+            if (ability.effect === 'freeze') return Math.floor(atk * 0.5);
+            return Math.floor(atk * 0.4);
+        }
+        case 'heal': {
+            const mMax = ctx.monsterMaxHealth || 100;
+            return Math.floor(mMax * (ability.value || 15) / 100);
+        }
+        case 'shield': {
+            return Math.floor((ctx.monsterMaxHealth || 100) * (ability.value || 20) / 100);
+        }
+        case 'lifesteal': {
+            return Math.floor(atk * 1.1 * (ability.value || 30) / 100);
+        }
+        case 'buff': {
+            if (ability.effect === 'atk' || ability.effect === 'all') return Math.floor(atk * 0.85);
+            return 20;
+        }
+        default:
+            return 10;
+    }
+}
+
 function buildMonsterAiContext() {
     const monster = typeof currentMonster !== 'undefined' ? currentMonster : null;
     const pl = typeof player !== 'undefined' ? player : null;
@@ -56,27 +127,55 @@ function buildMonsterAiContext() {
         ? monster.health / monster.maxHealth
         : 1;
     const playerHpRatio = pl && pl.maxHealth > 0 ? pl.health / pl.maxHealth : 1;
-    const last = monsterAiState.lastPlayerAction;
-    const playerJustActed = last && (turn - last.turn) <= 1;
-    const playerThreatHigh = playerJustActed && last.threat >= 45;
-    const playerThreatExtreme = playerJustActed && last.threat >= 70;
+    const lastPlayer = monsterAiState.lastPlayerAction;
+    const lastMonster = monsterAiState.lastMonsterAbility;
+    const playerJustActed = lastPlayer && (turn - lastPlayer.turn) <= 1;
+    const playerThreatHigh = playerJustActed && lastPlayer.threat >= 45;
+    const playerThreatExtreme = playerJustActed && lastPlayer.threat >= 70;
+    const recentMonsterSetup = lastMonster && (turn - lastMonster.turn) <= 2
+        && lastMonster.role === 'setup';
 
-    const playerBuffed = pl && pl.temporaryEffects && pl.temporaryEffects.some(e =>
+    const buffs = monster && monster.activeBuffs ? monster.activeBuffs : {};
+    const monsterAtkBuff = buffs.atk;
+    const monsterCritBuff = buffs.crit;
+    const monsterHasShield = !!(buffs.shield && buffs.shield.value > 0 && buffs.shield.remainingTurns > 0);
+
+    const playerEffects = pl && pl.temporaryEffects ? pl.temporaryEffects : [];
+    const playerHasDot = playerEffects.some(e => e.isDot && (e.dur || 0) > 0);
+    const playerDebuffedDef = playerEffects.some(e =>
+        e.type === 'debuff_def' || e.type === 'debuff_all' || e.type === 'debuff_atk'
+    );
+    const playerBuffed = playerEffects.some(e =>
         (e.atk || e.def || e.crit || (e.type && e.type.startsWith('buff_'))) && (e.dur || 0) > 0
     );
-    const monsterHasShield = !!(monster && monster.activeBuffs && monster.activeBuffs.shield
-        && monster.activeBuffs.shield.value > 0
-        && monster.activeBuffs.shield.remainingTurns > 0);
+    const playerFrozen = (typeof playerFrozenTurns !== 'undefined' && playerFrozenTurns > 0)
+        || playerEffects.some(e => e.type === 'debuff_freeze');
+
+    const offensivePhase = monsterHpRatio >= 0.38 && !playerThreatExtreme;
+    const burstPhase = offensivePhase && (recentMonsterSetup || monsterAtkBuff || playerHasDot);
 
     return {
+        turn,
         monsterHpRatio,
         playerHpRatio,
+        monsterMaxHealth: monster ? monster.maxHealth : 100,
+        playerMaxHealth: pl ? pl.maxHealth : 100,
         playerThreatHigh,
         playerThreatExtreme,
         playerBuffed,
+        playerHasDot,
+        playerDebuffedDef,
+        playerFrozen,
         monsterHasShield,
+        monsterAtkBuffActive: !!monsterAtkBuff && (monsterAtkBuff.remainingTurns || 0) > 0,
+        monsterAtkBuffValue: monsterAtkBuff ? monsterAtkBuff.value : 0,
+        monsterCritBuffActive: !!monsterCritBuff && (monsterCritBuff.remainingTurns || 0) > 0,
         playerJustActed,
-        lastPlayerAction: last
+        recentMonsterSetup,
+        offensivePhase,
+        burstPhase,
+        lastPlayerAction: lastPlayer,
+        lastMonsterAbility: lastMonster
     };
 }
 
@@ -111,10 +210,39 @@ function canMonsterConsiderAbility(ability) {
     return true;
 }
 
+function getComboBonus(ability, ctx) {
+    const role = classifyMonsterAbilityRole(ability);
+    let bonus = 0;
+
+    if (role === 'finisher' && ctx.burstPhase) {
+        if (ctx.recentMonsterSetup) bonus += 100;
+        if (ctx.monsterAtkBuffActive) bonus += 60;
+        if (ctx.playerHasDot) bonus += 50;
+        if (ctx.playerDebuffedDef) bonus += 40;
+        if (ctx.playerFrozen) bonus += 35;
+        if (ctx.monsterCritBuffActive) bonus += 35;
+    }
+
+    if (role === 'setup' && ctx.offensivePhase && !ctx.recentMonsterSetup) {
+        if (!ctx.monsterAtkBuffActive && !ctx.playerHasDot && !ctx.playerDebuffedDef) bonus += 55;
+        if (ctx.playerHpRatio > 0.55) bonus += 25;
+    }
+
+    if (role === 'finisher' && ctx.offensivePhase) {
+        bonus += Math.min(80, estimateMonsterAbilityValue(ability, ctx) / 8);
+    }
+
+    if (role === 'setup' && ctx.burstPhase) bonus -= 30;
+
+    return bonus;
+}
+
 function scoreMonsterAbility(ability, ctx) {
     let score = 0;
+    const role = classifyMonsterAbilityRole(ability);
     const baseChance = ability.chance != null ? ability.chance : 70;
-    score += baseChance * 0.15;
+    score += baseChance * 0.12;
+    score += getComboBonus(ability, ctx);
 
     switch (ability.type) {
         case 'heal': {
@@ -130,6 +258,7 @@ function scoreMonsterAbility(ability, ctx) {
             if (ctx.monsterHpRatio < 0.45) score += 45;
             if (!ctx.monsterHasShield) score += 30;
             else score -= 80;
+            if (ctx.burstPhase && ctx.monsterHpRatio > 0.5) score -= 40;
             break;
         }
         case 'buff': {
@@ -139,36 +268,41 @@ function scoreMonsterAbility(ability, ctx) {
             } else if (ability.effect === 'shield') {
                 if (ctx.playerThreatHigh && !ctx.monsterHasShield) score += 90;
             } else if (ability.effect === 'atk' || ability.effect === 'all') {
-                if (ctx.monsterHpRatio > 0.5 && ctx.playerHpRatio > 0.4) score += 40;
-                if (ctx.playerHpRatio < 0.35) score += 30;
+                if (ctx.offensivePhase && ctx.playerHpRatio > 0.45 && !ctx.monsterAtkBuffActive) score += 55;
+                if (ctx.playerHpRatio < 0.35) score += 25;
             } else if (ability.effect === 'dodge') {
                 if (ctx.playerThreatHigh) score += 35;
             } else if (ability.effect === 'crit') {
-                if (ctx.playerHpRatio > 0.5) score += 35;
+                if (ctx.offensivePhase && ctx.playerHpRatio > 0.4) score += 50;
             }
             break;
         }
         case 'debuff': {
             if (ctx.playerBuffed) score += 55;
+            if (ctx.offensivePhase && (ability.effect === 'def' || ability.effect === 'slow')) score += 45;
             if (ctx.playerThreatHigh && (ability.effect === 'freeze' || ability.effect === 'slow')) score += 50;
             if (ctx.monsterHpRatio > 0.4) score += 20;
-            if (ctx.playerHpRatio < 0.25) score -= 20;
+            if (ctx.playerHpRatio < 0.22) score -= 35;
             break;
         }
         case 'dot': {
-            if (ctx.playerHpRatio > 0.45 && ctx.monsterHpRatio > 0.35) score += 45;
+            if (ctx.offensivePhase && ctx.playerHpRatio > 0.5 && !ctx.playerHasDot) score += 60;
+            else if (ctx.playerHpRatio > 0.45 && ctx.monsterHpRatio > 0.35) score += 45;
             break;
         }
         case 'damage': {
-            if (ctx.playerHpRatio < 0.35) score += 70;
-            if (ctx.monsterHpRatio > 0.5) score += 35;
-            if (ctx.playerThreatExtreme && !ctx.monsterHasShield) score -= 25;
-            if ((ability.multiplier || 1) >= 1.4) score += 15;
+            if (ctx.playerHpRatio < 0.35) score += 85;
+            if (ctx.burstPhase) score += 70;
+            if (ctx.offensivePhase) score += 40;
+            if (ctx.playerThreatExtreme && !ctx.monsterHasShield && ctx.monsterHpRatio > 0.45) score -= 20;
+            if ((ability.multiplier || 1) >= 1.45) score += 25;
+            if ((ability.hits || 1) > 1) score += 20;
+            score += estimateMonsterAbilityValue(ability, ctx) / 12;
             break;
         }
         case 'lifesteal': {
-            if (ctx.monsterHpRatio < 0.6) score += 40;
-            if (ctx.playerHpRatio < 0.4) score += 25;
+            if (ctx.monsterHpRatio < 0.55) score += 45;
+            if (ctx.offensivePhase && ctx.playerHpRatio < 0.5) score += 35;
             break;
         }
         default:
@@ -178,22 +312,69 @@ function scoreMonsterAbility(ability, ctx) {
     return score;
 }
 
+function applyMonsterAiTurnPriorities(ranked, ctx) {
+    if (!ranked.length || !ctx) return ranked;
+
+    if (ctx.monsterHpRatio < 0.32) {
+        const healEntry = ranked.find(r => r.ability.type === 'heal');
+        if (healEntry) {
+            return [healEntry, ...ranked.filter(r => r !== healEntry)];
+        }
+    }
+
+    if (ctx.monsterHpRatio > 0.28 && ctx.playerHpRatio < 0.38) {
+        const finishers = ranked.filter(r => classifyMonsterAbilityRole(r.ability) === 'finisher');
+        const rest = ranked.filter(r => classifyMonsterAbilityRole(r.ability) !== 'finisher');
+        if (finishers.length) {
+            finishers.sort((a, b) => estimateMonsterAbilityValue(b.ability, ctx) - estimateMonsterAbilityValue(a.ability, ctx));
+            return [...finishers, ...rest];
+        }
+    }
+
+    if (ctx.burstPhase) {
+        const finishers = ranked.filter(r => classifyMonsterAbilityRole(r.ability) === 'finisher');
+        const setups = ranked.filter(r => classifyMonsterAbilityRole(r.ability) === 'setup');
+        const other = ranked.filter(r => {
+            const role = classifyMonsterAbilityRole(r.ability);
+            return role !== 'finisher' && role !== 'setup';
+        });
+        if (finishers.length) {
+            finishers.sort((a, b) => b.score - a.score);
+            return [...finishers, ...setups, ...other];
+        }
+    }
+
+    if (ctx.offensivePhase && !ctx.recentMonsterSetup && !ctx.playerHasDot && !ctx.monsterAtkBuffActive) {
+        const bestSetup = ranked
+            .filter(r => classifyMonsterAbilityRole(r.ability) === 'setup')
+            .sort((a, b) => b.score - a.score)[0];
+        const withoutSetup = ranked.filter(r => r !== bestSetup);
+        if (bestSetup && bestSetup.score >= 50 && withoutSetup.length) {
+            const topFinisher = withoutSetup.find(r => classifyMonsterAbilityRole(r.ability) === 'finisher');
+            if (!topFinisher || bestSetup.score >= topFinisher.score * 0.85) {
+                return [bestSetup, ...withoutSetup];
+            }
+        }
+    }
+
+    return ranked;
+}
+
 function pickMonsterTacticalAbilities(abilities) {
     if (!abilities || !abilities.length) return [];
     const ctx = buildMonsterAiContext();
     let ranked = abilities
         .filter(canMonsterConsiderAbility)
-        .map(ability => ({ ability, score: scoreMonsterAbility(ability, ctx) }))
+        .map(ability => ({
+            ability,
+            score: scoreMonsterAbility(ability, ctx),
+            estValue: estimateMonsterAbilityValue(ability, ctx),
+            role: classifyMonsterAbilityRole(ability)
+        }))
         .filter(entry => entry.score > -20)
         .sort((a, b) => b.score - a.score);
 
-    if (ctx.monsterHpRatio < 0.32) {
-        const healEntry = ranked.find(r => r.ability.type === 'heal');
-        if (healEntry) {
-            ranked = [healEntry, ...ranked.filter(r => r !== healEntry)];
-        }
-    }
-
+    ranked = applyMonsterAiTurnPriorities(ranked, ctx);
     return ranked;
 }
 
@@ -204,17 +385,23 @@ function pickMonsterTacticalAbility(abilities) {
 
 function getMonsterTacticalHint(ability, ctx) {
     if (!ability || !ctx) return '';
+    const role = classifyMonsterAbilityRole(ability);
     if (ability.type === 'heal' && ctx.monsterHpRatio < 0.5) return '🧠 Спасение';
     if ((ability.type === 'shield' || (ability.type === 'buff' && ability.effect === 'reflect'))
         && ctx.playerThreatHigh) return '🧠 Защита';
-    if (ability.type === 'debuff' && ctx.playerThreatHigh) return '🧠 Контр';
-    if (ability.type === 'damage' && ctx.playerHpRatio < 0.35) return '🧠 Добивание';
+    if (role === 'finisher' && ctx.burstPhase) return '🔗 Комбо · удар';
+    if (role === 'setup' && ctx.offensivePhase && !ctx.recentMonsterSetup) return '🔗 Комбо · подготовка';
+    if (role === 'finisher' && ctx.playerHpRatio < 0.35) return '🧠 Добивание';
+    if (role === 'debuff' && ctx.playerThreatHigh) return '🧠 Контр';
     return '';
 }
 
 window.resetMonsterAiState = resetMonsterAiState;
 window.recordPlayerActionForMonsterAi = recordPlayerActionForMonsterAi;
+window.recordMonsterAbilityForMonsterAi = recordMonsterAbilityForMonsterAi;
 window.pickMonsterTacticalAbilities = pickMonsterTacticalAbilities;
 window.pickMonsterTacticalAbility = pickMonsterTacticalAbility;
 window.buildMonsterAiContext = buildMonsterAiContext;
 window.getMonsterTacticalHint = getMonsterTacticalHint;
+window.estimateMonsterAbilityValue = estimateMonsterAbilityValue;
+window.classifyMonsterAbilityRole = classifyMonsterAbilityRole;

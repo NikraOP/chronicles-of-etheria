@@ -8,6 +8,7 @@ const context = {
         name: 'Тест-босс',
         health: 30,
         maxHealth: 100,
+        attack: 50,
         activeBuffs: {}
     },
     player: {
@@ -16,7 +17,9 @@ const context = {
         temporaryEffects: []
     },
     monsterAbilityCooldowns: {},
-    getGlobalBattleTurn: () => 5
+    playerFrozenTurns: 0,
+    getGlobalBattleTurn: () => 5,
+    getMonsterCurrentAttack: () => 50
 };
 context.window = context;
 
@@ -50,8 +53,10 @@ assert(lowHpPick && lowHpPick.type === 'heal', 'low HP monster should prefer hea
 context.currentMonster.health = 90;
 context.currentMonster.activeBuffs = {};
 const rankedShield = context.pickMonsterTacticalAbilities(abilities);
-assert(rankedShield[0].ability.type === 'shield' || rankedShield[0].ability.name === 'Щит',
-    'after player threat monster should prefer shield');
+assert(
+    rankedShield[0].ability.type === 'shield' || rankedShield[0].ability.name === 'Щит',
+    'after player threat monster should prefer shield'
+);
 
 context.currentMonster.health = 90;
 context.player.health = 15;
@@ -63,5 +68,53 @@ const finishAbilities = [
 ];
 const finishPick = context.pickMonsterTacticalAbility(finishAbilities);
 assert(finishPick && finishPick.type === 'damage', 'should finish low HP player with damage');
+
+context.resetMonsterAiState();
+context.currentMonster.health = 100;
+context.currentMonster.maxHealth = 100;
+context.currentMonster.attack = 60;
+context.player.health = 100;
+context.player.maxHealth = 100;
+context.player.temporaryEffects = [];
+context.getGlobalBattleTurn = () => 8;
+
+context.recordMonsterAbilityForMonsterAi({
+    name: 'Паутина',
+    type: 'debuff',
+    effect: 'slow'
+});
+const comboAbilities = [
+    { name: 'Яд', type: 'dot', effect: 'poison', value: 8, duration: 3, chance: 100 },
+    { name: 'Сильный удар', type: 'damage', multiplier: 1.6, chance: 100 },
+    { name: 'Лёгкий удар', type: 'damage', multiplier: 1.1, chance: 100 }
+];
+const comboRanked = context.pickMonsterTacticalAbilities(comboAbilities);
+assert(comboRanked.length >= 2, 'combo ranked list');
+const topAfterSetup = comboRanked[0].ability;
+assert(
+    topAfterSetup.type === 'damage' && topAfterSetup.multiplier >= 1.5,
+    'after setup monster should prefer high damage finisher'
+);
+
+const dotVal = context.estimateMonsterAbilityValue(
+    { type: 'dot', value: 10, duration: 3 },
+    context.buildMonsterAiContext()
+);
+const dmgVal = context.estimateMonsterAbilityValue(
+    { type: 'damage', multiplier: 1.5, hits: 1 },
+    context.buildMonsterAiContext()
+);
+assert(dmgVal > dotVal * 0.5, 'damage estimate should be meaningful');
+
+context.resetMonsterAiState();
+context.currentMonster.health = 100;
+context.currentMonster.activeBuffs = { atk: { value: 40, remainingTurns: 2 } };
+context.player.health = 70;
+context.getGlobalBattleTurn = () => 3;
+const buffCombo = context.pickMonsterTacticalAbilities([
+    { name: 'Удар', type: 'damage', multiplier: 1.3, chance: 100 },
+    { name: 'Паутина', type: 'debuff', effect: 'slow', value: 20, duration: 2, chance: 100 }
+]);
+assert(buffCombo[0].ability.type === 'damage', 'with atk buff should strike');
 
 console.log('Monster AI tests OK');
