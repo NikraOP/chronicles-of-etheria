@@ -92,7 +92,10 @@
             if (stunIdx >= 0) effects[stunIdx] = { ...effects[stunIdx], ...entry };
             else effects.push(entry);
         } else if (stunIdx >= 0) {
-            effects = effects.filter((_, i) => i !== stunIdx);
+            const kept = effects[stunIdx];
+            if ((kept.dur || 0) <= 0) {
+                effects = effects.filter((_, i) => i !== stunIdx);
+            }
         }
 
         f.effects = effects;

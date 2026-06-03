@@ -46,8 +46,8 @@ function claimSpecialBattleRewards(monster) {
 }
 
 function victory() {
-    if (window.pvpBattleActive && typeof window.pvpFinishPvPBattle === 'function') {
-        window.pvpFinishPvPBattle(true);
+    if (window.pvpBattleActive && typeof window.pvpBroadcastMatchEnd === 'function') {
+        window.pvpBroadcastMatchEnd(true);
         return;
     }
     if (!currentMonster) return;
@@ -86,8 +86,8 @@ function victory() {
 }
 
 function gameOver() {
-    if (window.pvpBattleActive && typeof window.pvpFinishPvPBattle === 'function') {
-        window.pvpFinishPvPBattle(false);
+    if (window.pvpBattleActive && typeof window.pvpBroadcastMatchEnd === 'function') {
+        window.pvpBroadcastMatchEnd(false);
         return;
     }
     const xpLoss = Math.floor(player.experience * 0.1);

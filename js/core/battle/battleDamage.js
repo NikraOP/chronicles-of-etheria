@@ -181,5 +181,8 @@ function applyDamageToMonster(damage, ignoreShields) {
         }
     }
     if (remainingDamage > 0) currentMonster.health -= remainingDamage;
+    if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
+        window.syncPvPRemoteFromMonster();
+    }
     return remainingDamage;
 }

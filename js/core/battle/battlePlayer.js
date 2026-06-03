@@ -343,8 +343,12 @@ function useBattleAbility(index) {
     }
     
     if (a.freezeExtend) {
+        if (!currentMonster.effects) currentMonster.effects = [];
         currentMonster.effects.forEach(e => { if (e.type === 'Заморозка') e.dur *= 2; });
         addBattleLog(`❄️ Длительность заморозки удвоена!`, 'info');
+        if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
+            window.syncPvPRemoteFromMonster();
+        }
     }
     
     if (a.groundBuff === 'lava') {
@@ -391,8 +395,12 @@ function useBattleAbility(index) {
             currentMonster.damageAmp = 2;
             addBattleLog(`☠️ Следующий удар по цели удвоит урон!`, 'info');
         } else {
+            if (!currentMonster.effects) currentMonster.effects = [];
             currentMonster.effects.push({ type: a.effect.type, dur: effectDur, val: effectVal, spread: a.effect.spread, manaRegen: a.effect.manaRegen });
             addBattleLog(`🌀 Наложен эффект «${a.effect.type}» на ${effectDur} хода!`, 'info');
+            if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
+                window.syncPvPRemoteFromMonster();
+            }
         }
         if (a.manaPerFrozen && player.class === 'Маг' && a.effect.type === 'Заморозка') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerFrozen);
@@ -630,8 +638,12 @@ function useBattleAbility(index) {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * hits);
         }
         if (a.stunChance && Math.random() * 100 <= a.stunChance) {
+            if (!currentMonster.effects) currentMonster.effects = [];
             currentMonster.effects.push({ type: 'Оглушение', dur: 1, val: 0 });
             addBattleLog(`😵 Оглушение сработало!`, 'info');
+            if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
+                window.syncPvPRemoteFromMonster();
+            }
         }
     }
     if (a.multiHit) {

@@ -78,7 +78,7 @@ const ABILITIES_DB = {
                 {name:'Ледяной щит',desc:'+35% защиты + щит 30% HP',lvl:10,cd:6,mana:25,icon:'🛡️',buff:{def:35,dur:2},maxHpShield:30,dur:2},
                 {name:'Ледяная буря',desc:'100% урона всем, заморозка',lvl:15,cd:7,mana:45,dmg:100,icon:'🌨️',aoe:true,effect:{type:'Заморозка',dur:1}},
                 {name:'Абсолютный холод',desc:'200% урона, заморозка',lvl:20,cd:7,mana:50,dmg:200,icon:'🥶',effect:{type:'Заморозка',dur:1},dispelBuffs:true},
-                {name:'Снежная буря',desc:'130% урона всем, +8 маны за заморозку',lvl:25,cd:6,mana:48,dmg:130,icon:'🌨️',aoe:true,manaPerFrozen:8},
+                {name:'Снежная буря',desc:'130% урона всем, +8 маны за заморозку',lvl:25,cd:6,mana:48,dmg:130,icon:'🌨️',aoe:true,effect:{type:'Заморозка',dur:1},manaPerFrozen:8},
                 {name:'Великая зима',desc:'160% урона всем, -6% маны врагам',lvl:30,cd:7,mana:55,dmg:160,icon:'🏔️',aoe:true,manaDrain:6},
                 {name:'Ледяной шторм',desc:'200% урона всем, удвоение заморозки',lvl:35,cd:8,mana:60,dmg:200,icon:'❄️',aoe:true,freezeExtend:true},
                 {name:'Вечная мерзлота',desc:'250% урона, замедление 30%',lvl:40,cd:7,mana:65,dmg:250,icon:'🧊',effect:{type:'slow',dur:2,value:30}},

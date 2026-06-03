@@ -192,6 +192,23 @@
         return f;
     }
 
+    function refreshMonsterFromRemoteMatch(remoteRole) {
+        if (!currentMonster || !pvpState || !pvpState.match || !remoteRole) return;
+        const rf = ensureFighterShape(pvpState.match.players[remoteRole]);
+        if (!rf) return;
+        currentMonster.health = Math.max(0, rf.health);
+        currentMonster.maxHealth = Math.max(1, rf.maxHealth);
+        currentMonster.effects = cloneJson(rf.effects);
+        currentMonster.activeBuffs = cloneJson(rf.activeBuffs);
+        currentMonster.armorShred = rf.armorShred || 0;
+        currentMonster.marked = !!rf.marked;
+        currentMonster.markBonus = rf.markBonus || 0;
+        currentMonster.armorShredTurns = rf.armorShredTurns || 0;
+        currentMonster.fireVuln = rf.fireVuln || 0;
+        currentMonster.dotOverTime = rf.dotOverTime ? cloneJson(rf.dotOverTime) : null;
+        currentMonster.damageAmp = rf.damageAmp || 1;
+    }
+
     function pullMonsterIntoFighter(fighter) {
         const f = ensureFighterShape(fighter);
         if (!currentMonster) return f;
@@ -199,7 +216,7 @@
         f.maxHealth = Math.max(1, currentMonster.maxHealth);
         f.attack = currentMonster.attack;
         f.defense = currentMonster.defense;
-        f.effects = cloneJson(currentMonster.effects);
+        f.effects = cloneJson(currentMonster.effects || []);
         f.activeBuffs = cloneJson(currentMonster.activeBuffs);
         f.armorShred = currentMonster.armorShred || 0;
         f.marked = !!currentMonster.marked;
@@ -315,6 +332,17 @@
         if (typeof updateBattleButtons === 'function') updateBattleButtons();
     };
 
+    window.syncPvPRemoteFromMonster = function () {
+        if (!window.pvpBattleActive || !pvpState || !pvpState.match || !currentMonster) return;
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+        const remote = pullMonsterIntoFighter(pvpState.match.players[remoteRole]);
+        pvpState.match.players[remoteRole] = remote;
+        if (typeof getMatchSig === 'function') {
+            pvpState.match.sig = getMatchSig(pvpState.match);
+        }
+    };
+
     window.syncPvPBattleToMatch = function () {
         if (!window.pvpBattleActive || !pvpState || !pvpState.match) return;
         const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
@@ -372,18 +400,7 @@
         const remoteRole = localRole === 'host' ? 'guest' : 'host';
 
         if (pvpState.match.players[remoteRole].health <= 0) {
-            pvpState.match.finished = true;
-            pvpState.match.winner = localRole;
-            pvpState.match.active = localRole;
-            pvpState.match.sig = getMatchSig(pvpState.match);
-            if (typeof sendPvPMessage === 'function') {
-                sendPvPMessage('turn', {
-                    match: cloneJson(pvpState.match),
-                    prevSig,
-                    log: (battleLogEntries || []).slice(-12)
-                });
-            }
-            window.pvpFinishPvPBattle(true);
+            window.pvpBroadcastMatchEnd(true);
             return;
         }
         if (player.health <= 0) {
@@ -393,22 +410,13 @@
             }
         }
         if (player.health <= 0) {
-            pvpState.match.finished = true;
-            pvpState.match.winner = remoteRole;
-            pvpState.match.sig = getMatchSig(pvpState.match);
-            if (typeof sendPvPMessage === 'function') {
-                sendPvPMessage('turn', {
-                    match: cloneJson(pvpState.match),
-                    prevSig,
-                    log: (battleLogEntries || []).slice(-12)
-                });
-            }
-            window.pvpFinishPvPBattle(false);
+            window.pvpBroadcastMatchEnd(false);
             return;
         }
 
         if (window.pvpCombatEngine) {
             window.pvpCombatEngine.tickBothFightersEndOfTurn(pvpState.match, localRole);
+            refreshMonsterFromRemoteMatch(remoteRole);
             syncPvPBattleToMatch();
         }
 
@@ -490,9 +498,14 @@
                 stun.dur = Math.max(0, (stun.dur || 1) - 1);
                 if (stun.dur <= 0) {
                     fighter.effects = (fighter.effects || []).filter(e => e !== stun);
+                    playerFrozenTurns = 0;
+                    player.temporaryEffects = player.temporaryEffects.filter(e => e.type !== 'debuff_freeze');
+                } else {
+                    playerFrozenTurns = stun.dur;
+                    const freezeFx = player.temporaryEffects.find(e => e.type === 'debuff_freeze');
+                    if (freezeFx) freezeFx.dur = stun.dur;
                 }
-                playerFrozenTurns = 0;
-                player.temporaryEffects = player.temporaryEffects.filter(e => e.type !== 'debuff_freeze');
+                pvpState.match.players[localRole] = fighter;
                 if (eng) eng.syncFighterCcFromPlayer(fighter);
                 syncPvPBattleToMatch();
                 isPlayerTurn = false;
@@ -553,8 +566,39 @@
         broadcastPvPBattleTurn('❌ Уклонение не удалось — ход соперника.');
     };
 
-    window.pvpFinishPvPBattle = function (localWon) {
-        if (!window.pvpBattleActive) return;
+    window.pvpBroadcastMatchEnd = function (localWon) {
+        if (!pvpState || !pvpState.match) {
+            if (typeof window.pvpFinishPvPBattle === 'function') window.pvpFinishPvPBattle(localWon);
+            return;
+        }
+        if (window.pvpBattleActive) syncPvPBattleToMatch();
+        const prevSig = window.pvpBattleSig || getMatchSig(pvpState.match);
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+        if (localWon && pvpState.match.players[remoteRole]) {
+            pvpState.match.players[remoteRole].health = 0;
+        }
+        if (!localWon && pvpState.match.players[localRole]) {
+            pvpState.match.players[localRole].health = 0;
+        }
+        pvpState.match.finished = true;
+        pvpState.match.winner = localWon ? localRole : remoteRole;
+        pvpState.match.active = localWon ? localRole : remoteRole;
+        pvpState.match.sig = getMatchSig(pvpState.match);
+        window.pvpBattleSig = pvpState.match.sig;
+        if (typeof sendPvPMessage === 'function') {
+            sendPvPMessage('turn', {
+                match: cloneJson(pvpState.match),
+                prevSig,
+                log: (battleLogEntries || []).slice(-12)
+            });
+            sendPvPMessage('end', { match: cloneJson(pvpState.match), message: 'Матч завершён.' });
+        }
+        window.pvpFinishPvPBattle(localWon);
+    };
+
+    window.pvpFinishPvPBattle = function (localWon, fromRemoteSync) {
+        if (!window.pvpBattleActive && !fromRemoteSync) return;
         window.pvpBattleActive = false;
         window.pvpDodgeSkipOpponent = false;
         const name = localWon ? 'Победа в PvP!' : 'Поражение в PvP';
@@ -582,7 +626,9 @@
                 pvpLog('Рассинхронизация хода — принят пакет соперника.', 'error');
             }
         }
-        pvpState.match = payload.match;
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const safeMatch = typeof sanitizePvPMatch === 'function' ? sanitizePvPMatch(payload.match) : null;
+        pvpState.match = safeMatch || payload.match;
         pvpState.match.sig = getMatchSig(pvpState.match);
         window.pvpBattleSig = pvpState.match.sig;
 
@@ -596,14 +642,14 @@
 
         if (!window.pvpBattleActive && pvpState.status === 'battle') {
             enterPvPBossBattle();
-        } else {
+        } else if (window.pvpBattleActive) {
             syncPvPBattleFromMatch();
         }
 
         if (pvpState.match.finished) {
-            const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
             const localWon = pvpState.match.winner === localRole;
-            window.pvpFinishPvPBattle(localWon);
+            if (typeof renderBattle === 'function') renderBattle();
+            window.pvpFinishPvPBattle(localWon, true);
             return;
         }
 

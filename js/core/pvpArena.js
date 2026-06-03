@@ -490,11 +490,13 @@ function sanitizePvPMatch(match) {
     host.abilities = (match.players.host.abilities || []).map(sanitizePvPAbility).filter(Boolean);
     guest.abilities = (match.players.guest.abilities || []).map(sanitizePvPAbility).filter(Boolean);
     host.temporaryEffects = Array.isArray(match.players.host.temporaryEffects)
-        ? match.players.host.temporaryEffects.slice(0, 32) : [];
+        ? JSON.parse(JSON.stringify(match.players.host.temporaryEffects.slice(0, 32))) : [];
     guest.temporaryEffects = Array.isArray(match.players.guest.temporaryEffects)
-        ? match.players.guest.temporaryEffects.slice(0, 32) : [];
-    host.effects = Array.isArray(match.players.host.effects) ? match.players.host.effects.slice(0, 32) : [];
-    guest.effects = Array.isArray(match.players.guest.effects) ? match.players.guest.effects.slice(0, 32) : [];
+        ? JSON.parse(JSON.stringify(match.players.guest.temporaryEffects.slice(0, 32))) : [];
+    host.effects = Array.isArray(match.players.host.effects)
+        ? JSON.parse(JSON.stringify(match.players.host.effects.slice(0, 32))) : [];
+    guest.effects = Array.isArray(match.players.guest.effects)
+        ? JSON.parse(JSON.stringify(match.players.guest.effects.slice(0, 32))) : [];
     host.activeBuffs = match.players.host.activeBuffs && typeof match.players.host.activeBuffs === 'object'
         ? JSON.parse(JSON.stringify(match.players.host.activeBuffs)) : {};
     guest.activeBuffs = match.players.guest.activeBuffs && typeof match.players.guest.activeBuffs === 'object'
@@ -1027,18 +1029,24 @@ function handlePvPMessage(msg) {
     } else if (msg.type === 'forfeit') {
         endPvPMatch('opponent_forfeit');
     } else if (msg.type === 'end') {
-        if (payload.match && pvpState.match) {
-            const safeMatch = sanitizePvPMatch(payload.match);
-            const sigOk = safeMatch.sig && pvpState.match.sig && safeMatch.sig === pvpState.match.sig;
-            const hashOk = safeMatch.hash && safeMatch.hash === pvpState.match.hash;
-            if (safeMatch && safeMatch.finished && (sigOk || hashOk)) {
-                pvpState.match = safeMatch;
-                pvpState.status = 'ended';
-                pvpLog(payload.message || 'Матч завершён.', 'info');
-                renderPvPBattle();
+        if (payload.match) {
+            if (typeof applyPvPRemoteBattleState === 'function') {
+                applyPvPRemoteBattleState({ match: payload.match, log: payload.log || [] });
+            } else if (pvpState.match) {
+                const safeMatch = sanitizePvPMatch(payload.match) || payload.match;
+                if (safeMatch && safeMatch.finished) {
+                    pvpState.match = safeMatch;
+                    pvpState.status = 'ended';
+                    const localRole = getLocalPvPRole();
+                    if (typeof window.pvpFinishPvPBattle === 'function') {
+                        window.pvpFinishPvPBattle(safeMatch.winner === localRole, true);
+                    }
+                    pvpLog(payload.message || 'Матч завершён.', 'info');
+                    renderPvPBattle();
+                }
             }
-            return;
         }
+        return;
     }
 }
 
