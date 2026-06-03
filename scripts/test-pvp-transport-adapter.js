@@ -79,9 +79,11 @@ function testTransportConfigRelays() {
     assert(configA.appId === 'chronicles-of-etheria-pvp-v2-mqtt', 'transport appId mismatch');
     assert(Array.isArray(urls), 'MQTT broker urls must be an array');
     assert(urls.length >= 4 && urls.length <= 5, 'MQTT transport needs 4-5 brokers');
-    assert(urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX broker missing');
-    assert(urls.includes('wss://test.mosquitto.org:8081/mqtt'), 'Mosquitto broker missing');
+    assert(urls[0] === 'wss://broker.emqx.io:443/mqtt', 'EMQX 443 broker must be first');
+    assert(urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX 8084 broker missing');
+    assert(!urls.includes('wss://test.mosquitto.org:8081/mqtt'), 'unreliable Mosquitto broker must be excluded');
     assert(urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker missing');
+    assert(configA.relayConfig.redundancy === 2, 'MQTT redundancy must be 2 to limit parallel WebSockets');
     assert(!urls.includes('wss://relay.damus.io'), 'damus relay must be excluded');
     assert(!configJson.includes('nos.lol'), 'nostr-only host nos.lol must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
