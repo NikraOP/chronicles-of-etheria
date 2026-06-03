@@ -89,6 +89,8 @@ function testTransportConfigRelays() {
     const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
     assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
     assert(configA.rtcConfig.iceCandidatePoolSize === 10, 'iceCandidatePoolSize must be 10');
+    assert(configA.trickleIce === false, 'trickleIce should be false for MQTT reliability');
+    assert(Array.isArray(configA.turnConfig) && configA.turnConfig.length > 0, 'turnConfig must list TURN servers');
     const iceJson = JSON.stringify(ice);
     assert(iceJson.includes('stun:stun.l.google.com'), 'Google STUN missing');
     assert(iceJson.includes('stun:stun.cloudflare.com'), 'Cloudflare STUN missing');
@@ -108,8 +110,8 @@ async function testLoadPvPIceServersMerged() {
     assert(Array.isArray(servers) && servers.length >= 6, 'loadPvPIceServers must return merged ice servers');
     const iceStr = JSON.stringify(servers);
     assert(
-        iceStr.includes('staticauth.openrelay.metered.ca') || iceStr.includes('openrelay.metered.ca'),
-        'async ICE load must include Metered Open Relay static'
+        iceStr.includes('staticauth.openrelay.metered.ca') || iceStr.includes('global.relay.metered.ca'),
+        'async ICE load must include Metered relay hosts'
     );
     assert(iceStr.includes('turn:freeturn.net') || iceStr.includes('turn:freestun.net'), 'async ICE load must include free TURN');
     const openRelayTurn = servers.find(s => {
@@ -130,9 +132,18 @@ async function testTurnRestCredentials() {
 
 async function testEffectiveMeteredApiKey() {
     assert(context.getEffectiveMeteredApiKey() === '', 'empty when no key');
-    lsStore.etheria_pvp_metered_api_key = 'pk_test_abc';
-    assert(context.getEffectiveMeteredApiKey() === 'pk_test_abc', 'localStorage key must be read');
+    lsStore.etheria_pvp_metered_api_key = '56c193debb416385ade8d9a77e277ea33c0f';
+    assert(context.getEffectiveMeteredApiKey() === '56c193debb416385ade8d9a77e277ea33c0f', 'localStorage key must be read');
+    assert(context.classifyMeteredApiKey('sk_id_abc') === 'secret', 'sk_id must be secret');
+    assert(context.classifyMeteredApiKey('56c193debb416385ade8d9a77e277ea33c0f') === 'credential', 'hex api key is credential');
     delete lsStore.etheria_pvp_metered_api_key;
+}
+
+function testNormalizePasswordCredential() {
+    const out = context.normalizePvPIceServersPayload([
+        { urls: 'turn:relay.metered.ca:80', username: 'u', password: 'p' }
+    ]);
+    assert(out && out[0].credential === 'p', 'password field must map to credential');
 }
 
 async function testObjectActionAdapter() {
@@ -180,6 +191,7 @@ async function testArrayActionAdapter() {
     testTransportConfigRelays();
     await testTurnRestCredentials();
     await testEffectiveMeteredApiKey();
+    testNormalizePasswordCredential();
     await testLoadPvPIceServersMerged();
     await testObjectActionAdapter();
     await testArrayActionAdapter();
