@@ -243,22 +243,28 @@ function applyProfessionExp(profId, expAmount) {
     const prof = player.professions[profId];
     if (!prof || !expAmount) return false;
 
-    prof.exp += expAmount;
-    let expNeeded = getExpForNextTier(prof.tier);
+    if (typeof normalizeProfessionProf === 'function') normalizeProfessionProf(prof);
+    prof.exp += Number(expAmount) || 0;
     let leveledUp = false;
-
-    while (prof.exp >= expNeeded && prof.tier < 6) {
-        prof.exp -= expNeeded;
-        prof.tier = (prof.tier || 1) + 1;
-        expNeeded = getExpForNextTier(prof.tier);
-        leveledUp = true;
-        const profMeta = PROFESSIONS_DB.gathering.find(p => p.id === profId);
+    if (typeof applyProfessionTierUps === 'function') {
+        leveledUp = applyProfessionTierUps(prof);
+    } else {
+        let expNeeded = getExpForNextTier(prof.tier);
+        while (prof.exp >= expNeeded && prof.tier < 6 && expNeeded > 0) {
+            prof.exp -= expNeeded;
+            prof.tier = Math.min(6, (parseInt(prof.tier, 10) || 1) + 1);
+            expNeeded = getExpForNextTier(prof.tier);
+            leveledUp = true;
+        }
+        if (prof.tier >= 6) prof.exp = Math.min(prof.exp, getExpForNextTier(5) || prof.exp);
+    }
+    if (leveledUp) {
+        const profMeta = PROFESSIONS_DB.gathering.find(p => p.id === profId)
+            || PROFESSIONS_DB.crafting.find(p => p.id === profId);
         addMessage(`🎉 ПОВЫШЕНИЕ ТИРА! ${profMeta?.name || profId} → ${prof.tier} тир!`, 'success');
         const newBonuses = getProfessionBonuses(prof.tier);
         addMessage(`📈 Новые бонусы: скорость -${Math.floor(newBonuses.gatherSpeedBonus * 100)}%, двойная добыча +${Math.floor(newBonuses.doubleGatherChance * 100)}%`, 'info');
     }
-
-    if (prof.tier >= 6) prof.exp = Math.min(prof.exp, expNeeded);
     return leveledUp;
 }
 

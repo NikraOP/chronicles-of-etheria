@@ -1,7 +1,8 @@
 // craftingSystem.js - Полная исправленная версия
 
 function getExpForNextTier(currentTier) {
-    switch(currentTier) {
+    const tier = parseInt(currentTier, 10) || 1;
+    switch(tier) {
         case 1: return 500;
         case 2: return 1000;
         case 3: return 2000;
@@ -9,6 +10,74 @@ function getExpForNextTier(currentTier) {
         case 5: return 5000;
         default: return 0;
     }
+}
+
+function normalizeProfessionProf(prof) {
+    if (!prof) return;
+    let tier = parseInt(prof.tier, 10);
+    if (!Number.isFinite(tier) || tier < 1) tier = 1;
+    if (tier > 6) tier = 6;
+    prof.tier = tier;
+    prof.exp = Math.max(0, parseInt(prof.exp, 10) || 0);
+}
+
+function applyProfessionTierUps(prof) {
+    if (!prof) return false;
+    normalizeProfessionProf(prof);
+    let leveledUp = false;
+    let expNeeded = getExpForNextTier(prof.tier);
+    while (prof.exp >= expNeeded && prof.tier < 6 && expNeeded > 0) {
+        prof.exp -= expNeeded;
+        prof.tier = Math.min(6, prof.tier + 1);
+        expNeeded = getExpForNextTier(prof.tier);
+        leveledUp = true;
+    }
+    if (prof.tier >= 6) {
+        const cap = getExpForNextTier(5);
+        prof.exp = Math.min(prof.exp, cap > 0 ? cap : prof.exp);
+    }
+    return leveledUp;
+}
+
+function getPlayerResourceAmount(resourceName) {
+    if (!player || !player.resources) return 0;
+    return player.resources[resourceName] || 0;
+}
+
+function consumePlayerResources(materials) {
+    if (!materials) return;
+    for (const mat in materials) {
+        const needed = materials[mat];
+        player.resources[mat] = (player.resources[mat] || 0) - needed;
+        if (player.resources[mat] <= 0) delete player.resources[mat];
+    }
+}
+
+function getCraftBlockReason(recipe, profId) {
+    if (!recipe) return 'Рецепт не найден';
+    const prof = player.professions[profId];
+    if (!prof) return 'Профессия не изучена';
+    normalizeProfessionProf(prof);
+    const requiredTier = recipe.tier || 1;
+    if (prof.tier < requiredTier) {
+        const left = getExpForNextTier(prof.tier) - prof.exp;
+        if (left > 0) {
+            return `Нужен ${requiredTier} тир (ещё ~${Math.ceil(left)} XP)`;
+        }
+        return `Нужен ${requiredTier} тир профессии`;
+    }
+    if (recipe.class && recipe.class !== player.class) {
+        return `Только для класса ${recipe.class}`;
+    }
+    const materials = recipe.resources || recipe.materials;
+    if (materials) {
+        for (const mat in materials) {
+            const needed = materials[mat];
+            const has = getPlayerResourceAmount(mat);
+            if (has < needed) return `Не хватает: ${mat} (${has}/${needed})`;
+        }
+    }
+    return '';
 }
 
 function getProfessionBonuses(tier) {
@@ -56,6 +125,7 @@ function completeCrafting(profId, options) {
     
     const prof = player.professions[profId];
     if (!prof) return;
+    normalizeProfessionProf(prof);
     
     const { recipe, adjustedExp, bonuses } = pendingCraftData;
     
@@ -167,23 +237,14 @@ function completeCrafting(profId, options) {
         addMessage(`✅ Создано: ${recipe.name}!`, 'success');
     }
     
-    // Добавляем опыт
-    let totalExp = adjustedExp;
+    let totalExp = Number(adjustedExp) || 0;
     prof.exp += totalExp;
-    
-    let expNeeded = getExpForNextTier(prof.tier);
-    let leveledUp = false;
-    
-    while (prof.exp >= expNeeded && prof.tier < 6) {
-        prof.exp -= expNeeded;
-        prof.tier = (prof.tier || 1) + 1;
-        expNeeded = getExpForNextTier(prof.tier);
-        leveledUp = true;
+    const leveledUp = applyProfessionTierUps(prof);
+    if (leveledUp) {
         addMessage(`🎉 ПОВЫШЕНИЕ ТИРА! Профессия → ${prof.tier} тир!`, 'success');
         const newBonuses = getProfessionBonuses(prof.tier);
         addMessage(`📈 Новые бонусы: качество +${Math.floor(newBonuses.craftQualityBonus * 100)}%, экономия +${Math.floor(newBonuses.materialSaveChance * 100)}%`, 'info');
     }
-    if (prof.tier >= 6) prof.exp = Math.min(prof.exp, expNeeded);
     
     addMessage(`⭐ +${totalExp} XP профессии!`, 'success');
     if (leveledUp) {
@@ -207,17 +268,21 @@ function showCraftingRecipes(profId) {
         return;
     }
     
-    const currentTier = player.professions[profId] ? (player.professions[profId].tier || 1) : 1;
-    const exp = player.professions[profId]?.exp || 0;
+    const profState = player.professions[profId];
+    if (profState) {
+        normalizeProfessionProf(profState);
+        if (applyProfessionTierUps(profState)) {
+            saveGame();
+            addMessage(`🎉 Профессия повышена до ${profState.tier} тира!`, 'success');
+        }
+    }
+    const currentTier = profState ? profState.tier : 1;
+    const exp = profState ? profState.exp : 0;
     const bonuses = getProfessionBonuses(currentTier);
     const expNeeded = getExpForNextTier(currentTier);
     const percent = (expNeeded > 0 && currentTier < 6) ? (exp / expNeeded * 100) : 100;
     
-    // Фильтруем рецепты: по тиру И по классу (если класс указан)
     const availableRecipes = allRecipes.filter(r => {
-        // Проверка по тиру
-        if (currentTier < (r.tier || 1)) return false;
-        // Проверка по классу - показываем только предметы для класса игрока
         if (r.class && r.class !== player.class) return false;
         return true;
     });
@@ -298,17 +363,21 @@ function showCraftingRecipes(profId) {
             html += '<div class="resource-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-bottom: 15px;">';
             
             for (const r of recipes) {
-                let canCraft = true;
+                const blockReason = getCraftBlockReason(r, profId);
+                const canCraft = !blockReason;
                 let previewMatText = '';
                 const materials = r.resources || r.materials;
                 
                 if (materials) {
                     for (let mat in materials) {
                         const needed = materials[mat];
-                        const has = player.resources[mat] || 0;
-                        previewMatText += `<div style="font-size: 10px;">${mat}: ${has}/${needed}</div>`;
-                        if (has < needed) canCraft = false;
+                        const has = getPlayerResourceAmount(mat);
+                        const ok = has >= needed;
+                        previewMatText += `<div style="font-size: 10px; color:${ok ? '#aaa' : '#e74c3c'};">${mat}: ${has}/${needed}</div>`;
                     }
+                }
+                if (!canCraft && blockReason) {
+                    previewMatText += `<div style="font-size: 10px; color: #e74c3c; margin-top: 4px;">🔒 ${blockReason}</div>`;
                 }
                 
                 const rarityColor = {
@@ -351,10 +420,7 @@ function showCraftingRecipes(profId) {
 }
 
 function prepareCraft(profId, recipeName) {
-    if (pendingCraftData) {
-        addMessage('⏳ Сначала заберите созданный предмет!', 'error');
-        return;
-    }
+    if (pendingCraftData) flushPendingCraft();
     const allRecipes = getAllRecipesForProfession(profId);
     const recipe = allRecipes.find(r => r.name === recipeName);
     
@@ -364,18 +430,16 @@ function prepareCraft(profId, recipeName) {
     }
     
     const prof = player.professions[profId];
-    const currentTier = prof ? (prof.tier || 1) : 1;
-    const bonuses = getProfessionBonuses(currentTier);
-    const requiredTier = recipe.tier || 1;
-    
-    // Проверка по классу
-    if (recipe.class && recipe.class !== player.class) {
-        addMessage(`❌ Этот предмет предназначен для класса ${recipe.class}!`, 'error');
+    if (!prof) {
+        addMessage('❌ Профессия не изучена!', 'error');
         return;
     }
-    
-    if (currentTier < requiredTier) {
-        addMessage(`❌ Нужен ${requiredTier} тир профессии для крафта! (сейчас ${currentTier})`, 'error');
+    normalizeProfessionProf(prof);
+    applyProfessionTierUps(prof);
+    const bonuses = getProfessionBonuses(prof.tier);
+    const blockReason = getCraftBlockReason(recipe, profId);
+    if (blockReason) {
+        addMessage(`❌ ${blockReason}`, 'error');
         return;
     }
     
@@ -385,21 +449,7 @@ function prepareCraft(profId, recipeName) {
         return;
     }
     
-    // Проверяем материалы
-    for (let mat in materials) {
-        let needed = materials[mat];
-        const has = player.resources[mat] || 0;
-        if (has < needed) { 
-            addMessage(`❌ Не хватает материалов: ${mat} (нужно ${needed})!`, 'error'); 
-            return; 
-        }
-    }
-    
-    // Списываем материалы
-    for (let mat in materials) {
-        player.resources[mat] -= materials[mat];
-        if (player.resources[mat] <= 0) delete player.resources[mat];
-    }
+    consumePlayerResources(materials);
     
     // Сохраняем данные о крафте
     pendingCraftData = {
@@ -413,8 +463,11 @@ function prepareCraft(profId, recipeName) {
     
     // Показываем результат
     const resultDiv = document.getElementById('craftResult');
-    if (resultDiv) {
-        let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px; margin-top: 10px;">';
+    if (!resultDiv) {
+        completeCrafting(profId, { silent: true });
+        return;
+    }
+    let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px; margin-top: 10px;">';
         resultHtml += '<div style="margin-bottom: 10px;">🔨 <strong>Крафт завершён!</strong></div>';
         resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано: <span style="color: var(--gold); font-weight: bold;">' + recipe.name + '</span></div>';
         resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (recipe.exp || recipe.time || 0) + ' XP</div>';
@@ -426,11 +479,10 @@ function prepareCraft(profId, recipeName) {
         resultDiv.innerHTML = resultHtml;
         
         const completeBtn = document.getElementById('completeCraftBtn');
-        if (completeBtn) {
-            completeBtn.onclick = () => {
-                completeCrafting(profId);
-            };
-        }
+    if (completeBtn) {
+        completeBtn.onclick = () => {
+            completeCrafting(profId);
+        };
     }
     
     saveGame();

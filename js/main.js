@@ -590,6 +590,14 @@ function migrateOldSave(playerData) {
     
     if (playerData.professions === undefined) playerData.professions = {};
     if (playerData.resources === undefined) playerData.resources = {};
+    if (typeof normalizeProfessionProf === 'function') {
+        for (const profId in playerData.professions) {
+            normalizeProfessionProf(playerData.professions[profId]);
+            if (typeof applyProfessionTierUps === 'function') {
+                applyProfessionTierUps(playerData.professions[profId]);
+            }
+        }
+    }
     if (playerData.temporaryEffects === undefined) playerData.temporaryEffects = [];
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
