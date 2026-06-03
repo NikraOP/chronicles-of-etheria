@@ -916,14 +916,47 @@ body.gather-screen-flash::after {
 .battle-arena {
     position: relative;
     width: 100%;
-    min-height: 400px;
+    min-height: 420px;
     border-radius: var(--radius-xl);
-    overflow: visible;
+    overflow: hidden;
     margin-bottom: 0;
-    border: 2px solid var(--border);
+    border: 2px solid var(--border-accent);
     background-size: cover;
     background-position: center;
-    box-shadow: var(--shadow-lg), inset 0 0 80px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg), inset 0 0 80px rgba(0, 0, 0, 0.55);
+    display: block;
+}
+.arena-floor {
+    position: absolute;
+    left: 50%;
+    bottom: 8%;
+    width: min(72%, 520px);
+    height: 28%;
+    transform: translateX(-50%);
+    background:
+        radial-gradient(ellipse 100% 100% at 50% 100%, rgba(var(--accent-rgb), 0.22) 0%, transparent 70%),
+        radial-gradient(ellipse 90% 60% at 50% 80%, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+.arena-ring {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: min(42%, 200px);
+    height: min(42%, 200px);
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(var(--accent-rgb), 0.2);
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(var(--accent-rgb), 0.15), inset 0 0 30px rgba(var(--accent-rgb), 0.08);
+    pointer-events: none;
+    z-index: 1;
+    animation: arenaRingPulse 3s ease-in-out infinite;
+}
+@keyframes arenaRingPulse {
+    0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.85; transform: translate(-50%, -50%) scale(1.06); }
 }
 .battle-arena::before {
     content: '';
@@ -946,12 +979,62 @@ body.gather-screen-flash::after {
     z-index: 1;
 }
 .combatant-wrapper {
-    z-index: 2;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 200px;
-    position: relative;
+    width: min(200px, 42vw);
+    position: absolute;
+    transition: transform 0.35s ease;
+}
+.enemy-combatant {
+    top: 6%;
+    left: 4%;
+    align-items: flex-start;
+}
+.enemy-combatant .combatant-info {
+    border-color: rgba(232, 85, 69, 0.35);
+    box-shadow: 0 0 16px rgba(232, 85, 69, 0.12);
+}
+.player-combatant {
+    bottom: 6%;
+    right: 4%;
+    align-items: flex-end;
+    z-index: 4;
+}
+.player-combatant .combatant-sprite {
+    transform: scale(1.06);
+}
+.player-combatant .combatant-info {
+    border-color: rgba(61, 214, 140, 0.35);
+    box-shadow: 0 0 16px rgba(61, 214, 140, 0.12);
+}
+.combatant-name.enemy-name { color: #f87171; }
+.combatant-name.player-name { color: #6ee7b7; }
+.combatant-status-slot {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+.debuffed-stats-hint {
+    font-size: 9px;
+    color: #fca5a5;
+    background: rgba(232, 85, 69, 0.12);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    border: 1px solid rgba(232, 85, 69, 0.25);
+}
+.monster-buffs {
+    font-size: 10px;
+    color: #fbbf24;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    line-height: 1.35;
 }
 .combatant-sprite {
     width: 160px;
@@ -1009,16 +1092,17 @@ body.gather-screen-flash::after {
     box-shadow: 0 0 10px rgba(232, 85, 69, 0.5);
 }
 .health-text { font-size: 11px; font-weight: 700; position: relative; z-index: 1; letter-spacing: 0.02em; }
-.vs-badge {
+.vs-badge,
+.arena-vs {
     position: absolute;
-    top: 50%;
+    top: 48%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 900;
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     color: var(--gold-light);
-    z-index: 3;
+    z-index: 5;
     padding: 10px 20px;
     background: rgba(8, 8, 16, 0.75);
     backdrop-filter: blur(10px);
@@ -1646,57 +1730,40 @@ h3 { font-size: 18px; }
     .nav-card-title { font-size: 12px; }
 }
 
-/* Принудительное расположение в бою (адаптивное) */
-.battle-arena {
-    display: flex !important;
-    justify-content: space-between !important;
-    flex-direction: row !important;
-    flex-wrap: wrap;
-}
-
-.combatant-wrapper {
-    width: 200px !important;
-}
-
-#enemyWrapper {
-    margin-right: auto !important;
-}
-
-#playerWrapper {
-    margin-left: auto !important;
-}
-
-.vs-badge {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-}
-
-/* Адаптация расположения в бою для мобильных */
+/* Адаптация арены боя */
 @media (max-width: 768px) {
     .battle-arena {
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 15px;
+        min-height: 380px;
     }
-    
+    .enemy-combatant {
+        top: 4%;
+        left: 50%;
+        transform: translateX(-50%);
+        align-items: center;
+    }
+    .player-combatant {
+        bottom: 4%;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        align-items: center;
+    }
+    .player-combatant .combatant-sprite {
+        transform: scale(1);
+    }
     .combatant-wrapper {
-        width: 100% !important;
-        max-width: 180px;
-        margin: 0 !important;
+        width: min(180px, 88vw);
+        position: absolute;
     }
-    
-    #enemyWrapper { margin: 0 !important; }
-    #playerWrapper { margin: 0 !important; }
-    
+    .arena-vs,
     .vs-badge {
-        position: relative !important;
-        left: auto !important;
-        top: auto !important;
-        transform: none !important;
-        margin: 5px 0;
-        font-size: 16px !important;
+        top: 50%;
+        font-size: 15px;
+        padding: 6px 14px;
+    }
+    .arena-floor {
+        width: 88%;
+        bottom: 14%;
     }
 }
 
@@ -2612,34 +2679,27 @@ body.settings-open .main-header .settings-gear-btn {
     }
 }
 
-/* Phone landscape battle — must follow max-width 768px battle column rules */
+/* Phone landscape battle */
 @media (max-width: 599px) and (orientation: landscape) {
     .battle-arena {
-        min-height: 160px;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: flex-end !important;
-        justify-content: space-between !important;
-        padding: 8px 12px !important;
-        gap: 6px !important;
+        min-height: 200px;
     }
-    .combatant-wrapper {
-        width: auto !important;
-        max-width: 38% !important;
-        margin: 0 !important;
+    .enemy-combatant {
+        top: 8%;
+        left: 6%;
+        transform: none;
     }
-    #enemyWrapper,
-    #playerWrapper {
-        margin: 0 !important;
+    .player-combatant {
+        bottom: 8%;
+        right: 6%;
+        left: auto;
+        transform: none;
     }
+    .arena-vs,
     .vs-badge {
-        position: absolute !important;
-        left: 50% !important;
-        top: 40% !important;
-        transform: translate(-50%, -50%) !important;
-        margin: 0 !important;
-        font-size: 13px !important;
-        padding: 4px 10px !important;
+        top: 44%;
+        font-size: 13px;
+        padding: 4px 10px;
     }
     .combatant-sprite {
         width: 64px;
@@ -2647,6 +2707,10 @@ body.settings-open .main-header .settings-gear-btn {
     }
     .combatant-sprite .sprite-fallback {
         font-size: 48px;
+    }
+    .combatant-wrapper {
+        width: auto;
+        max-width: 38%;
     }
 }
 

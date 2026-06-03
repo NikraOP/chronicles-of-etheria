@@ -603,6 +603,7 @@ function useBattleAbility(index) {
     }
 
     updateBattleVitality();
+    if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
 
     const afterAbilityResolve = () => {
         if (currentMonster.health <= 0) { 

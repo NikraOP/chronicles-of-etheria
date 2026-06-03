@@ -6,6 +6,7 @@ function renderBattle(options) {
     if (window._strikeAnimActive && !options.force) {
         if (options.vitalsOnly) {
             updateBattleVitality();
+            updateBattleStatusPanels();
             updateBattleButtons();
             return;
         }
@@ -20,37 +21,8 @@ function renderBattle(options) {
     const bgStyle = loc.bgColor;
     const monsterImg = currentMonster.img ? '<img src="' + currentMonster.img + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + currentMonster.icon + '\'">' : '<span class="sprite-fallback">' + currentMonster.icon + '</span>';
 
-    // Способности монстра
-    let abilitiesHTML = '';
-    if (currentMonster.abilities && currentMonster.abilities.length > 0) {
-        abilitiesHTML = '<div class="monster-abilities">';
-        for (let ability of currentMonster.abilities) {
-            const currentCD = monsterAbilityCooldowns[ability.name] || 0;
-            const isOnCooldown = currentCD > 0;
-            let abilityColor = '', abilityIcon = '';
-            switch(ability.type) {
-                case 'damage': abilityIcon = '💥'; abilityColor = '#e74c3c'; break;
-                case 'heal': abilityIcon = '💚'; abilityColor = '#2ecc71'; break;
-                case 'buff': abilityIcon = '⚡'; abilityColor = '#f39c12'; break;
-                case 'debuff': abilityIcon = '😵'; abilityColor = '#9b59b6'; break;
-                case 'dot': abilityIcon = '☠️'; abilityColor = '#e67e22'; break;
-                case 'shield': abilityIcon = '🛡️'; abilityColor = '#3498db'; break;
-                case 'lifesteal': abilityIcon = '🩸'; abilityColor = '#e74c3c'; break;
-                default: abilityIcon = '✨'; abilityColor = '#aaa';
-            }
-            const tooltipHtml = buildMonsterAbilityTooltip(ability, currentCD);
-            abilitiesHTML += `<div class="ability-badge monster-ability-badge${isOnCooldown ? ' on-cooldown' : ''}" style="--ability-accent:${abilityColor}">` +
-                tooltipHtml +
-                `<span class="mab-icon">${abilityIcon}</span>` +
-                `<span class="mab-name">${escapeBattleHtml(ability.name)}</span>` +
-                (isOnCooldown ? `<span class="mab-cd">⏳${currentCD}</span>` : '') +
-                '</div>';
-        }
-        abilitiesHTML += '</div>';
-    }
-
-    // Эффекты монстра (DoT / CC)
-    let monsterDotHTML = buildMonsterStatusEffectsHTML();
+    const abilitiesHTML = buildMonsterAbilitiesHTML();
+    const monsterDotHTML = buildMonsterStatusEffectsHTML();
 
     // ===== ЩИТ МОНСТРА =====
     let monsterShieldValue = 0;
@@ -71,67 +43,9 @@ function renderBattle(options) {
         `;
     }
 
-    // ===== БАФФЫ МОНСТРА (ИСПРАВЛЕНО) =====
-    let monsterBuffsHTML = '';
-    if (currentMonster.activeBuffs) {
-        const buffs = [];
-        
-        if (currentMonster.activeBuffs.atk) {
-            buffs.push(`⚔️ Атака +${currentMonster.activeBuffs.atk.value}% (${currentMonster.activeBuffs.atk.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.def) {
-            buffs.push(`🛡️ Защита +${currentMonster.activeBuffs.def.value}% (${currentMonster.activeBuffs.def.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.dodge) {
-            buffs.push(`💨 Уклонение +${currentMonster.activeBuffs.dodge.value}% (${currentMonster.activeBuffs.dodge.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.lifesteal) {
-            buffs.push(`🩸 Вампиризм ${currentMonster.activeBuffs.lifesteal.value}% (${currentMonster.activeBuffs.lifesteal.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.reflect) {
-            buffs.push(`🔄 Отражение ${currentMonster.activeBuffs.reflect.value}% (${currentMonster.activeBuffs.reflect.remainingTurns} ход.)`);
-        }
-        if (currentMonster.activeBuffs.crit) {
-            buffs.push(`💥 Крит +${currentMonster.activeBuffs.crit.value}% (${currentMonster.activeBuffs.crit.remainingTurns} ход.)`);
-        }
-        
-        if (buffs.length > 0) {
-            monsterBuffsHTML = `<div class="monster-buffs" style="font-size: 10px; color: #f39c12; margin-top: 4px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 10px; display: inline-block;">${buffs.join(' | ')}</div>`;
-        }
-    }
-
-    // Эффекты игрока (дебаффы)
-    let playerEffectsHTML = '';
-    const activePlayerEffects = player.temporaryEffects.filter(e => e.type && e.type.startsWith('debuff_'));
-    if (activePlayerEffects.length > 0) {
-        playerEffectsHTML = '<div class="active-effects" style="margin-top: 4px;">';
-        for (let effect of activePlayerEffects) {
-            let icon = '', text = '';
-            const debuffType = effect.type.replace('debuff_', '');
-            if (debuffType === 'atk') { icon = '⚔️'; text = `Атака -${effect.value}%`; }
-            else if (debuffType === 'def') { icon = '🛡️'; text = `Защита -${effect.value}%`; }
-            else if (debuffType === 'dodge') { icon = '💨'; text = `Уклонение -${effect.value}%`; }
-            else if (debuffType === 'all') { icon = '😵'; text = `Все -${effect.value}%`; }
-            else if (debuffType === 'freeze') { icon = '❄️'; text = `Заморозка`; }
-            else if (debuffType === 'blind') { icon = '👁️'; text = `Ослепление -${effect.value}%`; }
-            else if (debuffType === 'slow') { icon = '🕸️'; text = `Паутина −${effect.value}% атаки (${effect.dur} ход.)`; }
-            playerEffectsHTML += `<div class="effect-icon debuff" style="display: inline-block; background: rgba(155,89,182,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${text} (${effect.dur} ход.)">${icon} ${effect.value}%</div>`;
-        }
-        playerEffectsHTML += '</div>';
-    }
-
-    // Отображение DoT эффектов на игроке
-    let playerDotHTML = '';
-    const playerDots = player.temporaryEffects.filter(e => e.isDot && e.dur > 0);
-    if (playerDots.length > 0) {
-        playerDotHTML = '<div class="active-effects" style="margin-top: 4px;">';
-        for (let dot of playerDots) {
-            const dotType = dot.type.replace('dot_', '');
-            const icon = dot.dotIcon || (dotType === 'burn' ? '🔥' : '☠️');
-            playerDotHTML += `<div class="effect-icon dot" style="display: inline-block; background: rgba(230,126,34,0.3); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${dotType} - ${dot.value}% HP/ход (${dot.dur} ход.)">${icon} ${dot.value}%</div>`;
-        }
-        playerDotHTML += '</div>';
-    }
+    const monsterBuffsHTML = buildMonsterBuffsHTML();
+    const playerEffectsHTML = buildPlayerDebuffsHTML();
+    const playerDotHTML = buildPlayerDotsHTML();
 
     // Щит игрока
     let playerShieldHTML = '';
@@ -174,30 +88,28 @@ function renderBattle(options) {
     battleLogEntries.forEach(e => { logHTML += '<div class="log-entry ' + e.cls + '">' + e.msg + '</div>'; });
     logHTML += '</div>';
 
-    const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena"><div class="ground"></div>' +
-        '<div class="combatant-wrapper" id="enemyWrapper">' +
+    const turnNum = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
+    const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena">' +
+        '<div class="arena-floor"></div><div class="arena-ring"></div>' +
+        '<div class="combatant-wrapper enemy-combatant" id="enemyWrapper">' +
             '<div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div>' +
             '<div class="combatant-info">' +
-                '<div class="combatant-name" style="color:#e74c3c;">' + currentMonster.name + '</div>' +
+                '<div class="combatant-name enemy-name">' + escapeBattleHtml(currentMonster.name) + '</div>' +
                 '<div class="health-bar"><div class="health-fill enemy-hp" style="width:' + mHp + '%;"></div></div>' +
                 monsterShieldHTML +
                 '<div class="health-text">' + currentMonster.health + '/' + currentMonster.maxHealth + '</div>' +
-                monsterBuffsHTML +
-                monsterDotHTML +
-                abilitiesHTML +
+                '<div class="combatant-status-slot" data-side="enemy">' + monsterBuffsHTML + monsterDotHTML + abilitiesHTML + '</div>' +
             '</div>' +
         '</div>' +
-        '<div class="vs-badge">⚔️ Ход ' + (typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0) + ' ⚔️</div>' +
-        '<div class="combatant-wrapper" id="playerWrapper">' +
+        '<div class="vs-badge arena-vs">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
+        '<div class="combatant-wrapper player-combatant" id="playerWrapper">' +
             '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
             '<div class="combatant-info">' +
-                '<div class="combatant-name" style="color:#2ecc71;">' + player.name + '</div>' +
+                '<div class="combatant-name player-name">' + escapeBattleHtml(player.name) + '</div>' +
                 '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
                 playerShieldHTML +
                 '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' +
-                playerDotHTML +
-                debuffedStatsHTML +
-                playerEffectsHTML +
+                '<div class="combatant-status-slot" data-side="player">' + playerDotHTML + debuffedStatsHTML + playerEffectsHTML + '</div>' +
             '</div>' +
         '</div>' +
         '</div><div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
@@ -358,7 +270,46 @@ function safeRenderBattle() {
 /** Лёгкое обновление после анимации — без пересборки спрайтов (нет «телепорта»). */
 function syncBattleDisplayAfterAnim() {
     updateBattleVitality();
+    updateBattleStatusPanels();
     updateBattleButtons();
+}
+
+/** Обновляет эффекты/баффы/способности монстра и статусы игрока без полного renderBattle. */
+function updateBattleStatusPanels() {
+    if (!currentMonster) return;
+
+    const enemySlot = document.querySelector('#enemyWrapper .combatant-status-slot');
+    if (enemySlot) {
+        enemySlot.innerHTML = buildMonsterBuffsHTML() + buildMonsterStatusEffectsHTML() + buildMonsterAbilitiesHTML();
+    }
+
+    const playerSlot = document.querySelector('#playerWrapper .combatant-status-slot');
+    if (playerSlot) {
+        let debuffed = '';
+        const hasDebuffs = player.temporaryEffects.some(e => e.type && e.type.startsWith('debuff_'));
+        if (hasDebuffs) {
+            let displayAtk = player.attack;
+            let displayDef = player.defense;
+            let displayDodge = player.dodgeChance;
+            const atkDebuff = player.temporaryEffects.find(e => e.type === 'debuff_atk');
+            if (atkDebuff) displayAtk = Math.floor(displayAtk * (1 - atkDebuff.value / 100));
+            const defDebuff = player.temporaryEffects.find(e => e.type === 'debuff_def');
+            if (defDebuff) displayDef = Math.floor(displayDef * (1 - defDebuff.value / 100));
+            const allDebuff = player.temporaryEffects.find(e => e.type === 'debuff_all');
+            if (allDebuff) {
+                displayAtk = Math.floor(displayAtk * (1 - allDebuff.value / 100));
+                displayDef = Math.floor(displayDef * (1 - allDebuff.value / 100));
+                displayDodge = Math.max(0, displayDodge - allDebuff.value);
+            }
+            debuffed = `<div class="debuffed-stats-hint">⚔️ ${displayAtk} · 🛡️ ${displayDef} · 💨 ${displayDodge}%</div>`;
+        }
+        playerSlot.innerHTML = buildPlayerDotsHTML() + debuffed + buildPlayerDebuffsHTML();
+    }
+
+    const vs = document.querySelector('.arena-vs, .vs-badge');
+    if (vs && typeof getGlobalBattleTurn === 'function') {
+        vs.textContent = '⚔️ Ход ' + getGlobalBattleTurn() + ' ⚔️';
+    }
 }
 
 /** Снимает CSS-классы анимации по animationend (с запасным таймаутом). */
@@ -826,6 +777,83 @@ function buildMonsterAbilityTooltip(ability, currentCD) {
         `</div>`;
 }
 
+function buildMonsterBuffsHTML() {
+    if (!currentMonster || !currentMonster.activeBuffs) return '';
+    const buffs = [];
+    const b = currentMonster.activeBuffs;
+    if (b.atk) buffs.push(`⚔️ +${b.atk.value}% (${b.atk.remainingTurns})`);
+    if (b.def) buffs.push(`🛡️ +${b.def.value}% (${b.def.remainingTurns})`);
+    if (b.dodge) buffs.push(`💨 +${b.dodge.value}% (${b.dodge.remainingTurns})`);
+    if (b.lifesteal) buffs.push(`🩸 ${b.lifesteal.value}% (${b.lifesteal.remainingTurns})`);
+    if (b.reflect) buffs.push(`🔄 ${b.reflect.value}% (${b.reflect.remainingTurns})`);
+    if (b.crit) buffs.push(`💥 +${b.crit.value}% (${b.crit.remainingTurns})`);
+    if (!buffs.length) return '';
+    return `<div class="monster-buffs">${buffs.join(' · ')}</div>`;
+}
+
+function buildMonsterAbilitiesHTML() {
+    if (!currentMonster.abilities || !currentMonster.abilities.length) return '';
+    let html = '<div class="monster-abilities">';
+    for (const ability of currentMonster.abilities) {
+        const currentCD = monsterAbilityCooldowns[ability.name] || 0;
+        const isOnCooldown = currentCD > 0;
+        let abilityColor = '', abilityIcon = '';
+        switch (ability.type) {
+            case 'damage': abilityIcon = '💥'; abilityColor = '#e74c3c'; break;
+            case 'heal': abilityIcon = '💚'; abilityColor = '#2ecc71'; break;
+            case 'buff': abilityIcon = '⚡'; abilityColor = '#f39c12'; break;
+            case 'debuff': abilityIcon = '😵'; abilityColor = '#9b59b6'; break;
+            case 'dot': abilityIcon = '☠️'; abilityColor = '#e67e22'; break;
+            case 'shield': abilityIcon = '🛡️'; abilityColor = '#3498db'; break;
+            case 'lifesteal': abilityIcon = '🩸'; abilityColor = '#e74c3c'; break;
+            default: abilityIcon = '✨'; abilityColor = '#aaa';
+        }
+        const tooltipHtml = buildMonsterAbilityTooltip(ability, currentCD);
+        html += `<div class="ability-badge monster-ability-badge${isOnCooldown ? ' on-cooldown' : ''}" style="--ability-accent:${abilityColor}">` +
+            tooltipHtml +
+            `<span class="mab-icon">${abilityIcon}</span>` +
+            `<span class="mab-name">${escapeBattleHtml(ability.name)}</span>` +
+            (isOnCooldown ? `<span class="mab-cd">⏳${currentCD}</span>` : '') +
+            '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function buildPlayerDebuffsHTML() {
+    const activePlayerEffects = player.temporaryEffects.filter(e => e.type && e.type.startsWith('debuff_'));
+    if (!activePlayerEffects.length) return '';
+    let html = '<div class="active-effects player-debuffs">';
+    for (const effect of activePlayerEffects) {
+        let icon = '', text = '';
+        const debuffType = effect.type.replace('debuff_', '');
+        if (debuffType === 'atk') { icon = '⚔️'; text = `Атака −${effect.value}%`; }
+        else if (debuffType === 'def') { icon = '🛡️'; text = `Защита −${effect.value}%`; }
+        else if (debuffType === 'dodge') { icon = '💨'; text = `Уклонение −${effect.value}%`; }
+        else if (debuffType === 'all') { icon = '😵'; text = `Все −${effect.value}%`; }
+        else if (debuffType === 'freeze') { icon = '❄️'; text = 'Заморозка'; }
+        else if (debuffType === 'blind') { icon = '👁️'; text = `Ослепление −${effect.value}%`; }
+        else if (debuffType === 'slow') { icon = '🕸️'; text = `Паутина −${effect.value}%`; }
+        const valLabel = debuffType === 'freeze' ? '' : ` ${effect.value}%`;
+        html += `<span class="effect-chip effect-chip-debuff" title="${escapeBattleHtml(text)} (${effect.dur} ход.)">${icon}${valLabel} · ${effect.dur}</span>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function buildPlayerDotsHTML() {
+    const playerDots = player.temporaryEffects.filter(e => e.isDot && e.dur > 0);
+    if (!playerDots.length) return '';
+    let html = '<div class="active-effects player-dots">';
+    for (const dot of playerDots) {
+        const dotType = dot.type.replace('dot_', '');
+        const icon = dot.dotIcon || (dotType === 'burn' ? '🔥' : '☠️');
+        html += `<span class="effect-chip effect-chip-dot" title="${escapeBattleHtml(dotType)} ${dot.value}%/ход · ${dot.dur}">${icon} ${dot.value}% · ${dot.dur}</span>`;
+    }
+    html += '</div>';
+    return html;
+}
+
 function buildMonsterStatusEffectsHTML() {
     if (!currentMonster.effects || !currentMonster.effects.length) return '';
 
@@ -886,3 +914,4 @@ window.consumeStrikeImpact = consumeStrikeImpact;
 window.safeRenderBattle = safeRenderBattle;
 window.syncBattleDisplayAfterAnim = syncBattleDisplayAfterAnim;
 window.updateBattleVitality = updateBattleVitality;
+window.updateBattleStatusPanels = updateBattleStatusPanels;
