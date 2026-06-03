@@ -3,6 +3,10 @@ const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
 const PVP_TRYSTERO_URL = '../vendor/trystero-torrent.bundle.mjs';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
+const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
+    'wss://tracker.webtorrent.dev',
+    'wss://tracker.btorrent.xyz'
+]);
 
 let pvpRoom = null;
 let pvpSendPacket = null;
@@ -457,6 +461,15 @@ function loadPvPTransport() {
     return pvpTrysteroModulePromise;
 }
 
+function getPvPTransportConfig() {
+    return {
+        appId: PVP_TRYSTERO_APP_ID,
+        relayConfig: {
+            urls: [...PVP_TRYSTERO_RELAY_URLS]
+        }
+    };
+}
+
 function setPvPRoomHandler(room, eventName, handler) {
     if (!room) throw new Error('PvP room is not initialized');
     if (typeof room[eventName] === 'function') {
@@ -494,7 +507,7 @@ function createPvPActionAdapter(action) {
 function joinPvPTransportRoom(code, sessionId) {
     return loadPvPTransport().then(mod => {
         if (sessionId !== pvpSessionId) return;
-        const room = mod.joinRoom({ appId: PVP_TRYSTERO_APP_ID }, pvpRoomId(code));
+        const room = mod.joinRoom(getPvPTransportConfig(), pvpRoomId(code));
         const actionAdapter = createPvPActionAdapter(room.makeAction('pvp'));
         pvpRoom = room;
         pvpSendPacket = actionAdapter.send;
@@ -531,7 +544,7 @@ function joinPvPTransportRoom(code, sessionId) {
             handlePvPMessage(msg);
         });
 
-        pvpLog('Комната подключена к Trystero. Ждём соперника.', 'success');
+        pvpLog('PvP транспорт инициализирован. Ждём соперника.', 'success');
         renderPvPArena();
     }).catch(err => handlePvPError(err));
 }

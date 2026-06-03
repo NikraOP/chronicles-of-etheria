@@ -55,6 +55,22 @@ function testLegacyFunctionRoomHandlers() {
     assert(joined === 'peer-c', 'function onPeerJoin handler did not run');
 }
 
+function testTransportConfigRelays() {
+    const configA = context.getPvPTransportConfig();
+    const configB = context.getPvPTransportConfig();
+    const urls = configA.relayConfig.urls;
+
+    assert(configA.appId === 'chronicles-of-etheria-pvp-v1', 'transport appId mismatch');
+    assert(Array.isArray(urls), 'relay urls must be an array');
+    assert(urls.includes('wss://tracker.webtorrent.dev'), 'webtorrent relay missing');
+    assert(urls.includes('wss://tracker.btorrent.xyz'), 'btorrent relay missing');
+    assert(!urls.some(url => url.includes('tracker.openwebtorrent.com')), 'openwebtorrent relay must be disabled');
+    assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
+
+    configA.relayConfig.urls.push('wss://mutated.example');
+    assert(!configB.relayConfig.urls.includes('wss://mutated.example'), 'relay config mutation leaked');
+}
+
 async function testObjectActionAdapter() {
     const action = {
         sent: null,
@@ -97,6 +113,7 @@ async function testArrayActionAdapter() {
 (async () => {
     testSetterRoomHandlers();
     testLegacyFunctionRoomHandlers();
+    testTransportConfigRelays();
     await testObjectActionAdapter();
     await testArrayActionAdapter();
     console.log('PvP transport adapter tests OK');
