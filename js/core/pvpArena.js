@@ -78,14 +78,39 @@ function safePvPClass(value) {
 function safePvPAvatarSrc(src) {
     let value = String(src || '').trim().replace(/\\/g, '/');
     if (value.startsWith('/')) value = value.slice(1);
+    if (value.startsWith('./')) value = value.slice(2);
     if (!value || /[<>"'`]/.test(value)) return '';
     if (/^(javascript|data|vbscript):/i.test(value)) return '';
     if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(value)) return '';
-    if (value.startsWith('png/') || value.startsWith('./') || value.startsWith('assets/')
+    if (value.startsWith('png/') || value.startsWith('assets/')
         || value.startsWith('monsters/') || value.startsWith('classes/') || value.startsWith('skins/')) {
         return value;
     }
     return '';
+}
+
+function pvpClassIcon(className) {
+    if (className === 'Воин') return '🗡️';
+    if (className === 'Маг') return '🧙';
+    return '🏹';
+}
+
+function pvpAvatarDisplayUrl(relativePath) {
+    const safe = safePvPAvatarSrc(relativePath);
+    if (!safe) return '';
+    return typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(safe) : safe;
+}
+
+function pvpAvatarImgError(img) {
+    if (!img || !img.parentElement) return;
+    img.style.display = 'none';
+    let fb = img.parentElement.querySelector('.sprite-fallback');
+    if (!fb) {
+        fb = document.createElement('span');
+        fb.className = 'sprite-fallback';
+        img.parentElement.appendChild(fb);
+    }
+    fb.style.display = 'flex';
 }
 
 function resolveEquippedSkinImgPath() {
@@ -858,12 +883,14 @@ function renderPvPPlayerCard(title, snapshot, ready) {
     if (title === 'Ты' && typeof getAvatar === 'function') {
         avatar = `<div class="pvp-avatar-live">${getAvatar()}</div>`;
     } else {
-        const remoteAvatar = title !== 'Ты' && typeof getPvPRemoteAvatarSrc === 'function'
+        const remoteRel = title !== 'Ты' && typeof getPvPRemoteAvatarSrc === 'function'
             ? getPvPRemoteAvatarSrc()
             : safeSnapshot.avatar;
-        avatar = remoteAvatar
-            ? `<img src="${escapePvPAttr(remoteAvatar)}" alt="">`
-            : '<div class="pvp-avatar-fallback">⚔️</div>';
+        const remoteDisplay = pvpAvatarDisplayUrl(remoteRel);
+        const fbIcon = pvpClassIcon(safeSnapshot.class);
+        avatar = remoteDisplay
+            ? `<img src="${escapePvPAttr(remoteDisplay)}" alt="" onerror="pvpAvatarImgError(this)"><span class="sprite-fallback pvp-avatar-fallback-inline" style="display:none">${fbIcon}</span>`
+            : `<div class="pvp-avatar-fallback">${fbIcon}</div>`;
     }
     return `
         <div class="pvp-card pvp-player-card">
@@ -1216,9 +1243,11 @@ function renderPvPCombatant(stats, side, snapshot) {
         }
         if (!safeAvatar && snapshot) safeAvatar = safePvPAvatarSrc(snapshot.avatar);
         if (!safeAvatar && stats && stats.avatar) safeAvatar = safePvPAvatarSrc(stats.avatar);
-        avatar = safeAvatar
-            ? `<div class="combatant-sprite"><img class="combatant-img player-avatar" src="${escapePvPAttr(safeAvatar)}" alt="" onerror="this.style.display='none'"></div>`
-            : `<div class="combatant-sprite"><div class="combatant-icon">${side === 'enemy' ? '🛡️' : '⚔️'}</div></div>`;
+        const displayUrl = pvpAvatarDisplayUrl(safeAvatar);
+        const fbIcon = pvpClassIcon((snapshot && snapshot.class) || (stats && stats.class));
+        avatar = displayUrl
+            ? `<div class="combatant-sprite"><img class="combatant-img player-avatar" src="${escapePvPAttr(displayUrl)}" alt="" onerror="pvpAvatarImgError(this)"><span class="sprite-fallback" style="display:none">${fbIcon}</span></div>`
+            : `<div class="combatant-sprite"><span class="sprite-fallback">${fbIcon}</span></div>`;
     }
     const manaLine = stats.class === 'Маг' && stats.maxMana > 0
         ? ` · 💎 ${escapePvPText(stats.mana)}/${escapePvPText(stats.maxMana)}`
@@ -1447,4 +1476,6 @@ window.leavePvPArena = leavePvPArena;
 window.runPvPStressTest = runPvPStressTest;
 window.getPvPPlayerSnapshot = getPvPPlayerSnapshot;
 window.safePvPAvatarSrc = safePvPAvatarSrc;
+window.pvpAvatarImgError = pvpAvatarImgError;
+window.pvpAvatarDisplayUrl = pvpAvatarDisplayUrl;
 window.getPvPRemoteAvatarSrc = getPvPRemoteAvatarSrc;

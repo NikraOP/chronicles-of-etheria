@@ -11,6 +11,8 @@ const bridgeSrc = fs.readFileSync(path.join(root, 'js/core/pvpBattleBridge.js'),
 const endSrc = fs.readFileSync(path.join(root, 'js/core/battle/battleEnd.js'), 'utf8');
 const arenaSrc = fs.readFileSync(path.join(root, 'js/core/pvpArena.js'), 'utf8');
 const damageSrc = fs.readFileSync(path.join(root, 'js/core/battle/battleDamage.js'), 'utf8');
+const playerSrc = fs.readFileSync(path.join(root, 'js/core/player.js'), 'utf8');
+const battleUiSrc = fs.readFileSync(path.join(root, 'js/core/battle/battleUI.js'), 'utf8');
 
 let failed = 0;
 function assert(cond, msg) {
@@ -29,6 +31,10 @@ assert(arenaSrc.includes('applyPvPRemoteBattleState'), 'end handler uses applyPv
 assert(arenaSrc.includes('resetPvPLobbyForRematch'), 'lobby reset helper exists');
 assert(arenaSrc.includes('resetPvPLobbyForRematch();') && arenaSrc.includes('function showPvPArena'), 'showPvPArena resets lobby');
 assert(arenaSrc.includes('resolveEquippedSkinImgPath'), 'skin path resolver exists');
+assert(playerSrc.includes('resolveGameAssetUrl'), 'resolveGameAssetUrl in player.js');
+assert(arenaSrc.includes('pvpAvatarDisplayUrl'), 'pvp avatar display URL helper');
+assert(battleUiSrc.includes('resolveGameAssetUrl'), 'battleUI resolves monster img');
+assert(arenaSrc.includes('pvpAvatarImgError'), 'pvp avatar img error fallback');
 assert(arenaSrc.includes('function renderPvPArena') && arenaSrc.includes("pvpState.status === 'ended'"), 'renderPvPArena resets after match');
 
 if (failed) process.exit(1);

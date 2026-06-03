@@ -19,7 +19,12 @@ function renderBattle(options) {
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
     const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
     const bgStyle = loc.bgColor;
-    const monsterImg = currentMonster.img ? '<img src="' + currentMonster.img + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + currentMonster.icon + '\'">' : '<span class="sprite-fallback">' + currentMonster.icon + '</span>';
+    const monsterSrc = currentMonster.img
+        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(currentMonster.img) : currentMonster.img)
+        : '';
+    const monsterImg = monsterSrc
+        ? '<img src="' + monsterSrc + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + currentMonster.icon + '\'">'
+        : '<span class="sprite-fallback">' + currentMonster.icon + '</span>';
 
     const abilitiesHTML = buildMonsterAbilitiesHTML();
     const monsterDotHTML = buildMonsterStatusEffectsHTML();

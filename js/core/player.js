@@ -313,11 +313,35 @@ function resetBaseStats() {
     if (player.health > player.maxHealth) player.health = player.maxHealth;
 }
 
+/** Базовый URL каталога игры (GitHub Pages: /repo-name/). */
+function getGameAssetBaseUrl() {
+    const origin = window.location.origin || '';
+    let path = window.location.pathname || '/';
+    if (/\.html?$/i.test(path)) {
+        path = path.slice(0, path.lastIndexOf('/') + 1);
+    } else if (!path.endsWith('/')) {
+        path += '/';
+    }
+    return origin + path;
+}
+
+/** Относительный путь из БД → абсолютный URL для &lt;img src&gt; на любом клиенте. */
+function resolveGameAssetUrl(src) {
+    const value = String(src || '').trim().replace(/\\/g, '/');
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith('/')) return (window.location.origin || '') + value;
+    const base = getGameAssetBaseUrl();
+    const rel = value.startsWith('./') ? value.slice(2) : value;
+    return base + rel;
+}
+
 function getAvatar() {
     if (player.schoolImg && player.schoolImg !== '') {
-        const imgPath = player.schoolImg;
+        const imgPath = resolveGameAssetUrl(player.schoolImg);
+        const fb = getFallbackAvatar();
         return `<img class="player-avatar" src="${imgPath}" 
-                      onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${getFallbackAvatar()}'">`;
+                      onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${fb}'">`;
     }
     return getFallbackAvatar();
 }
@@ -383,6 +407,8 @@ window.selectBranch = selectBranch;
 window.finalizeCharacter = finalizeCharacter;
 window.closeModal = closeModal;
 window.getAvatar = getAvatar;
+window.resolveGameAssetUrl = resolveGameAssetUrl;
+window.getGameAssetBaseUrl = getGameAssetBaseUrl;
 window.addMessage = addMessage;
 window.showModal = showModal;
 window.saveGame = saveGame;
