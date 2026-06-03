@@ -59,18 +59,22 @@ function testTransportConfigRelays() {
     const configA = context.getPvPTransportConfig();
     const configB = context.getPvPTransportConfig();
     const urls = configA.relayConfig.urls;
+    const configJson = JSON.stringify(configA);
 
-    assert(configA.appId === 'chronicles-of-etheria-pvp-v1', 'transport appId mismatch');
-    assert(Array.isArray(urls), 'Nostr relay urls must be an array');
-    assert(urls.length >= 6 && urls.length <= 10, 'Nostr transport needs 6-10 relays');
-    assert(urls.includes('wss://nos.lol'), 'nos.lol relay missing');
-    assert(urls.includes('wss://relay.primal.net'), 'primal relay missing');
-    assert(urls.includes('wss://relay.ditto.pub'), 'ditto relay missing');
+    assert(configA.appId === 'chronicles-of-etheria-pvp-v2-mqtt', 'transport appId mismatch');
+    assert(Array.isArray(urls), 'MQTT broker urls must be an array');
+    assert(urls.length >= 4 && urls.length <= 5, 'MQTT transport needs 4-5 brokers');
+    assert(urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX broker missing');
+    assert(urls.includes('wss://test.mosquitto.org:8081/mqtt'), 'Mosquitto broker missing');
+    assert(urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker missing');
     assert(!urls.includes('wss://relay.damus.io'), 'damus relay must be excluded');
     assert(!urls.includes('wss://eden.nostr.land'), 'eden.nostr.land must be excluded');
-    assert(!JSON.stringify(configA).includes('tracker.webtorrent.dev'), 'webtorrent relay must not be configured');
-    assert(!JSON.stringify(configA).includes('tracker.btorrent.xyz'), 'btorrent relay must not be configured');
-    assert(!JSON.stringify(configA).includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
+    assert(!configJson.includes('nos.lol'), 'nostr-only host nos.lol must not be configured');
+    assert(!configJson.includes('relay.primal.net'), 'nostr-only host relay.primal.net must not be configured');
+    assert(!configJson.includes('relay.ditto.pub'), 'nostr-only host relay.ditto.pub must not be configured');
+    assert(!configJson.includes('tracker.webtorrent.dev'), 'webtorrent relay must not be configured');
+    assert(!configJson.includes('tracker.btorrent.xyz'), 'btorrent relay must not be configured');
+    assert(!configJson.includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
 
     configA.relayConfig.urls.push('wss://mutated.example');

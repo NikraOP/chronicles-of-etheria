@@ -1,17 +1,13 @@
-// PvP Arena: Trystero/Nostr WebRTC 1v1 for static hosting.
+// PvP Arena: Trystero/MQTT WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = '../vendor/trystero-nostr.bundle.mjs';
-const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v1';
+const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=2';
+const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v2-mqtt';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
-    'wss://nos.lol',
-    'wss://relay.primal.net',
-    'wss://nostr.mom',
-    'wss://relay.ditto.pub',
-    'wss://relay.nostr.net',
-    'wss://relay.mostr.pub',
-    'wss://relay.angor.io',
-    'wss://nostr.wine'
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker-cn.emqx.io:8084/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt'
 ]);
 
 let pvpRoom = null;
@@ -416,7 +412,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP загружает Trystero локально, без 0.peerjs.com и esm.sh. Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
+            <p class="pvp-hint">PvP использует Trystero через публичные MQTT-брокеры (EMQX, Mosquitto, HiveMQ). Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
         </section>
     `;
@@ -557,7 +553,7 @@ function joinPvPTransportRoom(code, sessionId) {
             handlePvPMessage(msg);
         });
 
-        pvpLog('PvP транспорт Nostr инициализирован. Ждём соперника.', 'success');
+        pvpLog('PvP транспорт MQTT инициализирован. Ждём соперника.', 'success');
         renderPvPArena();
     }).catch(err => handlePvPError(err));
 }
