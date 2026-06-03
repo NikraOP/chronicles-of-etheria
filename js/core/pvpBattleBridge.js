@@ -123,7 +123,7 @@
             player.mana = Math.max(0, Math.min(player.maxMana, f.mana || 0));
         }
         if (window.pvpCombatEngine) {
-            window.pvpCombatEngine.applyCcFromFighterToPlayer(f);
+            window.pvpCombatEngine.syncFighterEffectsToPlayerDisplay(f);
         }
         playerSkipNextTurn = !!f.skipNextTurn;
 
@@ -507,7 +507,7 @@
         const fighter = ensureFighterShape(pvpState.match.players[localRole]);
         const eng = window.pvpCombatEngine;
 
-        if (eng) eng.applyCcFromFighterToPlayer(fighter);
+        if (eng) eng.syncFighterEffectsToPlayerDisplay(fighter);
 
         const stun = eng ? eng.findStunCc(fighter.effects) : null;
         if (stun) {
@@ -646,6 +646,15 @@
             }
         }
         const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+
+        const prevLocalHp = (typeof player !== 'undefined' && player)
+            ? player.health
+            : (pvpState.match && pvpState.match.players[localRole] && pvpState.match.players[localRole].health) || 0;
+        const prevRemoteHp = currentMonster
+            ? currentMonster.health
+            : (pvpState.match && pvpState.match.players[remoteRole] && pvpState.match.players[remoteRole].health) || 0;
+
         const safeMatch = typeof sanitizePvPMatch === 'function' ? sanitizePvPMatch(payload.match) : null;
         pvpState.match = safeMatch || payload.match;
         pvpState.match.sig = getMatchSig(pvpState.match);
@@ -665,26 +674,56 @@
             syncPvPBattleFromMatch();
         }
 
+        const localDamage = Math.max(0, prevLocalHp - (typeof player !== 'undefined' && player ? player.health : 0));
+        const remoteDamage = Math.max(0, prevRemoteHp - (currentMonster ? currentMonster.health : 0));
+
+        function finishRemoteBattleUi(forceRender) {
+            if (typeof updateBattleVitality === 'function') updateBattleVitality();
+            if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+            if (typeof updateBattleButtons === 'function') updateBattleButtons();
+            if (forceRender && typeof renderBattle === 'function') renderBattle({ force: true });
+            else if (typeof renderBattle === 'function') renderBattle();
+            if (typeof pvpLog === 'function') {
+                const mine = pvpState.match.active === localRole;
+                pvpLog(mine ? 'Ваш ход.' : 'Ход соперника.', 'info');
+            }
+            if (pvpState.match.active === localRole && !pvpState.match.finished) {
+                setTimeout(() => {
+                    if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
+                        window.pvpOnTurnStart(false);
+                    }
+                }, 60);
+            }
+        }
+
         if (pvpState.match.finished) {
             const localWon = pvpState.match.winner === localRole;
-            if (typeof renderBattle === 'function') renderBattle();
+            if (typeof renderBattle === 'function') renderBattle({ force: true });
             window.pvpFinishPvPBattle(localWon, true);
             return;
         }
 
-        if (typeof renderBattle === 'function') renderBattle();
-        if (typeof pvpLog === 'function') {
-            const mine = pvpState.match.active === localRole;
-            pvpLog(mine ? 'Ваш ход.' : 'Ход соперника.', 'info');
+        if (localDamage > 0 && typeof animateEnemyAttack === 'function' && document.getElementById('battleArena')) {
+            if (typeof updateBattleVitality === 'function') updateBattleVitality();
+            if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+            if (typeof updateBattleButtons === 'function') updateBattleButtons();
+            animateEnemyAttack(() => {
+                finishRemoteBattleUi(true);
+            }, {
+                onImpact: () => {
+                    if (typeof floatDamage === 'function') floatDamage('player', localDamage, false);
+                }
+            });
+            if (remoteDamage > 0 && typeof floatDamage === 'function') {
+                setTimeout(() => floatDamage('enemy', remoteDamage, false), 120);
+            }
+            return;
         }
 
-        if (pvpState.match.active === localRole && !pvpState.match.finished) {
-            setTimeout(() => {
-                if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
-                    window.pvpOnTurnStart(false);
-                }
-            }, 60);
+        if (remoteDamage > 0 && typeof floatDamage === 'function') {
+            floatDamage('enemy', remoteDamage, false);
         }
+        finishRemoteBattleUi(false);
     };
 
     window.leavePvPBossBattle = function () {

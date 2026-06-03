@@ -52,10 +52,22 @@ assert(
     'applyCc adds debuff_freeze chip'
 );
 
+sandbox.playerFrozenTurns = 2;
+fighter.effects = [];
+eng.applyCcFromFighterToPlayer(fighter);
+assert(sandbox.playerFrozenTurns === 0, 'applyCc clears stale playerFrozenTurns when no stun');
+
 sandbox.playerFrozenTurns = 0;
 fighter.effects = [];
 eng.syncFighterCcFromPlayer(fighter);
 assert(!fighter.effects.length, 'sync clears effects when unfrozen');
+
+fighter.effects = [{ type: 'Горение', dur: 2, val: 5 }];
+eng.syncFighterEffectsToPlayerDisplay(fighter);
+assert(
+    sandbox.player.temporaryEffects.some(e => e.isDot && e.type === 'dot_burn'),
+    'syncFighterEffects adds DoT chip for defender UI'
+);
 
 fighter.effects = [{ type: 'Горение', dur: 2, val: 5 }];
 const match = {

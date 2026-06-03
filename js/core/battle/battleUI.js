@@ -49,8 +49,7 @@ function renderBattle(options) {
     }
 
     const monsterBuffsHTML = buildMonsterBuffsHTML();
-    const playerEffectsHTML = buildPlayerDebuffsHTML();
-    const playerDotHTML = buildPlayerDotsHTML();
+    const playerStatusHTML = buildPlayerBattleStatusHTML();
 
     // Щит игрока
     let playerShieldHTML = '';
@@ -113,7 +112,7 @@ function renderBattle(options) {
                 '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
                 playerShieldHTML +
                 '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' +
-                '<div class="combatant-status-slot" data-side="player">' + playerDotHTML + debuffedStatsHTML + playerEffectsHTML + '</div>' +
+                '<div class="combatant-status-slot" data-side="player">' + playerStatusHTML + debuffedStatsHTML + '</div>' +
             '</div>' +
         '</div>' +
         '</div><div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
@@ -307,7 +306,7 @@ function updateBattleStatusPanels() {
             }
             debuffed = `<div class="debuffed-stats-hint">⚔️ ${displayAtk} · 🛡️ ${displayDef} · 💨 ${displayDodge}%</div>`;
         }
-        playerSlot.innerHTML = buildPlayerDotsHTML() + debuffed + buildPlayerDebuffsHTML();
+        playerSlot.innerHTML = buildPlayerBattleStatusHTML() + debuffed;
     }
 
     const vs = document.querySelector('.vs-badge');
@@ -825,8 +824,14 @@ function buildMonsterAbilitiesHTML() {
     return html;
 }
 
-function buildPlayerDebuffsHTML() {
-    const activePlayerEffects = player.temporaryEffects.filter(e => e.type && e.type.startsWith('debuff_'));
+const PVP_FIGHTER_CC_DEBUFF_CHIPS = new Set(['debuff_freeze', 'debuff_blind', 'debuff_slow']);
+
+function buildPlayerDebuffsHTML(skipCcChips) {
+    const activePlayerEffects = player.temporaryEffects.filter(e => {
+        if (!e.type || !e.type.startsWith('debuff_')) return false;
+        if (skipCcChips && PVP_FIGHTER_CC_DEBUFF_CHIPS.has(e.type)) return false;
+        return true;
+    });
     if (!activePlayerEffects.length) return '';
     let html = '<div class="active-effects player-debuffs">';
     for (const effect of activePlayerEffects) {
@@ -859,11 +864,12 @@ function buildPlayerDotsHTML() {
     return html;
 }
 
-function buildMonsterStatusEffectsHTML() {
-    if (!currentMonster.effects || !currentMonster.effects.length) return '';
+function buildStatusEffectsHTML(effects, extraClass) {
+    if (!effects || !effects.length) return '';
+    const slotClass = extraClass ? ' ' + extraClass : '';
 
-    let html = '<div class="active-effects monster-status-effects">';
-    for (const effect of currentMonster.effects) {
+    let html = '<div class="active-effects combatant-status-effects' + slotClass + '">';
+    for (const effect of effects) {
         const dur = effect.dur != null ? effect.dur : '?';
         const isDot = typeof isMonsterDotEffectType === 'function' && isMonsterDotEffectType(effect.type) && effect.val;
 
@@ -877,9 +883,9 @@ function buildMonsterStatusEffectsHTML() {
             const miss = effect.val ?? effect.value ?? 0;
             html += `<span class="effect-chip effect-chip-blind" title="Ослепление: ${miss}% шанс промаха, ${dur} глоб. ход.">👁️ промах ${miss}% · ${dur}</span>`;
         } else if (effect.type === 'Оглушение') {
-            html += `<span class="effect-chip effect-chip-stun" title="Оглушение: монстр пропускает ход, ${dur} глоб. ход.">💫 оглушён · ${dur}</span>`;
+            html += `<span class="effect-chip effect-chip-stun" title="Оглушение: пропуск хода, ${dur} глоб. ход.">💫 оглушён · ${dur}</span>`;
         } else if (effect.type === 'Заморозка') {
-            html += `<span class="effect-chip effect-chip-freeze" title="Заморозка: монстр не действует, ${dur} глоб. ход.">❄️ заморозка · ${dur}</span>`;
+            html += `<span class="effect-chip effect-chip-freeze" title="Заморозка: не действует, ${dur} глоб. ход.">❄️ заморозка · ${dur}</span>`;
         } else if (effect.type === 'slow' && effect.val) {
             html += `<span class="effect-chip effect-chip-slow" title="Замедление: −${effect.val}% атаки, ${dur} глоб. ход.">🐢 −${effect.val}% АТК · ${dur}</span>`;
         } else if (effect.dur > 0) {
@@ -888,6 +894,24 @@ function buildMonsterStatusEffectsHTML() {
     }
     html += '</div>';
     return html;
+}
+
+function buildMonsterStatusEffectsHTML() {
+    if (!currentMonster || !currentMonster.effects || !currentMonster.effects.length) return '';
+    return buildStatusEffectsHTML(currentMonster.effects, 'monster-status-effects');
+}
+
+/** PvP: authoritative chips from match fighter.effects; PvE: dots + debuff chips on player. */
+function buildPlayerBattleStatusHTML() {
+    if (window.pvpBattleActive && typeof getLocalPvPRole === 'function' && typeof pvpState !== 'undefined' && pvpState && pvpState.match) {
+        const localRole = getLocalPvPRole();
+        const lf = pvpState.match.players && pvpState.match.players[localRole];
+        const effects = (lf && lf.effects) ? lf.effects : [];
+        let html = buildStatusEffectsHTML(effects, 'player-status-effects');
+        html += buildPlayerDebuffsHTML(true);
+        return html;
+    }
+    return buildPlayerDotsHTML() + buildPlayerDebuffsHTML();
 }
 
 function showReflectEffect(target, value) {

@@ -68,7 +68,8 @@
                     freezeFx.dur = stun.dur;
                 }
             }
-        } else if (!(playerFrozenTurns > 0)) {
+        } else {
+            playerFrozenTurns = 0;
             player.temporaryEffects = player.temporaryEffects.filter(e => e.type !== 'debuff_freeze');
         }
 
@@ -76,6 +77,42 @@
         syncPlayerDebuffFromEffect('slow', 'debuff_slow', f.effects);
 
         if (f.skipNextTurn) playerSkipNextTurn = true;
+        else if (typeof playerSkipNextTurn !== 'undefined') playerSkipNextTurn = false;
+    }
+
+    const FIGHTER_DOT_CHIP_KEYS = {
+        'Горение': 'burn', burn: 'burn',
+        'Яд': 'poison', poison: 'poison',
+        'Кровотечение': 'bleed', bleed: 'bleed',
+        'Шок': 'shock', shock: 'shock'
+    };
+
+    const FIGHTER_DOT_ICONS = { burn: '🔥', poison: '☠️', bleed: '🩸', shock: '⚡' };
+
+    /** Mirror match fighter.effects onto player chips (DoT + CC) for UI and battle math. */
+    function syncFighterEffectsToPlayerDisplay(fighter) {
+        const f = ensureFighter(fighter);
+        if (!f || typeof player === 'undefined' || !player.temporaryEffects) return;
+
+        player.temporaryEffects = player.temporaryEffects.filter(e => !e._pvpFighterSync);
+
+        for (const effect of f.effects || []) {
+            if ((effect.dur || 0) <= 0) continue;
+            if (isDotEffectType(effect.type) && effect.val) {
+                const dotKey = FIGHTER_DOT_CHIP_KEYS[effect.type] || effect.type;
+                const dotIcons = FIGHTER_DOT_ICONS;
+                player.temporaryEffects.push({
+                    type: 'dot_' + dotKey,
+                    value: effect.val,
+                    dur: effect.dur,
+                    isDot: true,
+                    dotIcon: dotIcons[dotKey] || '☠️',
+                    _pvpFighterSync: true
+                });
+            }
+        }
+
+        applyCcFromFighterToPlayer(f);
     }
 
     /** Persist local CC globals back into match fighter (after skip or debuff). */
@@ -219,6 +256,7 @@
         ensureFighter,
         findStunCc,
         applyCcFromFighterToPlayer,
+        syncFighterEffectsToPlayerDisplay,
         syncFighterCcFromPlayer,
         tickFighterBuffs,
         tickFighterEffectsGlobal,
