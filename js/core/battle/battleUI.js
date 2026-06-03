@@ -23,7 +23,7 @@ function renderBattle(options) {
     // Способности монстра
     let abilitiesHTML = '';
     if (currentMonster.abilities && currentMonster.abilities.length > 0) {
-        abilitiesHTML = '<div class="monster-abilities" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; justify-content: center;">';
+        abilitiesHTML = '<div class="monster-abilities">';
         for (let ability of currentMonster.abilities) {
             const currentCD = monsterAbilityCooldowns[ability.name] || 0;
             const isOnCooldown = currentCD > 0;
@@ -38,46 +38,19 @@ function renderBattle(options) {
                 case 'lifesteal': abilityIcon = '🩸'; abilityColor = '#e74c3c'; break;
                 default: abilityIcon = '✨'; abilityColor = '#aaa';
             }
-            let tooltipText = `${ability.name}\nТип: ${getAbilityTypeName(ability.type)}\n`;
-            if (ability.multiplier) tooltipText += `Урон: x${ability.multiplier}\n`;
-            if (ability.value) {
-                if (ability.type === 'heal') tooltipText += `Лечение: ${ability.value}% HP\n`;
-                else if (ability.type === 'shield') tooltipText += `Щит: ${ability.value}% HP\n`;
-                else if (ability.type === 'lifesteal') tooltipText += `Вампиризм: ${ability.value}%\n`;
-                else if (ability.type === 'dot') tooltipText += `Урон: ${ability.value}% HP/ход\n`;
-                else if (ability.type === 'buff' || ability.type === 'debuff') tooltipText += `Эффект: ${ability.value}%\n`;
-            }
-            if (ability.duration) tooltipText += `Длительность: ${ability.duration} ход(а)\n`;
-            if (ability.chance) tooltipText += `Шанс: ${ability.chance}%\n`;
-            if (ability.cooldown) tooltipText += `Перезарядка: ${ability.cooldown} глоб. ход(а)\n`;
-            tooltipText += isOnCooldown ? `⏳ Осталось: ${currentCD} глоб. ход(а)` : `✅ Готово к использованию`;
-            tooltipText = tooltipText.replace(/'/g, "\\'");
-            abilitiesHTML += `<div class="ability-badge" style="display: inline-flex; align-items: center; gap: 4px; background: ${isOnCooldown ? 'rgba(50,50,50,0.8)' : 'rgba(0,0,0,0.5)'}; border: 1px solid ${isOnCooldown ? '#555' : abilityColor}; border-radius: 20px; padding: 3px 8px; font-size: 11px; cursor: help; transition: all 0.2s; opacity: ${isOnCooldown ? 0.6 : 1};" title="${tooltipText}">
-                <span style="font-size: 12px;">${abilityIcon}</span>
-                <span style="color: ${abilityColor};">${ability.name}</span>
-                ${isOnCooldown ? `<span style="color: #ffaa00; font-size: 10px;">⏳${currentCD}</span>` : ''}
-            </div>`;
+            const tooltipHtml = buildMonsterAbilityTooltip(ability, currentCD);
+            abilitiesHTML += `<div class="ability-badge monster-ability-badge${isOnCooldown ? ' on-cooldown' : ''}" style="--ability-accent:${abilityColor}">` +
+                tooltipHtml +
+                `<span class="mab-icon">${abilityIcon}</span>` +
+                `<span class="mab-name">${escapeBattleHtml(ability.name)}</span>` +
+                (isOnCooldown ? `<span class="mab-cd">⏳${currentCD}</span>` : '') +
+                '</div>';
         }
         abilitiesHTML += '</div>';
     }
 
-    // Эффекты монстра (DoT)
-    let monsterDotHTML = '';
-    if (currentMonster.effects && currentMonster.effects.length > 0) {
-        const dotEffects = currentMonster.effects.filter(e => e.val);
-        if (dotEffects.length > 0) {
-            monsterDotHTML = '<div class="active-effects" style="margin-top: 4px;">';
-            for (let effect of dotEffects) {
-                let icon = '';
-                if (effect.type === 'Яд' || effect.type === 'poison') icon = '☠️';
-                else if (effect.type === 'Горение' || effect.type === 'burn') icon = '🔥';
-                else if (effect.type === 'Шок' || effect.type === 'shock') icon = '⚡';
-                else icon = '💀';
-                monsterDotHTML += `<div class="effect-icon dot" style="display: inline-block; background: rgba(0,0,0,0.5); border-radius: 12px; padding: 2px 6px; margin-right: 4px; font-size: 10px;" title="${effect.type} - ${effect.val}% HP/ход (${effect.dur} ход.)">${icon} ${effect.val}%</div>`;
-            }
-            monsterDotHTML += '</div>';
-        }
-    }
+    // Эффекты монстра (DoT / CC)
+    let monsterDotHTML = buildMonsterStatusEffectsHTML();
 
     // ===== ЩИТ МОНСТРА =====
     let monsterShieldValue = 0;
@@ -765,6 +738,123 @@ function getAbilityTypeName(type) {
         'summon': '✨ Призыв'
     };
     return types[type] || '✨ Другое';
+}
+
+function escapeBattleHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getMonsterDebuffEffectDescription(effectKey, value) {
+    const v = value != null ? value : 0;
+    const labels = {
+        blind: 'Ослепление',
+        atk: 'Атака',
+        def: 'Защита',
+        dodge: 'Уклонение',
+        all: 'Все характеристики',
+        slow: 'Замедление',
+        freeze: 'Заморозка'
+    };
+    const name = labels[effectKey] || effectKey;
+    if (effectKey === 'blind') return `${name}: ${v}% шанс промаха`;
+    if (effectKey === 'slow') return `${name}: −${v}% к атаке`;
+    return `${name}: −${v}%`;
+}
+
+function buildMonsterAbilityTooltip(ability, currentCD) {
+    const isOnCooldown = currentCD > 0;
+    const rows = [];
+
+    if (ability.multiplier) {
+        rows.push(['Урон', `×${ability.multiplier} от атаки монстра`]);
+    }
+    if (ability.type === 'heal' && ability.value != null) {
+        rows.push(['Лечение', `${ability.value}% от макс. HP`]);
+    }
+    if (ability.type === 'shield' && ability.value != null) {
+        rows.push(['Щит', `${ability.value}% от макс. HP`]);
+    }
+    if (ability.type === 'lifesteal' && ability.value != null) {
+        rows.push(['Вампиризм', `${ability.value}% от нанесённого урона`]);
+    }
+    if (ability.type === 'dot' && ability.value != null) {
+        const dotName = ability.effect === 'shock' ? 'Шок' : (ability.effect || 'DoT');
+        rows.push(['Урон со временем', `${ability.value}% HP/ход (${dotName})`]);
+    }
+    if (ability.type === 'buff' && ability.effect && ability.value != null) {
+        let buffText = `${ability.effect}: +${ability.value}%`;
+        if (ability.effect === 'atk') buffText = `Атака: +${ability.value}%`;
+        else if (ability.effect === 'def') buffText = `Защита: +${ability.value}%`;
+        else if (ability.effect === 'all') buffText = `Все статы: +${ability.value}%`;
+        rows.push(['Усиление', buffText]);
+    }
+    if (ability.type === 'debuff' && ability.effect && ability.value != null) {
+        rows.push(['Ослабление', getMonsterDebuffEffectDescription(ability.effect, ability.value)]);
+    }
+    if (ability.duration) {
+        rows.push(['Длительность', `${ability.duration} глоб. ход(а)`]);
+    }
+    if (ability.chance != null) {
+        rows.push(['Шанс срабатывания', `${ability.chance}%`]);
+    }
+    if (ability.cooldown) {
+        rows.push(['Перезарядка', `${ability.cooldown} глоб. ход(а)`]);
+    }
+
+    let body = '';
+    if (rows.length) {
+        body = '<div class="mat-rows">' + rows.map(([k, v]) =>
+            `<div class="mat-row"><span class="mat-k">${escapeBattleHtml(k)}</span><span class="mat-v">${escapeBattleHtml(v)}</span></div>`
+        ).join('') + '</div>';
+    } else {
+        body = '<div class="mat-rows"><div class="mat-row mat-muted">Базовая атака монстра</div></div>';
+    }
+
+    const footer = isOnCooldown
+        ? `<span class="mat-status mat-cd">⏳ Перезарядка: ${currentCD} глоб. ход.</span>`
+        : '<span class="mat-status mat-ready">✓ Может сработать при атаке</span>';
+
+    return `<div class="monster-ability-tooltip" role="tooltip">` +
+        `<div class="mat-head">${escapeBattleHtml(ability.name)}</div>` +
+        `<div class="mat-type">${getAbilityTypeName(ability.type)}</div>` +
+        body +
+        `<div class="mat-foot">${footer}</div>` +
+        `</div>`;
+}
+
+function buildMonsterStatusEffectsHTML() {
+    if (!currentMonster.effects || !currentMonster.effects.length) return '';
+
+    let html = '<div class="active-effects monster-status-effects">';
+    for (const effect of currentMonster.effects) {
+        const dur = effect.dur != null ? effect.dur : '?';
+        const isDot = typeof isMonsterDotEffectType === 'function' && isMonsterDotEffectType(effect.type) && effect.val;
+
+        if (isDot) {
+            let icon = '💀';
+            if (effect.type === 'Яд' || effect.type === 'poison') icon = '☠️';
+            else if (effect.type === 'Горение' || effect.type === 'burn') icon = '🔥';
+            else if (effect.type === 'Шок' || effect.type === 'shock') icon = '⚡';
+            html += `<span class="effect-chip effect-chip-dot" title="${escapeBattleHtml(effect.type)}: ${effect.val}% HP за глоб. ход, осталось ${dur}">${icon} ${effect.val}%/ход · ${dur}</span>`;
+        } else if (effect.type === 'Ослепление') {
+            const miss = effect.val ?? effect.value ?? 0;
+            html += `<span class="effect-chip effect-chip-blind" title="Ослепление: ${miss}% шанс промаха, ${dur} глоб. ход.">👁️ промах ${miss}% · ${dur}</span>`;
+        } else if (effect.type === 'Оглушение') {
+            html += `<span class="effect-chip effect-chip-stun" title="Оглушение: монстр пропускает ход, ${dur} глоб. ход.">💫 оглушён · ${dur}</span>`;
+        } else if (effect.type === 'Заморозка') {
+            html += `<span class="effect-chip effect-chip-freeze" title="Заморозка: монстр не действует, ${dur} глоб. ход.">❄️ заморозка · ${dur}</span>`;
+        } else if (effect.type === 'slow' && effect.val) {
+            html += `<span class="effect-chip effect-chip-slow" title="Замедление: −${effect.val}% атаки, ${dur} глоб. ход.">🐢 −${effect.val}% АТК · ${dur}</span>`;
+        } else if (effect.dur > 0) {
+            html += `<span class="effect-chip" title="${escapeBattleHtml(effect.type)} · ${dur} ход.">${escapeBattleHtml(effect.type)} · ${dur}</span>`;
+        }
+    }
+    html += '</div>';
+    return html;
 }
 
 function showReflectEffect(target, value) {

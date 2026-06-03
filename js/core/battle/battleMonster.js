@@ -502,7 +502,7 @@ function monsterTurn() {
     if (currentMonster.effects && currentMonster.effects.length > 0) {
         currentMonster.effects = currentMonster.effects.filter(e => { 
             if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
-            if (e.val) {
+            if (e.val && typeof isMonsterDotEffectType === 'function' && isMonsterDotEffectType(e.type)) {
                 let dotDamage = Math.floor(currentMonster.maxHealth * e.val / 100);
                 if (e.type === 'Горение' && currentMonster.fireVuln) dotDamage = Math.floor(dotDamage * (1 + currentMonster.fireVuln / 100));
                 const appliedDamage = applyDamageToMonster(dotDamage);

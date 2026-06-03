@@ -2649,3 +2649,135 @@ body.settings-open .main-header .settings-gear-btn {
         font-size: 48px;
     }
 }
+
+/* ── Подсказки способностей монстра в бою ── */
+.monster-abilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+}
+.monster-ability-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(8, 8, 16, 0.75);
+    border: 1px solid var(--ability-accent, var(--border));
+    border-radius: var(--radius-full);
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: help;
+    transition: var(--transition-fast);
+    opacity: 1;
+}
+.monster-ability-badge:hover,
+.monster-ability-badge:focus-visible {
+    border-color: var(--ability-accent, var(--accent));
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
+    z-index: 20;
+}
+.monster-ability-badge.on-cooldown {
+    opacity: 0.55;
+    border-color: #555;
+}
+.mab-icon { font-size: 12px; line-height: 1; }
+.mab-name { color: var(--ability-accent, var(--gold-light)); font-weight: 600; }
+.mab-cd { color: #ffaa00; font-size: 10px; font-weight: 700; }
+
+.monster-ability-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    min-width: 200px;
+    max-width: min(280px, 90vw);
+    padding: 10px 12px;
+    background: linear-gradient(160deg, rgba(22, 18, 38, 0.98) 0%, rgba(10, 10, 18, 0.98) 100%);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg), var(--glow);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 100;
+    text-align: left;
+}
+.monster-ability-badge:hover .monster-ability-tooltip,
+.monster-ability-badge:focus-visible .monster-ability-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+.mat-head {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+    margin-bottom: 4px;
+}
+.mat-type {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.mat-rows { display: flex; flex-direction: column; gap: 5px; }
+.mat-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+.mat-k { color: var(--text-secondary); flex-shrink: 0; }
+.mat-v { color: var(--text-primary); font-weight: 600; text-align: right; }
+.mat-muted { color: var(--text-muted); font-style: italic; justify-content: center; }
+.mat-foot {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+}
+.mat-status.mat-ready { color: var(--green); }
+.mat-status.mat-cd { color: #ffaa00; }
+
+.monster-status-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+    justify-content: center;
+}
+.effect-chip {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+}
+.effect-chip-dot { border-color: rgba(230, 126, 34, 0.45); color: #fdba74; }
+.effect-chip-blind { border-color: rgba(168, 85, 247, 0.45); color: #d8b4fe; }
+.effect-chip-stun { border-color: rgba(241, 196, 15, 0.4); color: #fde047; }
+.effect-chip-freeze { border-color: rgba(77, 166, 255, 0.45); color: #93c5fd; }
+.effect-chip-slow { border-color: rgba(148, 163, 184, 0.45); color: #cbd5e1; }
+
+@media (max-width: 768px) {
+    .monster-ability-tooltip {
+        left: auto;
+        right: 0;
+        transform: translateY(4px);
+        max-width: min(260px, calc(100vw - 24px));
+    }
+    .monster-ability-badge:hover .monster-ability-tooltip,
+    .monster-ability-badge:focus-visible .monster-ability-tooltip {
+        transform: translateY(0);
+    }
+}

@@ -72,6 +72,17 @@ function getWordForm(number, words) {
 
 function getCappedDodge(dodge) { return Math.min(70, Math.max(0, dodge)); }
 
+/** Эффекты с val = % HP/ход (не путать с ослеплением, slow и т.д.) */
+const MONSTER_DOT_EFFECT_TYPES = new Set([
+    'Горение', 'Яд', 'Кровотечение', 'Шок', 'burn', 'poison', 'shock'
+]);
+
+function isMonsterDotEffectType(type) {
+    return MONSTER_DOT_EFFECT_TYPES.has(type);
+}
+
+window.isMonsterDotEffectType = isMonsterDotEffectType;
+
 function addBattleLog(msg, cls) {
     battleLogEntries.push({ msg: msg, cls: cls || 'info' });
     const logEl = document.getElementById('battleLog');

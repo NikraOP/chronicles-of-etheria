@@ -65,7 +65,7 @@ const ABILITIES_DB = {
                 {name:'Пекло',desc:'180% урона + горение, +20% урона огнём',lvl:25,cd:5,mana:45,dmg:180,icon:'🔥',effect:{type:'Горение',dur:2,val:12},groundBuff:'lava',value:20},
                 {name:'Великий огонь',desc:'220% урона, +120% если цель горит',lvl:30,cd:5,mana:50,dmg:220,icon:'🔴',consumeBurn:120},
                 {name:'Метеоритный дождь',desc:'180% урона всем, оглушение',lvl:35,cd:7,mana:60,dmg:180,icon:'☄️',aoe:true,effect:{type:'Оглушение',dur:1}},
-                {name:'Ядро солнца',desc:'280% урона, ослепление -40%',lvl:40,cd:7,mana:65,dmg:280,icon:'☀️',effect:{type:'Ослепление',dur:2,value:40}},
+                {name:'Ядро солнца',desc:'280% урона, ослепление 40% промах 2 хода',lvl:40,cd:7,mana:65,dmg:280,icon:'☀️',effect:{type:'Ослепление',dur:2,val:40}},
                 {name:'Огненная душа',desc:'40% маны в щит, +25% урона',lvl:45,cd:7,mana:50,icon:'🔥',manaToShield:40,buff:{atk:25,dur:3}},
                 {name:'Армагеддон',desc:'350% урона всем, -20% маны цели',lvl:50,cd:8,mana:80,dmg:350,icon:'🌋',aoe:true,burnMana:20}
             ]
