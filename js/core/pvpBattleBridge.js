@@ -28,6 +28,7 @@
         fighter.marked = !!fighter.marked;
         fighter.damageAmp = fighter.damageAmp || 1;
         fighter.dotOverTime = fighter.dotOverTime || null;
+        fighter.skipNextTurn = !!fighter.skipNextTurn;
         return fighter;
     }
 
@@ -84,6 +85,10 @@
             player.maxMana = Math.max(0, f.maxMana || player.maxMana || 0);
             player.mana = Math.max(0, Math.min(player.maxMana, f.mana || 0));
         }
+        if (window.pvpCombatEngine) {
+            window.pvpCombatEngine.applyCcFromFighterToPlayer(f);
+        }
+        playerSkipNextTurn = !!f.skipNextTurn;
     }
 
     function pullPlayerIntoFighter(fighter) {
@@ -109,6 +114,11 @@
             nextCritGuaranteed: !!nextCritGuaranteed,
             markedTarget: !!markedTarget
         };
+        if (window.pvpCombatEngine) {
+            window.pvpCombatEngine.syncFighterCcFromPlayer(f);
+        } else {
+            f.skipNextTurn = !!playerSkipNextTurn;
+        }
         return f;
     }
 
@@ -144,6 +154,9 @@
     }
 
     function getMatchSig(match) {
+        if (window.pvpCombatEngine && typeof window.pvpCombatEngine.getExtendedMatchSig === 'function') {
+            return window.pvpCombatEngine.getExtendedMatchSig(match);
+        }
         if (!match || !match.players) return '';
         const h = match.players.host;
         const g = match.players.guest;
@@ -245,6 +258,14 @@
         syncPvPBattleFromMatch();
         addBattleLog('🏟️ PvP матч начался!', 'info');
         if (typeof renderBattle === 'function') renderBattle({ force: true });
+
+        if (pvpState.match.active === localRole) {
+            setTimeout(() => {
+                if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
+                    window.pvpOnTurnStart(false);
+                }
+            }, 80);
+        }
     };
 
     function broadcastPvPBattleTurn(extraLog) {
@@ -281,6 +302,11 @@
             }
             window.pvpFinishPvPBattle(false);
             return;
+        }
+
+        if (window.pvpCombatEngine) {
+            window.pvpCombatEngine.tickBothFightersEndOfTurn(pvpState.match, localRole);
+            syncPvPBattleToMatch();
         }
 
         pvpState.match.active = remoteRole;
@@ -321,6 +347,100 @@
     window.pvpOnMonsterPhaseSkipped = function () {
         if (!window.pvpBattleActive) return;
         broadcastPvPBattleTurn();
+    };
+
+    let pvpAutoPassInFlight = false;
+
+    function pvpPassTurnFromCc(message) {
+        if (pvpAutoPassInFlight || !window.pvpBattleActive) return;
+        pvpAutoPassInFlight = true;
+        syncPvPBattleToMatch();
+        if (typeof renderBattle === 'function') renderBattle();
+        broadcastPvPBattleTurn(message || null);
+        pvpAutoPassInFlight = false;
+    }
+
+    /** PvP: start of local turn / before action — CC skip like monsterTurn stun check. */
+    window.pvpOnTurnStart = function (isActionAttempt) {
+        if (!window.pvpBattleActive || !pvpState || !pvpState.match) return true;
+
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        if (pvpState.match.finished || pvpState.match.active !== localRole) {
+            isPlayerTurn = false;
+            if (typeof updateBattleButtons === 'function') updateBattleButtons();
+            return false;
+        }
+
+        syncPvPBattleFromMatch();
+        const fighter = ensureFighterShape(pvpState.match.players[localRole]);
+        const eng = window.pvpCombatEngine;
+
+        if (eng) eng.applyCcFromFighterToPlayer(fighter);
+
+        const stun = eng ? eng.findStunCc(fighter.effects) : null;
+        if (stun) {
+            if (!isActionAttempt) {
+                const label = stun.type === 'Оглушение' ? 'оглушены' : 'заморожены';
+                addBattleLog(`❄️ Вы ${label} и пропускаете ход!`, 'info');
+                stun.dur = Math.max(0, (stun.dur || 1) - 1);
+                if (stun.dur <= 0) {
+                    fighter.effects = (fighter.effects || []).filter(e => e !== stun);
+                }
+                playerFrozenTurns = 0;
+                player.temporaryEffects = player.temporaryEffects.filter(e => e.type !== 'debuff_freeze');
+                if (eng) eng.syncFighterCcFromPlayer(fighter);
+                syncPvPBattleToMatch();
+                isPlayerTurn = false;
+                if (typeof updateBattleButtons === 'function') updateBattleButtons();
+                pvpPassTurnFromCc();
+                return false;
+            }
+            isPlayerTurn = false;
+            if (typeof updateBattleButtons === 'function') updateBattleButtons();
+            return false;
+        }
+
+        if (playerFrozenTurns > 0) {
+            if (!isActionAttempt) {
+                playerFrozenTurns--;
+                const freezeFx = player.temporaryEffects.find(e => e.type === 'debuff_freeze');
+                if (freezeFx) {
+                    freezeFx.dur--;
+                    if (freezeFx.dur <= 0) {
+                        player.temporaryEffects = player.temporaryEffects.filter(e => e !== freezeFx);
+                    }
+                }
+                if (eng) eng.syncFighterCcFromPlayer(fighter);
+                addBattleLog('❄️ Заморозка — вы не можете действовать!', 'info');
+                syncPvPBattleToMatch();
+                isPlayerTurn = false;
+                if (typeof updateBattleButtons === 'function') updateBattleButtons();
+                if (typeof renderBattle === 'function') renderBattle();
+                pvpPassTurnFromCc();
+                return false;
+            }
+            return false;
+        }
+
+        if (playerSkipNextTurn) {
+            if (!isActionAttempt) {
+                playerSkipNextTurn = false;
+                fighter.skipNextTurn = false;
+                if (eng) eng.syncFighterCcFromPlayer(fighter);
+                addBattleLog('💫 Вы пропускаете ход...', 'info');
+                syncPvPBattleToMatch();
+                isPlayerTurn = false;
+                if (typeof updateBattleButtons === 'function') updateBattleButtons();
+                if (typeof renderBattle === 'function') renderBattle();
+                pvpPassTurnFromCc();
+                return false;
+            }
+            return false;
+        }
+
+        isPlayerTurn = true;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        return true;
     };
 
     window.pvpOnDodgeFailed = function () {
@@ -386,6 +506,14 @@
         if (typeof pvpLog === 'function') {
             const mine = pvpState.match.active === localRole;
             pvpLog(mine ? 'Ваш ход.' : 'Ход соперника.', 'info');
+        }
+
+        if (pvpState.match.active === localRole && !pvpState.match.finished) {
+            setTimeout(() => {
+                if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
+                    window.pvpOnTurnStart(false);
+                }
+            }, 60);
         }
     };
 

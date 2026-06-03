@@ -107,6 +107,9 @@ function updateBattleButtons() {
 
 /** Вызывать, когда ход переходит к игроку после хода монстра */
 function onPlayerTurnStart() {
+    if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
+        return window.pvpOnTurnStart(false);
+    }
     if (playerFrozenTurns > 0) {
         playerFrozenTurns--;
         const freezeFx = player.temporaryEffects.find(e => e.type === 'debuff_freeze');
@@ -138,6 +141,9 @@ function onPlayerTurnStart() {
 /** Перед атакой/способностью игрока */
 function beginPlayerAction() {
     if (!isPlayerTurn) return false;
+    if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
+        if (!window.pvpOnTurnStart(true)) return false;
+    }
     if (playerFrozenTurns > 0) {
         onPlayerTurnStart();
         return false;
