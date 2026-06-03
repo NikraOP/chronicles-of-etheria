@@ -90,22 +90,21 @@ function renderBattle(options) {
 
     const turnNum = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
     const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena">' +
-        '<div class="arena-floor"></div><div class="arena-ring"></div>' +
-        '<div class="combatant-wrapper enemy-combatant" id="enemyWrapper">' +
+        '<div class="combatant-wrapper" id="enemyWrapper">' +
             '<div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div>' +
             '<div class="combatant-info">' +
-                '<div class="combatant-name enemy-name">' + escapeBattleHtml(currentMonster.name) + '</div>' +
+                '<div class="combatant-name" style="color:#e74c3c;">' + escapeBattleHtml(currentMonster.name) + '</div>' +
                 '<div class="health-bar"><div class="health-fill enemy-hp" style="width:' + mHp + '%;"></div></div>' +
                 monsterShieldHTML +
                 '<div class="health-text">' + currentMonster.health + '/' + currentMonster.maxHealth + '</div>' +
                 '<div class="combatant-status-slot" data-side="enemy">' + monsterBuffsHTML + monsterDotHTML + abilitiesHTML + '</div>' +
             '</div>' +
         '</div>' +
-        '<div class="vs-badge arena-vs">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
-        '<div class="combatant-wrapper player-combatant" id="playerWrapper">' +
+        '<div class="vs-badge">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
+        '<div class="combatant-wrapper" id="playerWrapper">' +
             '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
             '<div class="combatant-info">' +
-                '<div class="combatant-name player-name">' + escapeBattleHtml(player.name) + '</div>' +
+                '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
                 '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
                 playerShieldHTML +
                 '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' +
@@ -306,7 +305,7 @@ function updateBattleStatusPanels() {
         playerSlot.innerHTML = buildPlayerDotsHTML() + debuffed + buildPlayerDebuffsHTML();
     }
 
-    const vs = document.querySelector('.arena-vs, .vs-badge');
+    const vs = document.querySelector('.vs-badge');
     if (vs && typeof getGlobalBattleTurn === 'function') {
         vs.textContent = '⚔️ Ход ' + getGlobalBattleTurn() + ' ⚔️';
     }

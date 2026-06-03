@@ -496,7 +496,10 @@ function monsterTurn() {
         onPlayerTurnStart();
     }, {
         onImpact: monsterImpactFn || undefined,
-        onAnimEnd: () => syncBattleDisplayAfterAnim()
+        onAnimEnd: () => {
+            syncBattleDisplayAfterAnim();
+            if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+        }
     });
     
     if (currentMonster.effects && currentMonster.effects.length > 0) {

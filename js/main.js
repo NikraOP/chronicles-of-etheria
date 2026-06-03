@@ -11,6 +11,7 @@ function init() {
             const d = JSON.parse(saved);
             if (d && d.class) {
                 player = migrateOldSave(d);
+                if (typeof syncInventoryItemVisuals === 'function') syncInventoryItemVisuals(player);
                 
                 if (!player.professions) player.professions = {};
                 if (!player.resources) player.resources = {};

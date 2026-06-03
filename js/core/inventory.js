@@ -11,7 +11,7 @@ function showEquipment() {
     const helmetItem = player.equipment.helmet;
     const isHelmetEquipped = helmetItem !== null && helmetItem !== undefined;
     html += `<div class="equipment-slot${isHelmetEquipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${isHelmetEquipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('helmet')">
-        <div style="font-size: 28px;">⛑️</div>
+        ${isHelmetEquipped ? renderItemIconHTML(helmetItem, { size: 40, fallback: '⛑️' }) : '<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">⛑️</div>'}
         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Шлем</div>
         ${isHelmetEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[helmetItem.rarity] || '#ccc'}; margin-top: 8px;">${helmetItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
@@ -23,7 +23,7 @@ function showEquipment() {
     const chestItem = player.equipment.chest;
     const isChestEquipped = chestItem !== null && chestItem !== undefined;
     html += `<div class="equipment-slot${isChestEquipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${isChestEquipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('chest')">
-        <div style="font-size: 28px;">🛡️</div>
+        ${isChestEquipped ? renderItemIconHTML(chestItem, { size: 40, fallback: '🛡️' }) : '<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">🛡️</div>'}
         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Нагрудник</div>
         ${isChestEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[chestItem.rarity] || '#ccc'}; margin-top: 8px;">${chestItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
@@ -35,7 +35,7 @@ function showEquipment() {
     const pantsItem = player.equipment.pants;
     const isPantsEquipped = pantsItem !== null && pantsItem !== undefined;
     html += `<div class="equipment-slot${isPantsEquipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${isPantsEquipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('pants')">
-        <div style="font-size: 28px;">👖</div>
+        ${isPantsEquipped ? renderItemIconHTML(pantsItem, { size: 40, fallback: '👖' }) : '<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">👖</div>'}
         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Поножи</div>
         ${isPantsEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[pantsItem.rarity] || '#ccc'}; margin-top: 8px;">${pantsItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
@@ -47,7 +47,7 @@ function showEquipment() {
     const bootsItem = player.equipment.boots;
     const isBootsEquipped = bootsItem !== null && bootsItem !== undefined;
     html += `<div class="equipment-slot${isBootsEquipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${isBootsEquipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('boots')">
-        <div style="font-size: 28px;">👢</div>
+        ${isBootsEquipped ? renderItemIconHTML(bootsItem, { size: 40, fallback: '👢' }) : '<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">👢</div>'}
         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Сапоги</div>
         ${isBootsEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[bootsItem.rarity] || '#ccc'}; margin-top: 8px;">${bootsItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
@@ -59,7 +59,7 @@ function showEquipment() {
     const weaponItem = player.equipment.weapon;
     const isWeaponEquipped = weaponItem !== null && weaponItem !== undefined;
     html += `<div class="equipment-slot${isWeaponEquipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${isWeaponEquipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('weapon')">
-        <div style="font-size: 28px;">⚔️</div>
+        ${isWeaponEquipped ? renderItemIconHTML(weaponItem, { size: 40, fallback: '⚔️' }) : '<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">⚔️</div>'}
         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">Оружие</div>
         ${isWeaponEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[weaponItem.rarity] || '#ccc'}; margin-top: 8px;">${weaponItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
@@ -103,7 +103,7 @@ function showArmorList() {
             const isEquipped = player.equipment.helmet === item;
             html += `<div class="item-card" onclick="equipArmorByType(${i}, 'helmet', 'helmets')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
                 <div style="display: flex; gap: 12px;">
-                    <div style="font-size: 36px;">${item.icon || '⛑️'}</div>
+                    ${renderItemIconHTML(item, { size: 40, fallback: '⛑️' })}
                     <div style="flex: 1;">
                         <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
@@ -133,7 +133,7 @@ function showArmorList() {
             const isEquipped = player.equipment.chest === item;
             html += `<div class="item-card" onclick="equipArmorByType(${i}, 'chest', 'chests')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
                 <div style="display: flex; gap: 12px;">
-                    <div style="font-size: 36px;">${item.icon || '🛡️'}</div>
+                    ${renderItemIconHTML(item, { size: 40, fallback: '🛡️' })}
                     <div style="flex: 1;">
                         <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
@@ -163,7 +163,7 @@ function showArmorList() {
             const isEquipped = player.equipment.pants === item;
             html += `<div class="item-card" onclick="equipArmorByType(${i}, 'pants', 'pants')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
                 <div style="display: flex; gap: 12px;">
-                    <div style="font-size: 36px;">${item.icon || '👖'}</div>
+                    ${renderItemIconHTML(item, { size: 40, fallback: '👖' })}
                     <div style="flex: 1;">
                         <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
@@ -193,7 +193,7 @@ function showArmorList() {
             const isEquipped = player.equipment.boots === item;
             html += `<div class="item-card" onclick="equipArmorByType(${i}, 'boots', 'boots')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
                 <div style="display: flex; gap: 12px;">
-                    <div style="font-size: 36px;">${item.icon || '👢'}</div>
+                    ${renderItemIconHTML(item, { size: 40, fallback: '👢' })}
                     <div style="flex: 1;">
                         <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
@@ -272,7 +272,7 @@ function showWeaponList() {
             const isEquipped = player.equipment.weapon === item;
             html += `<div class="item-card" onclick="equipWeapon(${i})" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
                 <div style="display: flex; gap: 12px;">
-                    <div style="font-size: 36px;">${item.icon || '⚔️'}</div>
+                    ${renderItemIconHTML(item, { size: 40, fallback: '⚔️' })}
                     <div style="flex: 1;">
                         <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
@@ -410,7 +410,7 @@ function showInventory() {
         for (const item of player.inventory.helmets) {
             const isEquipped = player.equipment.helmet === item;
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">${item.icon || '⛑️'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '⛑️' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -438,7 +438,7 @@ function showInventory() {
         for (const item of player.inventory.chests) {
             const isEquipped = player.equipment.chest === item;
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">${item.icon || '🛡️'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '🛡️' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -466,7 +466,7 @@ function showInventory() {
         for (const item of player.inventory.pants) {
             const isEquipped = player.equipment.pants === item;
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">${item.icon || '👖'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '👖' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -494,7 +494,7 @@ function showInventory() {
         for (const item of player.inventory.boots) {
             const isEquipped = player.equipment.boots === item;
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">${item.icon || '👢'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '👢' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -522,7 +522,7 @@ function showInventory() {
         for (const item of player.inventory.weapons) {
             const isEquipped = player.equipment.weapon === item;
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">${item.icon || '⚔️'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '⚔️' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -551,7 +551,7 @@ function showInventory() {
             const item = player.inventory.potions[i];
             const cd = window.getItemCooldown ? window.getItemCooldown('potion') : 0;
             html += `<div class="item-card" onclick="useConsumable('potion', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
-                <div style="font-size: 28px;">${item.icon || '🧪'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '🧪' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #2ecc71;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">❤️ Восстанавливает ${item.value || 50} HP</div>
@@ -571,7 +571,7 @@ function showInventory() {
             const item = player.inventory.foods[i];
             const cd = window.getItemCooldown ? window.getItemCooldown('food') : 0;
             html += `<div class="item-card" onclick="useConsumable('food', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
-                <div style="font-size: 28px;">${item.icon || '🍖'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '🍖' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #f39c12;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">❤️ Восстанавливает ${item.value || 30} HP</div>
@@ -599,7 +599,7 @@ function showInventory() {
             else if (item.effect === 'immortal') effectText = `✨ Иммунитет на 1 ход`;
             else effectText = `✨ Усиление на 3 хода`;
             html += `<div class="item-card" onclick="useConsumable('elixir', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
-                <div style="font-size: 28px;">${item.icon || '🧪'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '💪' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #9b59b6;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">${effectText}</div>
@@ -619,7 +619,7 @@ function showInventory() {
             const item = player.inventory.scrolls[i];
             const cd = window.getItemCooldown ? window.getItemCooldown('scroll') : 0;
             html += `<div class="item-card" onclick="useConsumable('scroll', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
-                <div style="font-size: 28px;">${item.icon || '📜'}</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: '📜' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #3498db;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">✨ Улучшает оружие на +${item.value || 5}%</div>
@@ -637,7 +637,7 @@ function showInventory() {
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (const item of player.inventory.stones) {
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
-                <div style="font-size: 28px;">💎</div>
+                ${renderItemIconHTML(item, { size: 36, fallback: item.icon || '💎' })}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #f0c040;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">
@@ -658,43 +658,11 @@ function showInventory() {
     if (rk.length > 0) {
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">';
         for (const k of rk) {
-            // Получаем иконку для ресурса из RESOURCES_DB
-            let resourceIcon = '📦'; // иконка по умолчанию
-            
-            // Ищем иконку в RESOURCES_DB
-            for (let profId in RESOURCES_DB) {
-                const resources = RESOURCES_DB[profId];
-                const found = resources.find(r => r.name === k);
-                if (found && found.icon) {
-                    resourceIcon = found.icon;
-                    break;
-                }
-            }
-            
-            // Дополнительные иконки для специфических ресурсов
-            const specialIcons = {
-                'Медная руда': '🪨', 'Железная руда': '⛰️', 'Серебряная руда': '⚪', 'Золотая руда': '✨',
-                'Мифриловая руда': '💎', 'Адамантит': '🔮', 'Орихалк': '🌟',
-                'Аметист': '🟣', 'Изумруд': '🟢', 'Рубин': '🔴', 'Сапфир': '🔵', 'Алмаз': '💎', 'Звездный камень': '⭐',
-                'Паутина': '🕸️', 'Хлопок': '🌾', 'Шёлк': '🪶', 'Мифриловая нить': '✨', 'Звёздный шёлк': '🌟',
-                'Лечебная трава': '🌱', 'Синий корень': '🪻', 'Сердце леса': '🍃', 'Призрачная грива': '🍄',
-                'Огненный цветок': '🌺', 'Ледяная роза': '🥀', 'Звездная пыльца': '✨',
-                'Шкура волка': '🐺', 'Шкура медведя': '🐻', 'Шкура тигра': '🐅', 'Чешуя дракона': '🐉',
-                'Шкура йети': '🦍', 'Кожа феникса': '🔥', 'Шкура дракона': '🐲',
-                'Сосновая древесина': '🌲', 'Дубовая древесина': '🌳', 'Красное дерево': '🪵', 'Эбеновое дерево': '🖤',
-                'Серебряное дерево': '✨', 'Древесина мирового древа': '🌟',
-                'Речная форель': '🐟', 'Окунь': '🐠', 'Плотва': '🐡', 'Озерный карп': '🐠', 'Щука': '🐊',
-                'Ледяной сиг': '❄️', 'Морской окунь': '🐡', 'Палтус': '🐋', 'Красный тунец': '🐟',
-                'Глубоководный тунец': '🐋', 'Королевский лосось': '👑', 'Морской змей': '🐍',
-                'Золотая рыбка': '🥇', 'Жемчужина глубин': '⚪', 'Дракон моря': '🐉', 'Кракен': '🐙', 'Левиафан': '🐋'
-            };
-            
-            if (specialIcons[k]) {
-                resourceIcon = specialIcons[k];
-            }
+            const resDef = typeof findResourceDefByName === 'function' ? findResourceDefByName(k) : null;
+            const resForIcon = resDef || { name: k, icon: resolveItemIcon(k, '📦') };
             
             html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; align-items: center; gap: 10px;">
-                <div style="font-size: 28px;">${resourceIcon}</div>
+                ${renderItemIconHTML(resForIcon, { size: 36, fallback: resolveItemIcon(k, '📦') })}
                 <div style="flex: 1;">
                     <div style="font-weight: 600; font-size: 12px;">${k}</div>
                     <div style="font-size: 11px; color: var(--gold);">${player.resources[k]} шт.</div>
@@ -878,8 +846,9 @@ function showInventoryAndUse(type) {
         
         const cd = window.getItemCooldown ? window.getItemCooldown(type) : 0;
         
-        html += `<div class="item-card" onclick="useConsumable('${type}', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; ${cd > 0 ? 'opacity:0.5;' : ''}">
-            <div>
+        html += `<div class="item-card" onclick="useConsumable('${type}', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
+            ${renderItemIconHTML(item, { size: 36, fallback: item.icon || '📦' })}
+            <div style="flex:1">
                 <div style="font-weight: 700;">${item.name}</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">${desc}</div>
                 ${cd > 0 ? `<div style="font-size: 9px; color: #ffaa00;">⏳ КД: ${cd} хода</div>` : ''}

@@ -60,10 +60,12 @@ function completeCrafting(profId, options) {
     const { recipe, adjustedExp, bonuses } = pendingCraftData;
     
     // Создаём предмет напрямую из полей рецепта
+    const visuals = typeof pickItemVisualFields === 'function' ? pickItemVisualFields(recipe) : { icon: recipe.icon || '📦', img: recipe.img || '' };
     let newItem = {
         name: recipe.name,
         rarity: recipe.rarity || 'Обычный',
-        icon: recipe.icon || '📦',
+        icon: visuals.icon,
+        img: visuals.img,
         type: recipe.type,
         class: recipe.class || null,
         effect: recipe.effect || null,
@@ -320,7 +322,7 @@ function showCraftingRecipes(profId) {
                 
                 html += `<div class="resource-card" style="${canCraft ? 'background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;' : 'opacity:0.5;cursor:not-allowed;'}" onclick="${canCraft ? `prepareCraft('${profId}', '${r.name.replace(/'/g, "\\'")}')` : ''}">
                     <div style="display: flex; gap: 12px;">
-                        <div style="font-size: 35px;">${r.icon || '📦'}</div>
+                        ${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(r, { size: 44, fallback: r.icon || '📦' }) : '<div class="item-icon" style="font-size:35px">' + (r.icon || '📦') + '</div>'}
                         <div style="flex: 1;">
                             <div style="font-weight: 700; font-size: 14px; color: ${rarityColor};">${r.name}</div>
                             ${statsText ? `<div style="font-size: 11px; color: var(--text-secondary);">${statsText}</div>` : ''}

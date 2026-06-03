@@ -44,6 +44,7 @@ window.ITEM_COOLDOWNS = {
 };
 
 let monsterAbilityCooldowns = {};
+let specialBattleRewardClaimed = false;
 
 window.resetItemCooldowns = function() {
     window.itemCooldowns = { potion: 0, elixir: 0, food: 0, scroll: 0 };
@@ -254,38 +255,48 @@ function resetAllCooldowns() {
     }
 }
 
-function startBattle() {
-    stopGathering();
-    battleLogEntries = [];
-    resetAllCooldowns();
-    player.originalMaxHealth = null;
-    
-    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
-    const monsters = loc.monsters;
-    const mData = monsters[Math.floor(Math.random() * monsters.length)];
-    const scale = Math.max(1, 1 + ((player.level - loc.minLvl) * 0.2));
-    
+function setupBattleMonster(mData, scale, goldMult) {
     const monsterAbilities = mData.abilities || [];
-    
     currentMonster = {
-        name: mData.name, 
-        icon: mData.icon, 
+        name: mData.name,
+        icon: mData.icon,
         img: mData.img || '',
-        health: Math.floor(mData.hp * scale), 
+        health: Math.floor(mData.hp * scale),
         maxHealth: Math.floor(mData.hp * scale),
-        attack: Math.floor(mData.atk * scale), 
-        defense: Math.floor(mData.def * scale), 
+        attack: Math.floor(mData.atk * scale),
+        defense: Math.floor(mData.def * scale),
         exp: Math.floor(mData.exp * scale),
-        effects: [], 
-        goldMult: loc.goldMult,
+        effects: [],
+        goldMult: goldMult,
         marked: false,
         fireVuln: 0,
         armorShred: 0,
         abilities: monsterAbilities,
         activeBuffs: {},
         dotOverTime: null,
-        damageAmp: 1
+        damageAmp: 1,
+        source: mData.source || '',
+        rewards: mData.rewards || null,
+        returnTo: mData.returnTo || ''
     };
+}
+
+function prepareBattleState() {
+    stopGathering();
+    battleLogEntries = [];
+    resetAllCooldowns();
+    player.originalMaxHealth = null;
+    specialBattleRewardClaimed = false;
+}
+
+function startBattle() {
+    prepareBattleState();
+    
+    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
+    const monsters = loc.monsters;
+    const mData = monsters[Math.floor(Math.random() * monsters.length)];
+    const scale = Math.max(1, 1 + ((player.level - loc.minLvl) * 0.2));
+    setupBattleMonster(mData, scale, loc.goldMult);
     
     if (player.abilities) {
         const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
@@ -308,4 +319,33 @@ function startBattle() {
     window.echoActive = false;
     isPlayerTurn = true;
     renderBattle();
+}
+
+function startBattleWithMonster(monsterData, options) {
+    if (!monsterData) return false;
+    prepareBattleState();
+    const battleOptions = options || {};
+    setupBattleMonster(monsterData, battleOptions.scale || 1, battleOptions.goldMult || monsterData.goldMult || 10);
+    
+    if (player.abilities) {
+        const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
+        if (passiveCounter) {
+            player.temporaryEffects.push({
+                counterChance: passiveCounter.counterChance,
+                counterDmg: passiveCounter.counterDmg || 80,
+                dur: 999
+            });
+        }
+    }
+    
+    originalMonsterStats.attack = currentMonster.attack;
+    originalMonsterStats.defense = currentMonster.defense;
+    
+    player.health = player.maxHealth;
+    if (player.class === 'Маг') player.mana = player.maxMana;
+    player.temporaryEffects = [];
+    window.echoActive = false;
+    isPlayerTurn = true;
+    renderBattle();
+    return true;
 }

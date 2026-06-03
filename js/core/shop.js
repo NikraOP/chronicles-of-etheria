@@ -109,22 +109,27 @@ function renderSellResources() {
     let html = '<h3>💰 Продажа ресурсов</h3><div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
     const prices = { 
         'Медная руда':5, 'Железная руда':15, 'Серебряная руда':25, 'Золотая руда':40, 'Мифриловая руда':100, 'Адамантит':250, 'Орихалк':500,
-        'Аметист':30, 'Изумруд':50, 'Рубин':80, 'Сапфир':80, 'Алмаз':150, 'Звездный камень':300,
+        'Аметист':30, 'Изумруд':50, 'Рубин':80, 'Сапфир':80, 'Алмаз':150, 'Звездный камень':300, 'Камень душ':420,
         'Паутина':8, 'Хлопок':15, 'Шёлк':35, 'Мифриловая нить':80, 'Звёздный шёлк':200,
         'Лечебная трава':4, 'Синий корень':12, 'Сердце леса':20, 'Призрачная грива':35, 'Огненный цветок':90, 'Ледяная роза':80, 'Звездная пыльца':220,
-        'Шкура волка':6, 'Шкура медведя':18, 'Шкура тигра':40, 'Чешуя дракона':50, 'Шкура йети':120, 'Кожа феникса':280, 'Шкура дракона':250,
+        'Шкура волка':6, 'Шкура медведя':18, 'Шкура тигра':40, 'Чешуя дракона':50, 'Шкура йети':120, 'Кожа феникса':280, 'Шкура дракона':250, 'Шкура левиафана':500,
+        'Шкура кролика':4, 'Шкура лисы':6, 'Мелкая шкура':4, 'Кожа':15, 'Толстая кожа':25, 'Выделанная кожа':30, 'Закалённая кожа':50, 'Кожа ящера':60,
+        'Шкура элементаля':120, 'Чешуя гидры':130, 'Драконья чешуя':240, 'Шкура феникса':280, 'Кожа бехолдера':300, 'Шкура титана':500, 'Чешуя аспекта':650,
         'Сосновая древесина':4, 'Дубовая древесина':14, 'Красное дерево':40, 'Эбеновое дерево':100, 'Серебряное дерево':120, 'Древесина мирового древа':240,
         'Речная форель':5, 'Окунь':4, 'Плотва':3, 'Озерный карп':15, 'Щука':18, 'Ледяной сиг':20,
         'Морской окунь':45, 'Палтус':50, 'Красный тунец':55, 'Глубоководный тунец':110, 'Королевский лосось':130, 'Морской змей':150,
-        'Золотая рыбка':300, 'Жемчужина глубин':350, 'Дракон моря':500, 'Кракен':800, 'Левиафан':1000
+        'Золотая рыбка':300, 'Жемчужина глубин':350, 'Дракон моря':650, 'Богиня моря':950, 'Левиафан бруйна':1400
     };
     
     for (let res of resources) {
         const count = player.resources[res];
         const price = prices[res] || 10;
         const totalPrice = count * price;
+        const resIcon = typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(res, { size: 36, fallback: resolveItemIcon(res, '📦') })
+            : '<div style="font-size:28px">📦</div>';
         html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; gap: 12px;" onclick="sellResourceKeepOpen('${res}', ${price})">
-            <div style="font-size: 28px;">📦</div>
+            ${resIcon}
             <div style="flex: 1;">
                 <div style="font-weight: 600; font-size: 14px;">${res}</div>
                 <div style="font-size: 11px; color: var(--text-secondary);">${count} шт.</div>
@@ -243,10 +248,12 @@ function renderSellItems() {
         const statsText = getItemStatsDescription(item);
         const rarityColor = getRarityColor(item.rarity);
         const rarityDisplay = getRarityDisplay(item.rarity);
-        const icon = item.icon || '📦';
+        const itemIconHtml = typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(item, { size: 40, fallback: item.icon || '📦' })
+            : '<div style="font-size:36px">' + (item.icon || '📦') + '</div>';
         
         html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; gap: 12px;" onclick="sellItemKeepOpen('${item.type}', ${item.idx}, ${sellPrice})">
-            <div style="font-size: 36px;">${icon}</div>
+            ${itemIconHtml}
             <div style="flex: 1;">
                 <div style="font-weight: 700; font-size: 14px; color: ${rarityColor};">${item.name}</div>
                 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${statsText}</div>
@@ -298,7 +305,7 @@ function renderBuyItems(cat) {
         
         html += `<div class="item-card" style="${canBuy ? 'cursor: pointer;' : 'opacity:0.7;'} background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 14px;" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
             <div style="display: flex; gap: 14px;">
-                <div style="font-size: 42px;">${item.icon || (cat === 'weapons' ? '⚔️' : '🛡️')}</div>
+                ${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(item, { size: 48, fallback: item.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div style="font-size:42px">' + (item.icon || '⚔️') + '</div>'}
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 15px; color: ${rarityColor};">${item.name}</div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin: 5px 0;">${statsText}</div>
@@ -462,10 +469,12 @@ function buyItemKeepOpen(cat, name) {
     
     player.gold -= item.price;
     
+    const visuals = typeof pickItemVisualFields === 'function' ? pickItemVisualFields(item) : { icon: item.icon, img: item.img || '' };
     const newItem = { 
         name: item.name, 
         rarity: item.rarity, 
-        icon: item.icon, 
+        icon: visuals.icon, 
+        img: visuals.img,
         dmg: item.dmg || 0, 
         def: item.def || 0, 
         hp: item.hp || 0, 

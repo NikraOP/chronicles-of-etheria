@@ -646,11 +646,13 @@ function useBattleAbility(index) {
 
 function fleeBattle() {
     if (Math.random() * 100 <= 50) {
+        const returnTo = currentMonster && currentMonster.returnTo;
         addBattleLog('🏃 Сбежали!', 'info');
         currentMonster = null;
         document.getElementById('dynamicContent').innerHTML = '';
         document.body.classList.remove('low-hp');
-        renderGame();
+        if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
+        else renderGame();
     } else {
         addBattleLog('❌ Побег не удался!', 'info');
         setTimeout(() => { monsterTurn(); }, 500);

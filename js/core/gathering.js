@@ -321,8 +321,33 @@ function bindGatheringResourceGrid(profId, availableResources) {
 
         e.preventDefault();
         e.stopPropagation();
+        if (profId === 'fishing' && r.battle && r.bossId) {
+            startFishingBossBattle(r);
+            return;
+        }
         startGathering(profId, r.name, r.time, r.exp, r.tier);
     };
+}
+
+function startFishingBossBattle(resource) {
+    if (!resource || !resource.bossId) return;
+    const boss = typeof FISHING_BOSSES !== 'undefined' ? FISHING_BOSSES[resource.bossId] : null;
+    if (!boss) {
+        addMessage(`❌ Босс для "${resource.name}" не найден!`, 'error');
+        return;
+    }
+    if (isGatheringLocked) {
+        addMessage('⏳ Дождитесь окончания текущей добычи.', 'error');
+        return;
+    }
+    if (typeof startBattleWithMonster !== 'function') {
+        addMessage('❌ Боевой модуль для морских боссов не загружен.', 'error');
+        return;
+    }
+    
+    stopGathering();
+    addMessage(`🌊 Вы вытянули из глубин: ${boss.name}!`, 'warning');
+    startBattleWithMonster(boss, { goldMult: boss.goldMult || 18 });
 }
 
 function showGatheringResources(profId) {
@@ -371,11 +396,11 @@ function showGatheringResources(profId) {
         availableResources.forEach((r, idx) => {
             const locked = currentTier < r.tier;
             html += '<div class="resource-card gather-resource-card' + (locked ? ' locked' : '') + '" data-resource-idx="' + idx + '" role="button" tabindex="0">';
-            html += '<div class="resource-icon">' + r.icon + '</div>';
+            html += '<div class="resource-icon">' + (typeof renderItemIconHTML === 'function' ? renderItemIconHTML(r, { size: 48, fallback: r.icon || '📦' }) : r.icon) + '</div>';
             html += '<div class="resource-info">';
             html += '<div class="resource-name">' + r.name + '</div>';
-            html += '<div class="resource-desc">⭐ Тир ' + r.tier + '</div>';
-            html += '<div class="resource-req">⏱️ ' + r.time + ' с · +' + r.exp + ' XP</div>';
+            html += '<div class="resource-desc">⭐ Тир ' + r.tier + (r.battle ? ' · ⚔️ Бой' : '') + '</div>';
+            html += '<div class="resource-req">' + (r.battle ? '⚔️ Победите, чтобы получить тушку' : '⏱️ ' + r.time + ' с · +' + r.exp + ' XP') + '</div>';
             if (locked) html += '<div class="resource-locked">🔒 Нужен ' + r.tier + ' тир</div>';
             html += '</div></div>';
         });
@@ -393,3 +418,4 @@ window.stopGathering = stopGathering;
 window.startGathering = startGathering;
 window.showGatheringResources = showGatheringResources;
 window.claimCriticalGather = claimCriticalGather;
+window.startFishingBossBattle = startFishingBossBattle;
