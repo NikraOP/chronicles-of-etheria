@@ -196,6 +196,11 @@ function monsterBuffAlreadyActive(ability) {
         if (ability.effect === 'reflect' && b.reflect) return true;
         if (ability.effect === 'lifesteal' && b.lifesteal) return true;
         if (ability.effect === 'crit' && b.crit) return true;
+        if (ability.effect === 'all') {
+            const atkUp = b.atk && (b.atk.remainingTurns || 0) > 0;
+            const defUp = b.def && (b.def.remainingTurns || 0) > 0;
+            if (atkUp || defUp) return true;
+        }
     }
     if (ability.type === 'shield' && b.shield && b.shield.value > 0) return true;
     return false;
@@ -205,8 +210,12 @@ function canMonsterConsiderAbility(ability) {
     if (!ability) return false;
     if (monsterAbilityOnCooldown(ability)) return false;
     if (monsterBuffAlreadyActive(ability)) return false;
-    if (ability.type === 'heal' && currentMonster
-        && currentMonster.health > currentMonster.maxHealth * 0.92) return false;
+    if (ability.type === 'heal' && currentMonster) {
+        const hpRatio = currentMonster.health / currentMonster.maxHealth;
+        if (hpRatio > 0.92) return false;
+        const ctx = typeof buildMonsterAiContext === 'function' ? buildMonsterAiContext() : null;
+        if (ctx && ctx.offensivePhase && hpRatio > 0.78) return false;
+    }
     return true;
 }
 
@@ -250,6 +259,7 @@ function scoreMonsterAbility(ability, ctx) {
             else if (ctx.monsterHpRatio < 0.5) score += 75;
             else if (ctx.monsterHpRatio < 0.7) score += 25;
             else score -= 50;
+            if (ctx.offensivePhase && ctx.monsterHpRatio > 0.65) score -= 70;
             break;
         }
         case 'shield': {
@@ -259,6 +269,7 @@ function scoreMonsterAbility(ability, ctx) {
             if (!ctx.monsterHasShield) score += 30;
             else score -= 80;
             if (ctx.burstPhase && ctx.monsterHpRatio > 0.5) score -= 40;
+            if (ctx.offensivePhase && !ctx.playerThreatHigh) score -= 55;
             break;
         }
         case 'buff': {
@@ -270,6 +281,7 @@ function scoreMonsterAbility(ability, ctx) {
             } else if (ability.effect === 'atk' || ability.effect === 'all') {
                 if (ctx.offensivePhase && ctx.playerHpRatio > 0.45 && !ctx.monsterAtkBuffActive) score += 55;
                 if (ctx.playerHpRatio < 0.35) score += 25;
+                if (ctx.monsterAtkBuffActive) score -= 90;
             } else if (ability.effect === 'dodge') {
                 if (ctx.playerThreatHigh) score += 35;
             } else if (ability.effect === 'crit') {
@@ -293,11 +305,12 @@ function scoreMonsterAbility(ability, ctx) {
         case 'damage': {
             if (ctx.playerHpRatio < 0.35) score += 85;
             if (ctx.burstPhase) score += 70;
-            if (ctx.offensivePhase) score += 40;
+            if (ctx.offensivePhase) score += 55;
+            if (ctx.monsterAtkBuffActive) score += 45;
             if (ctx.playerThreatExtreme && !ctx.monsterHasShield && ctx.monsterHpRatio > 0.45) score -= 20;
             if ((ability.multiplier || 1) >= 1.45) score += 25;
             if ((ability.hits || 1) > 1) score += 20;
-            score += estimateMonsterAbilityValue(ability, ctx) / 12;
+            score += estimateMonsterAbilityValue(ability, ctx) / 10;
             break;
         }
         case 'lifesteal': {
@@ -351,7 +364,14 @@ function applyMonsterAiTurnPriorities(ranked, ctx) {
         const withoutSetup = ranked.filter(r => r !== bestSetup);
         if (bestSetup && bestSetup.score >= 50 && withoutSetup.length) {
             const topFinisher = withoutSetup.find(r => classifyMonsterAbilityRole(r.ability) === 'finisher');
-            if (!topFinisher || bestSetup.score >= topFinisher.score * 0.85) {
+            const setupAbility = bestSetup.ability;
+            const setupIsDotOrDebuff = setupAbility.type === 'dot' || setupAbility.type === 'debuff';
+            const setupIsStatBuff = setupAbility.type === 'buff'
+                && (setupAbility.effect === 'atk' || setupAbility.effect === 'all' || setupAbility.effect === 'crit');
+            if (setupIsDotOrDebuff && (!topFinisher || bestSetup.score >= topFinisher.score * 0.85)) {
+                return [bestSetup, ...withoutSetup];
+            }
+            if (setupIsStatBuff && topFinisher && bestSetup.score > topFinisher.score) {
                 return [bestSetup, ...withoutSetup];
             }
         }

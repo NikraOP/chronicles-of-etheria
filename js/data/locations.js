@@ -198,10 +198,10 @@ const LOCATIONS = [
         monsters:[
             {name:'Небесный каратель',icon:'😇',img:'./monsters/besk.png',hp:4380,atk:250,exp:420,def:46,
                 abilities:[
-                    {name:'Божественный гнев',type:'damage',multiplier:1.8,chance:50,cooldown:2},
-                    {name:'Светлый щит',type:'shield',value:45,duration:2,chance:50,cooldown:3},
-                    {name:'Исцеление',type:'heal',value:25,chance:45,cooldown:4},
-                    {name:'Благословение',type:'buff',effect:'all',value:50,duration:2,chance:40,cooldown:4}
+                    {name:'Божественный гнев',type:'damage',multiplier:1.8,chance:62,cooldown:2},
+                    {name:'Светлый щит',type:'shield',value:45,duration:2,chance:45,cooldown:3},
+                    {name:'Исцеление',type:'heal',value:25,chance:40,cooldown:4},
+                    {name:'Благословение',type:'buff',effect:'all',value:50,duration:2,chance:38,cooldown:5}
                 ]},
             {name:'Титан-разрушитель',icon:'🗿',img:'./monsters/RazryTitan.png',hp:5620,atk:200,exp:455,def:42,
                 abilities:[

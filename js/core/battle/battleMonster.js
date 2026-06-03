@@ -85,7 +85,7 @@ function useMonsterAbility(ability) {
     
     const cdKey = ability.name;
     if (monsterAbilityCooldowns[cdKey] > 0) return false;
-    if (ability.chance && Math.random() * 100 > ability.chance) return false;
+    if (ability.chance && Math.random() * 100 > ability.chance) return 'chance_fail';
     
     const enemySprite = document.getElementById('enemySprite');
     const useCastGlow = ability.type !== 'damage';
@@ -367,16 +367,23 @@ function monsterTurn() {
             : currentMonster.abilities.map(a => ({ ability: a, score: 0 }));
         const aiCtx = typeof buildMonsterAiContext === 'function' ? buildMonsterAiContext() : null;
 
+        let damageChanceMissed = false;
+        const classifyRole = typeof classifyMonsterAbilityRole === 'function'
+            ? classifyMonsterAbilityRole
+            : () => 'other';
         for (let i = 0; i < ranked.length; i++) {
             const ability = ranked[i].ability;
+            if (damageChanceMissed && classifyRole(ability) !== 'finisher') continue;
             const hint = aiCtx && typeof getMonsterTacticalHint === 'function'
                 ? getMonsterTacticalHint(ability, aiCtx)
                 : '';
             if (hint) addBattleLog(`${hint}: ${currentMonster.name} выбирает «${ability.name}»`, 'info');
-            if (useMonsterAbility(ability)) {
+            const used = useMonsterAbility(ability);
+            if (used === true) {
                 abilityUsed = true;
                 break;
             }
+            if (used === 'chance_fail' && ability.type === 'damage') damageChanceMissed = true;
         }
     }
 

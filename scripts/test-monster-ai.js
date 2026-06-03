@@ -117,4 +117,53 @@ const buffCombo = context.pickMonsterTacticalAbilities([
 ]);
 assert(buffCombo[0].ability.type === 'damage', 'with atk buff should strike');
 
+const punisherAbilities = [
+    { name: 'Божественный гнев', type: 'damage', multiplier: 1.8, chance: 62, cooldown: 2 },
+    { name: 'Светлый щит', type: 'shield', value: 45, duration: 2, chance: 45, cooldown: 3 },
+    { name: 'Исцеление', type: 'heal', value: 25, chance: 40, cooldown: 4 },
+    { name: 'Благословение', type: 'buff', effect: 'all', value: 50, duration: 2, chance: 38, cooldown: 5 }
+];
+
+context.resetMonsterAiState();
+context.currentMonster.health = 4000;
+context.currentMonster.maxHealth = 4380;
+context.currentMonster.attack = 250;
+context.getMonsterCurrentAttack = () => context.currentMonster.attack;
+context.currentMonster.activeBuffs = {};
+context.player.health = 3000;
+context.player.maxHealth = 3500;
+context.player.temporaryEffects = [];
+context.getGlobalBattleTurn = () => 2;
+
+const punisherOpen = context.pickMonsterTacticalAbilities(punisherAbilities);
+assert(punisherOpen.length > 0, 'punisher ranked list');
+assert(
+    punisherOpen[0].ability.type === 'damage',
+    'sky punisher at full HP should lead with damage, not buff'
+);
+
+context.currentMonster.activeBuffs = {
+    atk: { value: 50, remainingTurns: 2 },
+    def: { value: 50, remainingTurns: 2 }
+};
+const punisherBuffed = context.pickMonsterTacticalAbilities(punisherAbilities);
+assert(
+    !punisherBuffed.some(e => e.ability.name === 'Благословение'),
+    'blessing blocked while atk/def buff active'
+);
+assert(
+    punisherBuffed[0].ability.type === 'damage',
+    'buffed punisher should still prefer divine wrath'
+);
+
+context.currentMonster.activeBuffs = {};
+context.currentMonster.health = 2800;
+context.recordPlayerActionForMonsterAi({ name: 'Метеор', dmg: 90, cd: 5 });
+const punisherThreat = context.pickMonsterTacticalAbilities(punisherAbilities);
+const topThreat = punisherThreat[0].ability;
+assert(
+    topThreat.type === 'shield' || topThreat.type === 'damage',
+    'under player threat punisher defends or strikes, not heal spam'
+);
+
 console.log('Monster AI tests OK');
