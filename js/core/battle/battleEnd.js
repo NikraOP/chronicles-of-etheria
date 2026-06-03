@@ -46,6 +46,10 @@ function claimSpecialBattleRewards(monster) {
 }
 
 function victory() {
+    if (window.pvpBattleActive && typeof window.pvpFinishPvPBattle === 'function') {
+        window.pvpFinishPvPBattle(true);
+        return;
+    }
     if (!currentMonster) return;
     let gold = Math.floor((currentMonster.exp / 4 + player.level * 1.5) * currentMonster.goldMult / 15);
     gold = Math.floor(gold * 1.0);
@@ -82,6 +86,10 @@ function victory() {
 }
 
 function gameOver() {
+    if (window.pvpBattleActive && typeof window.pvpFinishPvPBattle === 'function') {
+        window.pvpFinishPvPBattle(false);
+        return;
+    }
     const xpLoss = Math.floor(player.experience * 0.1);
     const goldLoss = Math.floor(player.gold * 0.15);
     player.experience = Math.max(0, player.experience - xpLoss);

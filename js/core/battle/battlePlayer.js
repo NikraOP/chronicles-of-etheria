@@ -73,12 +73,26 @@ function attemptDodge() {
             nextFreeMana = true;
             addBattleLog(`🔄 Уклонение активировало бесплатный выстрел!`, 'info');
         }
+
+        if (window.pvpBattleActive) {
+            window.pvpDodgeSkipOpponent = true;
+            if (typeof window.pvpOnEndPlayerActionChain === 'function') {
+                window.pvpOnEndPlayerActionChain();
+            }
+            renderBattle();
+            return;
+        }
         
         finishMonsterPhase();
         onPlayerTurnStart();
         renderBattle();
     } else {
         addBattleLog('❌ Не удалось уклониться! Монстр атакует!', 'error');
+        if (window.pvpBattleActive && typeof window.pvpOnDodgeFailed === 'function') {
+            window.pvpOnDodgeFailed();
+            renderBattle();
+            return;
+        }
         setTimeout(() => { monsterTurn(); }, 500);
     }
     renderBattle();
@@ -645,6 +659,10 @@ function useBattleAbility(index) {
 }
 
 function fleeBattle() {
+    if (window.pvpBattleActive && typeof forfeitPvPMatch === 'function') {
+        forfeitPvPMatch();
+        return;
+    }
     if (Math.random() * 100 <= 50) {
         const returnTo = currentMonster && currentMonster.returnTo;
         addBattleLog('🏃 Сбежали!', 'info');

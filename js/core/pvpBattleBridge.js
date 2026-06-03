@@ -1,0 +1,399 @@
+// PvP battle bridge: reuse boss battle (abilities, buffs, renderBattle) with networked match state.
+(function () {
+    const PVP_COMBAT_VERSION = 2;
+
+    function cloneJson(value) {
+        return JSON.parse(JSON.stringify(value || null));
+    }
+
+    function createEmptyFighterCombat() {
+        return {
+            rageStack: 0,
+            comboAbilityId: null,
+            abilityComboStep: 0,
+            nextAttackBonus: 0,
+            nextCritGuaranteed: false,
+            markedTarget: false
+        };
+    }
+
+    function ensureFighterShape(fighter) {
+        if (!fighter) return null;
+        if (!Array.isArray(fighter.abilities)) fighter.abilities = [];
+        if (!Array.isArray(fighter.temporaryEffects)) fighter.temporaryEffects = [];
+        if (!Array.isArray(fighter.effects)) fighter.effects = [];
+        if (!fighter.activeBuffs || typeof fighter.activeBuffs !== 'object') fighter.activeBuffs = {};
+        if (!fighter.combat || typeof fighter.combat !== 'object') fighter.combat = createEmptyFighterCombat();
+        fighter.armorShred = fighter.armorShred || 0;
+        fighter.marked = !!fighter.marked;
+        fighter.damageAmp = fighter.damageAmp || 1;
+        fighter.dotOverTime = fighter.dotOverTime || null;
+        return fighter;
+    }
+
+    function rebuildAbilitiesFromDb(fighter) {
+        const school = typeof ABILITIES_DB !== 'undefined'
+            && ABILITIES_DB[fighter.class]
+            && ABILITIES_DB[fighter.class][fighter.branch];
+        if (!school || !school.abilities) return fighter.abilities || [];
+        const unlocked = school.abilities.filter(a => (fighter.level || 1) >= (a.lvl || 1));
+        const prev = fighter.abilities || [];
+        return unlocked.map(base => {
+            const saved = prev.find(p => p && p.name === base.name) || {};
+            return { ...cloneJson(base), currentCooldown: saved.currentCooldown || 0 };
+        });
+    }
+
+    function fighterToMonster(fighter, avatarSrc) {
+        const f = ensureFighterShape(cloneJson(fighter));
+        const img = avatarSrc && String(avatarSrc).trim() ? String(avatarSrc).trim() : '';
+        return {
+            name: f.name || 'Соперник',
+            icon: '⚔️',
+            img: img,
+            health: Math.max(0, f.health || 1),
+            maxHealth: Math.max(1, f.maxHealth || 1),
+            attack: f.attack || 1,
+            defense: f.defense || 0,
+            effects: cloneJson(f.effects),
+            activeBuffs: cloneJson(f.activeBuffs),
+            armorShred: f.armorShred || 0,
+            marked: !!f.marked,
+            fireVuln: f.fireVuln || 0,
+            dotOverTime: f.dotOverTime ? cloneJson(f.dotOverTime) : null,
+            damageAmp: f.damageAmp || 1,
+            abilities: [],
+            goldMult: 0,
+            exp: 0,
+            returnTo: ''
+        };
+    }
+
+    function applyPlayerFromFighter(fighter) {
+        const f = ensureFighterShape(fighter);
+        player.health = Math.max(0, Math.min(f.maxHealth, f.health));
+        player.maxHealth = Math.max(1, f.maxHealth);
+        player.attack = f.attack;
+        player.defense = f.defense;
+        player.criticalChance = f.criticalChance;
+        player.criticalDamage = f.criticalDamage;
+        player.dodgeChance = f.dodgeChance;
+        player.temporaryEffects = cloneJson(f.temporaryEffects);
+        player.abilities = cloneJson(f.abilities);
+        if (player.class === 'Маг') {
+            player.maxMana = Math.max(0, f.maxMana || player.maxMana || 0);
+            player.mana = Math.max(0, Math.min(player.maxMana, f.mana || 0));
+        }
+    }
+
+    function pullPlayerIntoFighter(fighter) {
+        const f = ensureFighterShape(fighter);
+        f.health = Math.max(0, player.health);
+        f.maxHealth = Math.max(1, player.maxHealth);
+        f.attack = player.attack;
+        f.defense = player.defense;
+        f.criticalChance = player.criticalChance;
+        f.criticalDamage = player.criticalDamage;
+        f.dodgeChance = player.dodgeChance;
+        f.temporaryEffects = cloneJson(player.temporaryEffects);
+        f.abilities = cloneJson(player.abilities);
+        if (player.class === 'Маг') {
+            f.maxMana = player.maxMana;
+            f.mana = player.mana;
+        }
+        f.combat = {
+            rageStack: typeof rageStack !== 'undefined' ? rageStack : 0,
+            comboAbilityId: typeof comboAbilityId !== 'undefined' ? comboAbilityId : null,
+            abilityComboStep: typeof abilityComboStep !== 'undefined' ? abilityComboStep : 0,
+            nextAttackBonus: typeof nextAttackBonus !== 'undefined' ? nextAttackBonus : 0,
+            nextCritGuaranteed: !!nextCritGuaranteed,
+            markedTarget: !!markedTarget
+        };
+        return f;
+    }
+
+    function pullMonsterIntoFighter(fighter) {
+        const f = ensureFighterShape(fighter);
+        if (!currentMonster) return f;
+        f.health = Math.max(0, currentMonster.health);
+        f.maxHealth = Math.max(1, currentMonster.maxHealth);
+        f.attack = currentMonster.attack;
+        f.defense = currentMonster.defense;
+        f.effects = cloneJson(currentMonster.effects);
+        f.activeBuffs = cloneJson(currentMonster.activeBuffs);
+        f.armorShred = currentMonster.armorShred || 0;
+        f.marked = !!currentMonster.marked;
+        f.fireVuln = currentMonster.fireVuln || 0;
+        f.dotOverTime = currentMonster.dotOverTime ? cloneJson(currentMonster.dotOverTime) : null;
+        f.damageAmp = currentMonster.damageAmp || 1;
+        return f;
+    }
+
+    function applyCombatGlobalsToBattle(combat) {
+        const c = combat || createEmptyFighterCombat();
+        rageStack = c.rageStack || 0;
+        comboAbilityId = c.comboAbilityId || null;
+        abilityComboStep = c.abilityComboStep || 0;
+        nextAttackBonus = c.nextAttackBonus || 0;
+        nextCritGuaranteed = !!c.nextCritGuaranteed;
+        markedTarget = !!c.markedTarget;
+    }
+
+    function applyCombatGlobalsFromFighter(fighter) {
+        applyCombatGlobalsToBattle(fighter && fighter.combat);
+    }
+
+    function getMatchSig(match) {
+        if (!match || !match.players) return '';
+        const h = match.players.host;
+        const g = match.players.guest;
+        return [
+            match.turn,
+            match.active,
+            match.finished ? 1 : 0,
+            h.health,
+            g.health,
+            h.mana,
+            g.mana
+        ].join('|');
+    }
+
+    function prepareFightersForMatch(hostSnap, guestSnap) {
+        const host = ensureFighterShape(cloneJson(hostSnap));
+        const guest = ensureFighterShape(cloneJson(guestSnap));
+        host.abilities = rebuildAbilitiesFromDb(host);
+        guest.abilities = rebuildAbilitiesFromDb(guest);
+        host.health = Math.max(1, host.maxHealth || host.health || 1);
+        guest.health = Math.max(1, guest.maxHealth || guest.health || 1);
+        if (host.class === 'Маг' && host.maxMana > 0) host.mana = Math.min(host.maxMana, host.mana || host.maxMana);
+        if (guest.class === 'Маг' && guest.maxMana > 0) guest.mana = Math.min(guest.maxMana, guest.mana || guest.maxMana);
+        return { host, guest };
+    }
+
+    window.buildPvPCombatMatch = function (hostSnap, guestSnap) {
+        const fighters = prepareFightersForMatch(hostSnap, guestSnap);
+        const match = {
+            v: PVP_COMBAT_VERSION,
+            turn: 1,
+            active: 'host',
+            finished: false,
+            winner: '',
+            players: fighters,
+            sig: ''
+        };
+        match.sig = getMatchSig(match);
+        return match;
+    };
+
+    window.syncPvPBattleFromMatch = function () {
+        if (!window.pvpBattleActive || !pvpState || !pvpState.match) return;
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+        const localFighter = ensureFighterShape(pvpState.match.players[localRole]);
+        const remoteFighter = ensureFighterShape(pvpState.match.players[remoteRole]);
+        const remoteAvatar = pvpState.remote && pvpState.remote.avatar ? pvpState.remote.avatar : '';
+
+        applyPlayerFromFighter(localFighter);
+        applyCombatGlobalsFromFighter(localFighter);
+
+        currentMonster = fighterToMonster(remoteFighter, remoteAvatar);
+        originalMonsterStats.attack = currentMonster.attack;
+        originalMonsterStats.defense = currentMonster.defense;
+
+        globalBattleTurn = pvpState.match.turn || 1;
+        isPlayerTurn = !pvpState.match.finished && pvpState.match.active === localRole;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+    };
+
+    window.syncPvPBattleToMatch = function () {
+        if (!window.pvpBattleActive || !pvpState || !pvpState.match) return;
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+        pvpState.match.players[localRole] = pullPlayerIntoFighter(pvpState.match.players[localRole]);
+        pvpState.match.players[remoteRole] = pullMonsterIntoFighter(pvpState.match.players[remoteRole]);
+        pvpState.match.sig = getMatchSig(pvpState.match);
+    };
+
+    window.enterPvPBossBattle = function () {
+        if (!pvpState || !pvpState.match) return;
+        window.pvpBattleActive = true;
+        window.pvpBattleSig = pvpState.match.sig || getMatchSig(pvpState.match);
+        window.pvpDodgeSkipOpponent = false;
+
+        if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
+        battleLogEntries = [];
+        window.echoActive = false;
+        playerSkipNextTurn = false;
+        playerFrozenTurns = 0;
+
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        pvpState.match.players[localRole].abilities = rebuildAbilitiesFromDb(
+            pvpState.match.players[localRole]
+        );
+
+        if (player.abilities) {
+            const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
+            if (passiveCounter && !player.temporaryEffects.some(e => e.counterChance)) {
+                player.temporaryEffects.push({
+                    counterChance: passiveCounter.counterChance,
+                    counterDmg: passiveCounter.counterDmg || 80,
+                    dur: 999
+                });
+            }
+        }
+
+        syncPvPBattleFromMatch();
+        addBattleLog('🏟️ PvP матч начался!', 'info');
+        if (typeof renderBattle === 'function') renderBattle({ force: true });
+    };
+
+    function broadcastPvPBattleTurn(extraLog) {
+        syncPvPBattleToMatch();
+        const prevSig = window.pvpBattleSig || getMatchSig(pvpState.match);
+        const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+        const remoteRole = localRole === 'host' ? 'guest' : 'host';
+
+        if (pvpState.match.players[remoteRole].health <= 0) {
+            pvpState.match.finished = true;
+            pvpState.match.winner = localRole;
+            pvpState.match.active = localRole;
+            pvpState.match.sig = getMatchSig(pvpState.match);
+            if (typeof sendPvPMessage === 'function') {
+                sendPvPMessage('turn', {
+                    match: cloneJson(pvpState.match),
+                    prevSig,
+                    log: (battleLogEntries || []).slice(-12)
+                });
+            }
+            window.pvpFinishPvPBattle(true);
+            return;
+        }
+        if (player.health <= 0) {
+            pvpState.match.finished = true;
+            pvpState.match.winner = remoteRole;
+            pvpState.match.sig = getMatchSig(pvpState.match);
+            if (typeof sendPvPMessage === 'function') {
+                sendPvPMessage('turn', {
+                    match: cloneJson(pvpState.match),
+                    prevSig,
+                    log: (battleLogEntries || []).slice(-12)
+                });
+            }
+            window.pvpFinishPvPBattle(false);
+            return;
+        }
+
+        pvpState.match.active = remoteRole;
+        pvpState.match.turn = (pvpState.match.turn || 1) + 1;
+        pvpState.match.sig = getMatchSig(pvpState.match);
+        window.pvpBattleSig = pvpState.match.sig;
+
+        if (extraLog) addBattleLog(extraLog, 'info');
+        if (typeof sendPvPMessage === 'function') {
+            sendPvPMessage('turn', {
+                match: cloneJson(pvpState.match),
+                prevSig,
+                log: (battleLogEntries || []).slice(-12)
+            });
+        }
+
+        isPlayerTurn = false;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        if (typeof renderBattle === 'function') renderBattle();
+        if (typeof pvpLog === 'function') pvpLog('Ход передан сопернику.', 'info');
+    }
+
+    window.pvpOnEndPlayerActionChain = function () {
+        if (!window.pvpBattleActive) return;
+        if (window.pvpDodgeSkipOpponent) {
+            window.pvpDodgeSkipOpponent = false;
+            if (typeof endGlobalTurn === 'function') endGlobalTurn();
+            syncPvPBattleToMatch();
+            isPlayerTurn = true;
+            if (typeof onPlayerTurnStart === 'function') onPlayerTurnStart();
+            if (typeof renderBattle === 'function') renderBattle();
+            return;
+        }
+        if (typeof endGlobalTurn === 'function') endGlobalTurn();
+        broadcastPvPBattleTurn();
+    };
+
+    window.pvpOnMonsterPhaseSkipped = function () {
+        if (!window.pvpBattleActive) return;
+        broadcastPvPBattleTurn();
+    };
+
+    window.pvpOnDodgeFailed = function () {
+        if (!window.pvpBattleActive) return;
+        broadcastPvPBattleTurn('❌ Уклонение не удалось — ход соперника.');
+    };
+
+    window.pvpFinishPvPBattle = function (localWon) {
+        if (!window.pvpBattleActive) return;
+        window.pvpBattleActive = false;
+        window.pvpDodgeSkipOpponent = false;
+        const name = localWon ? 'Победа в PvP!' : 'Поражение в PvP';
+        const icon = localWon ? '🏆' : '💀';
+        const msg = localWon ? 'Вы победили в PvP арене!' : 'Вы проиграли PvP матч.';
+        currentMonster = null;
+        isPlayerTurn = true;
+        window._strikeAnimActive = false;
+        pvpState.status = 'ended';
+        if (typeof pvpLog === 'function') pvpLog(localWon ? 'Победа!' : 'Поражение.', localWon ? 'success' : 'error');
+        if (typeof showModal === 'function') {
+            showModal(name, icon, msg, 'В лобби', () => {
+                if (typeof showPvPArena === 'function') showPvPArena();
+            });
+        } else if (typeof showPvPArena === 'function') {
+            showPvPArena();
+        }
+    };
+
+    window.applyPvPRemoteBattleState = function (payload) {
+        if (!payload || !payload.match || !pvpState) return;
+        const prevSig = window.pvpBattleSig || (pvpState.match && pvpState.match.sig) || '';
+        if (payload.prevSig && payload.prevSig !== prevSig) {
+            if (typeof pvpLog === 'function') {
+                pvpLog('Рассинхронизация хода — принят пакет соперника.', 'error');
+            }
+        }
+        pvpState.match = payload.match;
+        pvpState.match.sig = getMatchSig(pvpState.match);
+        window.pvpBattleSig = pvpState.match.sig;
+
+        if (Array.isArray(payload.log) && payload.log.length) {
+            payload.log.forEach(entry => {
+                if (!entry || !entry.msg) return;
+                const exists = battleLogEntries.some(e => e.msg === entry.msg);
+                if (!exists) battleLogEntries.push({ msg: entry.msg, cls: entry.cls || 'info' });
+            });
+        }
+
+        if (!window.pvpBattleActive && pvpState.status === 'battle') {
+            enterPvPBossBattle();
+        } else {
+            syncPvPBattleFromMatch();
+        }
+
+        if (pvpState.match.finished) {
+            const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+            const localWon = pvpState.match.winner === localRole;
+            window.pvpFinishPvPBattle(localWon);
+            return;
+        }
+
+        if (typeof renderBattle === 'function') renderBattle();
+        if (typeof pvpLog === 'function') {
+            const mine = pvpState.match.active === localRole;
+            pvpLog(mine ? 'Ваш ход.' : 'Ход соперника.', 'info');
+        }
+    };
+
+    window.leavePvPBossBattle = function () {
+        window.pvpBattleActive = false;
+        window.pvpDodgeSkipOpponent = false;
+        currentMonster = null;
+    };
+
+    window.getPvPMatchSig = getMatchSig;
+})();

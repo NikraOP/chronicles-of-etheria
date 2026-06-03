@@ -1,7 +1,7 @@
 // PvP Arena: Trystero/MQTT WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
-const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=6';
+const PVP_VERSION = 2;
+const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=7';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v2-mqtt';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
     'wss://broker.emqx.io:8084/mqtt',
@@ -87,41 +87,27 @@ function safePvPAvatarSrc(src) {
 
 function sanitizePvPAbility(ability) {
     if (!ability || typeof ability !== 'object') return null;
-    const name = String(ability.name || '').slice(0, 40);
-    if (!name) return null;
-    const safe = {
-        name,
-        desc: String(ability.desc || '').slice(0, 140),
-        icon: String(ability.icon || '✨').slice(0, 8),
-        lvl: clampPvPNumber(ability.lvl, 1, 999, 1),
-        cd: clampPvPNumber(ability.cd, 0, 99, 0),
-        mana: clampPvPNumber(ability.mana, 0, 9999, 0),
-        dmg: clampPvPNumber(ability.dmg, 0, 9999, 0),
-        passive: !!ability.passive,
-        heal: clampPvPNumber(ability.heal, 0, 100, 0),
-        lifesteal: clampPvPNumber(ability.lifesteal, 0, 100, 0),
-        currentCooldown: clampPvPNumber(ability.currentCooldown, 0, 99, 0),
-        guaranteedCrit: !!ability.guaranteedCrit,
-        ignoreDef: clampPvPNumber(ability.ignoreDef, 0, 100, 0),
-        comboStep: clampPvPNumber(ability.comboStep, 0, 6, 0),
-        comboId: String(ability.comboId || '').slice(0, 40)
-    };
-    if (Array.isArray(ability.combo) && ability.combo.length) {
-        safe.combo = ability.combo.slice(0, 6).map(v => clampPvPNumber(v, 0, 999, 0));
-    }
-    if (ability.multiHit && typeof ability.multiHit === 'object') {
-        safe.multiHit = {
-            hits: clampPvPNumber(ability.multiHit.hits, 1, 8, 1),
-            baseDmg: clampPvPNumber(ability.multiHit.baseDmg, 0, 999, 0),
-            increment: clampPvPNumber(ability.multiHit.increment, 0, 100, 0)
-        };
-    }
+    const safe = JSON.parse(JSON.stringify(ability));
+    safe.name = String(safe.name || '').slice(0, 40);
+    if (!safe.name) return null;
+    safe.desc = String(safe.desc || '').slice(0, 200);
+    safe.icon = String(safe.icon || '✨').slice(0, 8);
+    safe.lvl = clampPvPNumber(safe.lvl, 1, 999, safe.lvl || 1);
+    safe.cd = clampPvPNumber(safe.cd, 0, 99, safe.cd || 0);
+    safe.mana = clampPvPNumber(safe.mana, 0, 9999, safe.mana || 0);
+    safe.dmg = clampPvPNumber(safe.dmg, 0, 9999, safe.dmg || 0);
+    safe.heal = clampPvPNumber(safe.heal, 0, 100, safe.heal || 0);
+    safe.lifesteal = clampPvPNumber(safe.lifesteal, 0, 100, safe.lifesteal || 0);
+    safe.currentCooldown = clampPvPNumber(safe.currentCooldown, 0, 99, safe.currentCooldown || 0);
+    safe.ignoreDef = clampPvPNumber(safe.ignoreDef, 0, 100, safe.ignoreDef || 0);
+    safe.passive = !!safe.passive;
+    safe.guaranteedCrit = !!safe.guaranteedCrit;
     return safe;
 }
 
 function serializePvPAbilitiesFromPlayer() {
     if (!player || !Array.isArray(player.abilities)) return [];
-    return player.abilities.map(sanitizePvPAbility).filter(Boolean);
+    return player.abilities.map(a => sanitizePvPAbility(JSON.parse(JSON.stringify(a)))).filter(Boolean);
 }
 
 function clampPvPNumber(value, min, max, fallback) {
@@ -149,7 +135,17 @@ function sanitizePvPSnapshot(snapshot) {
         maxMana: clampPvPNumber(snapshot.maxMana, 0, 99999, 0),
         abilities: Array.isArray(snapshot.abilities)
             ? snapshot.abilities.map(sanitizePvPAbility).filter(Boolean)
-            : []
+            : [],
+        temporaryEffects: Array.isArray(snapshot.temporaryEffects)
+            ? snapshot.temporaryEffects.slice(0, 24)
+            : [],
+        effects: Array.isArray(snapshot.effects) ? snapshot.effects.slice(0, 24) : [],
+        activeBuffs: snapshot.activeBuffs && typeof snapshot.activeBuffs === 'object'
+            ? JSON.parse(JSON.stringify(snapshot.activeBuffs))
+            : {},
+        armorShred: clampPvPNumber(snapshot.armorShred, 0, 100, 0),
+        marked: !!snapshot.marked,
+        damageAmp: Number(snapshot.damageAmp) || 1
     };
 }
 
@@ -191,6 +187,10 @@ function clonePvPStats(snapshot) {
     s.guard = false;
     s.dodgeActive = false;
     s.abilities = (s.abilities || []).map(a => ({ ...a, currentCooldown: a.currentCooldown || 0 }));
+    s.temporaryEffects = JSON.parse(JSON.stringify(s.temporaryEffects || []));
+    s.effects = JSON.parse(JSON.stringify(s.effects || []));
+    s.activeBuffs = JSON.parse(JSON.stringify(s.activeBuffs || {}));
+    s.combat = s.combat && typeof s.combat === 'object' ? JSON.parse(JSON.stringify(s.combat)) : {};
     if (s.class === 'Маг' && s.maxMana > 0) s.mana = Math.min(s.mana || s.maxMana, s.maxMana);
     return s;
 }
@@ -469,6 +469,7 @@ function validatePvPMatchShape(match) {
     if (!match.players || !match.players.host || !match.players.guest) return false;
     if (!['host', 'guest'].includes(match.active)) return false;
     if (!Number.isFinite(Number(match.turn)) || Number(match.turn) < 1) return false;
+    if (match.v >= 2 || match.sig) return true;
     if (match.hash !== hashPvPMatch(match)) return false;
     return true;
 }
@@ -488,14 +489,36 @@ function sanitizePvPMatch(match) {
     guest.mana = clampPvPNumber(match.players.guest.mana, 0, guest.maxMana || 99999, guest.mana || 0);
     host.abilities = (match.players.host.abilities || []).map(sanitizePvPAbility).filter(Boolean);
     guest.abilities = (match.players.guest.abilities || []).map(sanitizePvPAbility).filter(Boolean);
+    host.temporaryEffects = Array.isArray(match.players.host.temporaryEffects)
+        ? match.players.host.temporaryEffects.slice(0, 32) : [];
+    guest.temporaryEffects = Array.isArray(match.players.guest.temporaryEffects)
+        ? match.players.guest.temporaryEffects.slice(0, 32) : [];
+    host.effects = Array.isArray(match.players.host.effects) ? match.players.host.effects.slice(0, 32) : [];
+    guest.effects = Array.isArray(match.players.guest.effects) ? match.players.guest.effects.slice(0, 32) : [];
+    host.activeBuffs = match.players.host.activeBuffs && typeof match.players.host.activeBuffs === 'object'
+        ? JSON.parse(JSON.stringify(match.players.host.activeBuffs)) : {};
+    guest.activeBuffs = match.players.guest.activeBuffs && typeof match.players.guest.activeBuffs === 'object'
+        ? JSON.parse(JSON.stringify(match.players.guest.activeBuffs)) : {};
+    host.armorShred = clampPvPNumber(match.players.host.armorShred, 0, 100, 0);
+    guest.armorShred = clampPvPNumber(match.players.guest.armorShred, 0, 100, 0);
+    host.combat = match.players.host.combat && typeof match.players.host.combat === 'object'
+        ? JSON.parse(JSON.stringify(match.players.host.combat)) : {};
+    guest.combat = match.players.guest.combat && typeof match.players.guest.combat === 'object'
+        ? JSON.parse(JSON.stringify(match.players.guest.combat)) : {};
     const safe = {
+        v: match.v >= 2 ? 2 : 1,
         turn: clampPvPNumber(match.turn, 1, 999999, 1),
         active: match.active === 'guest' ? 'guest' : 'host',
         finished: !!match.finished,
         winner: ['host', 'guest'].includes(match.winner) ? match.winner : '',
         players: { host, guest },
-        hash: ''
+        hash: '',
+        sig: ''
     };
+    if (safe.v >= 2 && typeof getPvPMatchSig === 'function') {
+        safe.sig = getPvPMatchSig(safe);
+        return safe;
+    }
     safe.hash = hashPvPMatch(safe);
     return safe.hash === match.hash ? safe : null;
 }
@@ -523,6 +546,9 @@ function matchUsesNegotiatedSnapshots(match) {
 }
 
 function buildInitialPvPMatch(hostSnapshot, guestSnapshot) {
+    if (typeof buildPvPCombatMatch === 'function') {
+        return buildPvPCombatMatch(hostSnapshot, guestSnapshot);
+    }
     const match = {
         turn: 1,
         active: 'host',
@@ -532,9 +558,8 @@ function buildInitialPvPMatch(hostSnapshot, guestSnapshot) {
             host: clonePvPStats(hostSnapshot),
             guest: clonePvPStats(guestSnapshot)
         },
-        hash: ''
+        sig: ''
     };
-    match.hash = hashPvPMatch(match);
     return match;
 }
 
@@ -994,15 +1019,19 @@ function handlePvPMessage(msg) {
         pvpState.match = safeMatch;
         pvpState.status = 'battle';
         pvpLog('Матч начался.', 'success');
-        renderPvPBattle();
+        if (typeof enterPvPBossBattle === 'function') enterPvPBossBattle();
+        else renderPvPBattle();
     } else if (msg.type === 'turn') {
-        applyPvPRemoteAction(payload);
+        if (typeof applyPvPRemoteBattleState === 'function') applyPvPRemoteBattleState(payload);
+        else applyPvPRemoteAction(payload);
     } else if (msg.type === 'forfeit') {
         endPvPMatch('opponent_forfeit');
     } else if (msg.type === 'end') {
         if (payload.match && pvpState.match) {
             const safeMatch = sanitizePvPMatch(payload.match);
-            if (safeMatch && safeMatch.finished && safeMatch.hash === pvpState.match.hash) {
+            const sigOk = safeMatch.sig && pvpState.match.sig && safeMatch.sig === pvpState.match.sig;
+            const hashOk = safeMatch.hash && safeMatch.hash === pvpState.match.hash;
+            if (safeMatch && safeMatch.finished && (sigOk || hashOk)) {
                 pvpState.match = safeMatch;
                 pvpState.status = 'ended';
                 pvpLog(payload.message || 'Матч завершён.', 'info');
@@ -1031,11 +1060,18 @@ function togglePvPReady() {
 function hostStartPvPMatch() {
     if (pvpState.role !== 'host' || !pvpState.localReady || !pvpState.remoteReady || !pvpState.remote) return;
     pvpState.local = getPvPPlayerSnapshot();
+    if (pvpState.local) pvpState.local.health = pvpState.local.maxHealth;
+    if (pvpState.remote) pvpState.remote.health = pvpState.remote.maxHealth;
     pvpState.match = buildInitialPvPMatch(pvpState.local, pvpState.remote);
+    if (pvpState.match && pvpState.match.players) {
+        pvpState.match.players.host.health = pvpState.match.players.host.maxHealth;
+        pvpState.match.players.guest.health = pvpState.match.players.guest.maxHealth;
+    }
     pvpState.status = 'battle';
     sendPvPMessage('start', { match: pvpState.match });
     pvpLog('Матч начался.', 'success');
-    renderPvPBattle();
+    if (typeof enterPvPBossBattle === 'function') enterPvPBossBattle();
+    else renderPvPBattle();
 }
 
 function getLocalPvPRole() {
@@ -1047,6 +1083,16 @@ function getRemotePvPRole() {
 }
 
 function renderPvPBattle() {
+    if (pvpState.status === 'battle' && pvpState.match && typeof renderBattle === 'function') {
+        if (window.pvpBattleActive && typeof syncPvPBattleFromMatch === 'function') {
+            syncPvPBattleFromMatch();
+        } else if (typeof enterPvPBossBattle === 'function') {
+            enterPvPBossBattle();
+            return;
+        }
+        renderBattle({ force: true });
+        return;
+    }
     const el = document.getElementById('dynamicContent');
     if (!el || !pvpState.match) {
         renderPvPArena();
@@ -1237,6 +1283,7 @@ function appendPvPActionLog(result, localAction) {
 
 function forfeitPvPMatch() {
     if (!pvpState.match || pvpState.match.finished) return;
+    if (typeof leavePvPBossBattle === 'function') leavePvPBossBattle();
     pvpState.match.finished = true;
     pvpState.match.winner = getRemotePvPRole();
     pvpState.status = 'ended';
@@ -1267,6 +1314,7 @@ function copyPvPCode() {
 }
 
 function leavePvPArena() {
+    if (typeof leavePvPBossBattle === 'function') leavePvPBossBattle();
     resetPvPConnection();
     pvpState = createEmptyPvPState();
     pvpLog('PvP соединение закрыто.', 'info');

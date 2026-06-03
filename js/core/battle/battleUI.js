@@ -643,6 +643,7 @@ function showShieldEffect(target, value) {
 }
 
 function showItemCooldownsInBattle() {
+    if (window.pvpBattleActive) return '';
     if (!player.inventory) return '';
     
     const hasPotions = (player.inventory.potions && player.inventory.potions.length > 0) ||

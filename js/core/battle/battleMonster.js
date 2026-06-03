@@ -297,6 +297,7 @@ function useMonsterAbility(ability) {
 }
 
 function monsterTurn() {
+    if (window.pvpBattleActive) return;
     if (!currentMonster || currentMonster.health <= 0) { 
         isPlayerTurn = true; 
         updateBattleButtons(); 

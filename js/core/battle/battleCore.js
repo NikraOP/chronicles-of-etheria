@@ -179,6 +179,10 @@ function tickPlayerDebuffsAfterPlayerTurn() {
 
 function endPlayerActionChain() {
     tickPlayerDebuffsAfterPlayerTurn();
+    if (window.pvpBattleActive && typeof window.pvpOnEndPlayerActionChain === 'function') {
+        window.pvpOnEndPlayerActionChain();
+        return;
+    }
     setTimeout(() => monsterTurn(), 60);
 }
 
@@ -202,6 +206,10 @@ function endGlobalTurn() {
 
 function finishMonsterPhase() {
     endGlobalTurn();
+    if (window.pvpBattleActive) {
+        if (typeof saveGame === 'function' && !window.pvpBattleActive) saveGame();
+        return;
+    }
     if (typeof saveGame === 'function') saveGame();
 }
 
