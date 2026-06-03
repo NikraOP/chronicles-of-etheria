@@ -1,0 +1,12 @@
+# Cursor IDE — только локально, не в репозиторий / GitHub Pages
+.cursor/
+AGENTS.md
+.cursorignore
+.cursorrules
+
+# Прочее локальное
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
