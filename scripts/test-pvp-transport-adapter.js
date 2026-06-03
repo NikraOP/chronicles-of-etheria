@@ -73,25 +73,19 @@ function testLegacyFunctionRoomHandlers() {
 function testTransportConfigRelays() {
     const configA = context.getPvPTransportConfig();
     const configB = context.getPvPTransportConfig();
-    const urls = configA.relayConfig.urls;
+    const relayOnly = context.getPvPTransportConfig(null, { iceTransportPolicy: 'relay' });
     const configJson = JSON.stringify(configA);
 
-    assert(configA.appId === 'chronicles-of-etheria-pvp-v2-mqtt', 'transport appId mismatch');
-    assert(Array.isArray(urls), 'MQTT broker urls must be an array');
-    assert(urls.length >= 4 && urls.length <= 5, 'MQTT transport needs 4-5 brokers');
-    assert(urls[0] === 'wss://broker.emqx.io:443/mqtt', 'EMQX 443 broker must be first');
-    assert(urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX 8084 broker missing');
-    assert(!urls.includes('wss://test.mosquitto.org:8081/mqtt'), 'unreliable Mosquitto broker must be excluded');
-    assert(urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker missing');
-    assert(configA.relayConfig.redundancy === 2, 'MQTT redundancy must be 2 to limit parallel WebSockets');
-    assert(!urls.includes('wss://relay.damus.io'), 'damus relay must be excluded');
-    assert(!configJson.includes('nos.lol'), 'nostr-only host nos.lol must not be configured');
-    assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
+    assert(configA.appId === 'chronicles-of-etheria-pvp-v3-nostr', 'transport appId mismatch');
+    assert(configA.relayConfig && configA.relayConfig.redundancy === 4, 'Nostr relay redundancy must be 4');
+    assert(!configA.relayConfig.urls, 'Nostr uses default relay list, not MQTT urls');
+    assert(!configJson.includes('broker.emqx.io'), 'MQTT EMQX must not be configured');
+    assert(relayOnly.rtcConfig.iceTransportPolicy === 'relay', 'relay-only join opts must set iceTransportPolicy');
 
     const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
     assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
     assert(configA.rtcConfig.iceCandidatePoolSize === 10, 'iceCandidatePoolSize must be 10');
-    assert(configA.trickleIce === false, 'trickleIce should be false for MQTT reliability');
+    assert(configA.trickleIce === false, 'trickleIce should be false for signaling reliability');
     assert(Array.isArray(configA.turnConfig) && configA.turnConfig.length > 0, 'turnConfig must list TURN servers');
     const iceJson = JSON.stringify(ice);
     assert(iceJson.includes('stun:stun.l.google.com'), 'Google STUN missing');
@@ -187,10 +181,25 @@ async function testArrayActionAdapter() {
     assert(received.peerId === 'peer-g', 'array action receive peerId mismatch');
 }
 
+function testCompressPvPIceServers() {
+    const merged = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: ['turn:freeturn.net:3478'], username: 'a', credential: 'b' },
+        { urls: ['turns:global.relay.metered.ca:443'], username: 'u', credential: 'c' },
+        { urls: ['turn:staticauth.openrelay.metered.ca:80'], username: 'u2', credential: 'c2' }
+    ];
+    const out = context.compressPvPIceServers(merged);
+    const json = JSON.stringify(out);
+    assert(json.includes('global.relay.metered.ca'), 'metered TURN must stay after compress');
+    assert(out.length <= 10, 'compressed ICE list must be bounded');
+}
+
 (async () => {
     testSetterRoomHandlers();
     testLegacyFunctionRoomHandlers();
     testTransportConfigRelays();
+    testCompressPvPIceServers();
     await testTurnRestCredentials();
     await testEffectiveMeteredApiKey();
     testNormalizePasswordCredential();

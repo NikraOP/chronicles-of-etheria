@@ -1,18 +1,13 @@
-// PvP Arena: Trystero/MQTT WebRTC 1v1 for static hosting.
+// PvP Arena: Trystero/Nostr signaling + WebRTC TURN for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 2;
-const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=8';
-const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v2-mqtt';
-/** Порядок: 443/8084 EMQX (стабильнее test.mosquitto, который часто даёт ERR_CONNECTION_TIMED_OUT). */
-const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
-    'wss://broker.emqx.io:443/mqtt',
-    'wss://broker.emqx.io:8084/mqtt',
-    'wss://broker.hivemq.com:8884/mqtt',
-    'wss://broker-cn.emqx.io:8084/mqtt'
-]);
-const PVP_TRYSTERO_RELAY_REDUNDANCY = 2;
-const PVP_TRANSPORT_LEAVE_SETTLE_MS = 120;
-const PVP_HANDSHAKE_TIMEOUT_MS = 22000;
+const PVP_TRYSTERO_URL = '../vendor/trystero-nostr.bundle.mjs?v=9';
+const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v3-nostr';
+/** Nostr: несколько relay (MQTT/EMQX у многих даёт ERR_CONNECTION_TIMED_OUT). */
+const PVP_TRYSTERO_RELAY_REDUNDANCY = 4;
+const PVP_ICE_MAX_TURN_GROUPS = 6;
+const PVP_TRANSPORT_LEAVE_SETTLE_MS = 150;
+const PVP_HANDSHAKE_TIMEOUT_MS = 28000;
 // ICE: STUN + TURN for cross-network WebRTC (Metered Open Relay static HMAC + freeTURN + optional API key).
 // Free Metered key: https://www.metered.ca/tools/openrelay/ → constant or arena UI → localStorage.
 const PVP_METERED_APP_SLUG = '';
@@ -31,6 +26,7 @@ let pvpSessionId = 0;
 let pvpTrysteroModulePromise = null;
 let pvpIceServersPromise = null;
 let pvpTransportIdlePromise = Promise.resolve();
+let pvpIceBuildPreferTurnOnly = false;
 let pvpState = createEmptyPvPState();
 
 function createEmptyPvPState() {
@@ -661,6 +657,7 @@ function detachPvPTransportRoom() {
 
 function resetPvPConnection() {
     pvpSessionId++;
+    pvpIceBuildPreferTurnOnly = false;
     pvpIceServersPromise = null;
     pvpTransportIdlePromise = pvpTransportIdlePromise
         .then(() => detachPvPTransportRoom())
@@ -859,8 +856,32 @@ async function buildOpenRelayStaticTurnServers() {
     ]);
 }
 
+function compressPvPIceServers(servers) {
+    const stun = [];
+    const turn = [];
+    for (const s of servers || []) {
+        const u = Array.isArray(s.urls) ? s.urls.join(' ') : String(s.urls || '');
+        if (/turns?:/i.test(u) && s.username && s.credential) turn.push(s);
+        else stun.push(s);
+    }
+    const turnScore = s => {
+        const u = (Array.isArray(s.urls) ? s.urls.join(' ') : String(s.urls)).toLowerCase();
+        let n = 0;
+        if (u.includes('metered')) n += 12;
+        if (u.includes('turns:')) n += 6;
+        if (u.includes(':443')) n += 4;
+        if (u.includes('staticauth')) n += 3;
+        return n;
+    };
+    turn.sort((a, b) => turnScore(b) - turnScore(a));
+    const trimmedTurn = turn.slice(0, PVP_ICE_MAX_TURN_GROUPS);
+    const trimmedStun = pvpIceBuildPreferTurnOnly ? [] : stun.slice(0, 4);
+    return clonePvPIceServers(trimmedStun.concat(trimmedTurn));
+}
+
 async function buildPvPIceServersMerged() {
-    let servers = buildPvPStunIceServers();
+    let servers = pvpIceBuildPreferTurnOnly ? [] : buildPvPStunIceServers();
+    let usedMeteredApi = false;
     try {
         const openRelay = await buildOpenRelayStaticTurnServers();
         servers = mergePvPIceServers(servers, openRelay);
@@ -868,7 +889,6 @@ async function buildPvPIceServersMerged() {
         const msg = err && err.message ? err.message : String(err);
         pvpLog(`Open Relay static TURN: ${msg}`, 'error');
     }
-    servers = mergePvPIceServers(servers, buildPvPIceServersFreeTurn());
 
     const apiKey = getEffectiveMeteredApiKey();
     const keyKind = classifyMeteredApiKey(apiKey);
@@ -878,11 +898,15 @@ async function buildPvPIceServersMerged() {
         try {
             const apiServers = await fetchPvPIceServersFromApi(apiKey);
             servers = mergePvPIceServers(apiServers, servers);
+            usedMeteredApi = true;
             pvpLog('ICE: Metered API TURN (credential key) подключён.', 'success');
         } catch (err) {
             const msg = err && err.message ? err.message : String(err);
             pvpLog(`Metered API: ${msg}. Используем Open Relay static + freeTURN.`, 'info');
         }
+    }
+    if (!usedMeteredApi && !pvpIceBuildPreferTurnOnly) {
+        servers = mergePvPIceServers(servers, buildPvPIceServersFreeTurn());
     }
 
     const hasTurn = servers.some(s => {
@@ -890,7 +914,7 @@ async function buildPvPIceServersMerged() {
         return u.includes('turn:') && s.username && s.credential;
     });
     if (!hasTurn) throw new Error('no TURN in ICE list');
-    return clonePvPIceServers(servers);
+    return compressPvPIceServers(servers);
 }
 
 function getPvPMeteredCredentialsUrls(apiKey) {
@@ -902,6 +926,7 @@ function getPvPMeteredCredentialsUrls(apiKey) {
         urls.push(`https://${slug}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(key)}`);
     }
     urls.push(`https://openrelay.metered.ca/api/v1/turn/credentials?apiKey=${encodeURIComponent(key)}`);
+    urls.push(`https://global.relay.metered.ca/api/v1/turn/credentials?apiKey=${encodeURIComponent(key)}`);
     return urls;
 }
 
@@ -1019,8 +1044,8 @@ function probePvPIceConnectivity(iceServers) {
 function describePvPJoinError(details) {
     const err = details && details.error ? String(details.error) : 'ошибка P2P';
     const lower = err.toLowerCase();
-    if (/websocket|closing|closed state|mqtt|relay failure/i.test(lower)) {
-        return 'Сигналинг PvP (MQTT): обрыв WebSocket. Подождите 5 с, нажмите «Отключиться», Ctrl+Shift+R и войдите в комнату снова (оба игрока).';
+    if (/websocket|closing|closed state|mqtt|nostr|relay failure/i.test(lower)) {
+        return 'Сигналинг PvP (Nostr relay): обрыв WebSocket. Подождите 5 с, «Отключиться», Ctrl+Shift+R — оба игрока заново в одну комнату.';
     }
     if (/turn|unreachable|could not connect to peer after exchanging sdp/i.test(lower)) {
         let hint = 'Соединение не установлено: WebRTC не смог связаться через TURN. '
@@ -1118,7 +1143,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP: MQTT-сигналинг + TURN relay для игры с телефона или другого Wi‑Fi. При ошибке TURN — Ctrl+Shift+R, без VPN, Chrome; опционально ключ с <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">metered.ca/openrelay</a>.</p>
+            <p class="pvp-hint">PvP: Nostr-сигналинг + TURN relay (разные Wi‑Fi/телефон). Оба игрока: один Credential API Key в поле ниже. Ctrl+Shift+R, Chrome без VPN. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">metered.ca/openrelay</a></p>
             <div class="pvp-metered-key-row">
                 <label class="pvp-room-label" for="pvpMeteredApiKey">Credential API Key (не Secret Key sk_…)</label>
                 <input id="pvpMeteredApiKey" class="hero-input pvp-code-input" type="password" autocomplete="off" placeholder="Show API Key у TURN credential в Metered">
@@ -1191,21 +1216,23 @@ function loadPvPTransport() {
     return pvpTrysteroModulePromise;
 }
 
-function getPvPTransportConfig(iceServers) {
+function getPvPTransportConfig(iceServers, joinOpts) {
+    const opts = joinOpts || {};
     const servers = iceServers || buildPvPIceServersFallback();
     const turnOnly = extractPvPTurnConfig(servers);
+    const rtcConfig = {
+        iceServers: clonePvPIceServers(servers),
+        iceCandidatePoolSize: 10
+    };
+    if (opts.iceTransportPolicy) rtcConfig.iceTransportPolicy = opts.iceTransportPolicy;
     return {
         appId: PVP_TRYSTERO_APP_ID,
         trickleIce: false,
         relayConfig: {
-            urls: [...PVP_TRYSTERO_RELAY_URLS],
-            redundancy: Math.min(PVP_TRYSTERO_RELAY_REDUNDANCY, PVP_TRYSTERO_RELAY_URLS.length)
+            redundancy: PVP_TRYSTERO_RELAY_REDUNDANCY
         },
         turnConfig: turnOnly.length ? turnOnly : undefined,
-        rtcConfig: {
-            iceServers: clonePvPIceServers(servers),
-            iceCandidatePoolSize: 10
-        }
+        rtcConfig
     };
 }
 
@@ -1255,74 +1282,107 @@ function logPvPIceProbeResult(probe, sessionId) {
     renderPvPArena();
 }
 
+function isPvPTurnJoinError(details) {
+    const err = details && details.error ? String(details.error) : '';
+    return /turn|could not connect to peer after exchanging sdp|unreachable/i.test(err.toLowerCase());
+}
+
+function retryPvPJoinRelayOnly(mod, code, sessionId) {
+    pvpIceBuildPreferTurnOnly = true;
+    resetPvPIceServersCache();
+    return detachPvPTransportRoom()
+        .then(() => loadPvPIceServers())
+        .then(iceServers => {
+            if (sessionId !== pvpSessionId) return;
+            pvpLog('Повтор: только TURN relay (оба через relay)…', 'info');
+            setupPvPTransportRoom(mod, iceServers, code, sessionId, {
+                iceTransportPolicy: 'relay',
+                triedRelayOnly: true
+            });
+        })
+        .catch(err => handlePvPError(err));
+}
+
+function setupPvPTransportRoom(mod, iceServers, code, sessionId, joinOpts) {
+    const opts = joinOpts || {};
+    const iceJson = JSON.stringify(iceServers);
+    if (iceJson.includes('staticauth.openrelay.metered.ca') || iceJson.includes('global.relay.metered.ca')) {
+        pvpLog('ICE: Metered relay + резервные TURN.', 'info');
+    } else if (iceJson.includes('metered')) {
+        pvpLog('ICE: Metered TURN.', 'info');
+    } else if (iceJson.includes('freeturn.net')) {
+        pvpLog('ICE: freeTURN (резерв).', 'info');
+    }
+    if (!opts.triedRelayOnly) {
+        probePvPIceConnectivity(iceServers)
+            .then(probe => logPvPIceProbeResult(probe, sessionId))
+            .catch(() => {});
+    }
+    const room = mod.joinRoom(getPvPTransportConfig(iceServers, opts), pvpRoomId(code), {
+        handshakeTimeoutMs: PVP_HANDSHAKE_TIMEOUT_MS,
+        onJoinError(details) {
+            if (sessionId !== pvpSessionId) return;
+            if (details && details.error) {
+                pvpLog(`Технически: ${String(details.error).slice(0, 220)}`, 'error');
+            }
+            if (isPvPTurnJoinError(details) && !opts.triedRelayOnly) {
+                retryPvPJoinRelayOnly(mod, code, sessionId);
+                return;
+            }
+            resetPvPIceServersCache();
+            pvpLog(describePvPJoinError(details), 'error');
+            pvpLog('Отключитесь, Ctrl+Shift+R, снова в ту же комнату (оба с сохранённым API Key).', 'info');
+            renderPvPArena();
+        }
+    });
+    const actionAdapter = createPvPActionAdapter(room.makeAction('pvp'));
+    pvpRoom = room;
+    pvpSendPacket = actionAdapter.send;
+
+    setPvPRoomHandler(room, 'onPeerJoin', peerId => {
+        if (sessionId !== pvpSessionId) return;
+        if (pvpRemotePeerId && pvpRemotePeerId !== peerId) {
+            pvpLog('В комнате уже есть соперник, лишнее подключение игнорируется.', 'error');
+            return;
+        }
+        pvpRemotePeerId = peerId;
+        pvpIceBuildPreferTurnOnly = false;
+        pvpState.status = 'connected';
+        pvpLog('Соединение установлено.', 'success');
+        pvpState.local = getPvPPlayerSnapshot();
+        sendPvPMessage('hello', { snapshot: pvpState.local, ready: pvpState.localReady });
+        renderPvPArena();
+    });
+
+    setPvPRoomHandler(room, 'onPeerLeave', peerId => {
+        if (sessionId !== pvpSessionId || peerId !== pvpRemotePeerId) return;
+        pvpRemotePeerId = '';
+        if (pvpState.status === 'battle') endPvPMatch('disconnect');
+        else if (pvpState.status === 'ended') renderPvPBattle();
+        else {
+            pvpState.status = pvpState.role === 'host' ? 'hosting' : 'idle';
+            pvpLog('Соперник отключился.', 'error');
+            renderPvPArena();
+        }
+    });
+
+    actionAdapter.receive((msg, peerId) => {
+        if (sessionId !== pvpSessionId) return;
+        if (pvpRemotePeerId && pvpRemotePeerId !== peerId) return;
+        pvpRemotePeerId = peerId;
+        handlePvPMessage(msg);
+    });
+
+    pvpLog('PvP транспорт Nostr инициализирован. Ждём соперника.', 'success');
+    renderPvPArena();
+}
+
 function joinPvPTransportRoom(code, sessionId) {
     return pvpTransportIdlePromise
         .then(() => Promise.all([loadPvPTransport(), loadPvPIceServers()]))
         .then(([mod, iceServers]) => {
-        if (sessionId !== pvpSessionId) return;
-        const iceJson = JSON.stringify(iceServers);
-        if (iceJson.includes('staticauth.openrelay.metered.ca') || iceJson.includes('global.relay.metered.ca')) {
-            pvpLog('ICE: Metered relay + резервные TURN.', 'info');
-        } else if (iceJson.includes('metered')) {
-            pvpLog('ICE: Metered TURN.', 'info');
-        } else if (iceJson.includes('freeturn.net')) {
-            pvpLog('ICE: freeTURN (резерв).', 'info');
-        }
-        probePvPIceConnectivity(iceServers)
-            .then(probe => logPvPIceProbeResult(probe, sessionId))
-            .catch(() => {});
-        const room = mod.joinRoom(getPvPTransportConfig(iceServers), pvpRoomId(code), {
-            handshakeTimeoutMs: PVP_HANDSHAKE_TIMEOUT_MS,
-            onJoinError(details) {
-                if (sessionId !== pvpSessionId) return;
-                resetPvPIceServersCache();
-                if (details && details.error) {
-                    pvpLog(`Технически: ${String(details.error).slice(0, 220)}`, 'error');
-                }
-                pvpLog(describePvPJoinError(details), 'error');
-                pvpLog('Повторите подключение к комнате — ICE серверы обновлены.', 'info');
-                renderPvPArena();
-            }
-        });
-        const actionAdapter = createPvPActionAdapter(room.makeAction('pvp'));
-        pvpRoom = room;
-        pvpSendPacket = actionAdapter.send;
-
-        setPvPRoomHandler(room, 'onPeerJoin', peerId => {
             if (sessionId !== pvpSessionId) return;
-            if (pvpRemotePeerId && pvpRemotePeerId !== peerId) {
-                pvpLog('В комнате уже есть соперник, лишнее подключение игнорируется.', 'error');
-                return;
-            }
-            pvpRemotePeerId = peerId;
-            pvpState.status = 'connected';
-            pvpLog('Соединение установлено.', 'success');
-            pvpState.local = getPvPPlayerSnapshot();
-            sendPvPMessage('hello', { snapshot: pvpState.local, ready: pvpState.localReady });
-            renderPvPArena();
-        });
-
-        setPvPRoomHandler(room, 'onPeerLeave', peerId => {
-            if (sessionId !== pvpSessionId || peerId !== pvpRemotePeerId) return;
-            pvpRemotePeerId = '';
-            if (pvpState.status === 'battle') endPvPMatch('disconnect');
-            else if (pvpState.status === 'ended') renderPvPBattle();
-            else {
-                pvpState.status = pvpState.role === 'host' ? 'hosting' : 'idle';
-                pvpLog('Соперник отключился.', 'error');
-                renderPvPArena();
-            }
-        });
-
-        actionAdapter.receive((msg, peerId) => {
-            if (sessionId !== pvpSessionId) return;
-            if (pvpRemotePeerId && pvpRemotePeerId !== peerId) return;
-            pvpRemotePeerId = peerId;
-            handlePvPMessage(msg);
-        });
-
-        pvpLog('PvP транспорт MQTT инициализирован. Ждём соперника.', 'success');
-        renderPvPArena();
+            setupPvPTransportRoom(mod, iceServers, code, sessionId, {});
         })
         .catch(err => handlePvPError(err));
 }
@@ -1772,3 +1832,5 @@ window.safePvPAvatarSrc = safePvPAvatarSrc;
 window.pvpAvatarImgError = pvpAvatarImgError;
 window.pvpAvatarDisplayUrl = pvpAvatarDisplayUrl;
 window.getPvPRemoteAvatarSrc = getPvPRemoteAvatarSrc;
+window.getPvPTransportConfig = getPvPTransportConfig;
+window.compressPvPIceServers = compressPvPIceServers;
