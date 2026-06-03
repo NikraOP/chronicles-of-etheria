@@ -11,6 +11,7 @@ let nextFreeMana = false;
 let nextDoubleEffect = false;
 let nextNoCd = false;
 let nextAttackBonus = 0;
+let nextAccuracyBonus = 0;
 let markedTarget = false;
 let lingeringCloud = false;
 let deathSaveActive = false;
@@ -204,6 +205,15 @@ function endGlobalTurn() {
             if (ab && ab.currentCooldown > 0) ab.currentCooldown--;
         });
     }
+    if (window.pvpBattleActive && player && player.temporaryEffects) {
+        player.temporaryEffects.forEach(e => {
+            if (e.regen) {
+                const regenHeal = Math.floor(player.maxHealth * e.regen / 100);
+                player.health = Math.min(player.maxHealth, player.health + regenHeal);
+                if (regenHeal > 0) addBattleLog(`💚 Регенерация +${regenHeal} HP`, 'heal');
+            }
+        });
+    }
     window.reduceItemCooldowns();
     for (let key in monsterAbilityCooldowns) {
         if (monsterAbilityCooldowns[key] > 0) monsterAbilityCooldowns[key]--;
@@ -236,6 +246,7 @@ function resetAllCooldowns() {
     nextDoubleEffect = false;
     nextNoCd = false;
     nextAttackBonus = 0;
+    nextAccuracyBonus = 0;
     markedTarget = false;
     lingeringCloud = false;
     deathSaveActive = false;

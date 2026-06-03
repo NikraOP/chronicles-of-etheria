@@ -13,7 +13,11 @@
             abilityComboStep: 0,
             nextAttackBonus: 0,
             nextCritGuaranteed: false,
-            markedTarget: false
+            markedTarget: false,
+            deathSaveActive: false,
+            reviveUsed: false,
+            lingeringCloud: false,
+            summonedSpirit: false
         };
     }
 
@@ -60,6 +64,8 @@
             activeBuffs: cloneJson(f.activeBuffs),
             armorShred: f.armorShred || 0,
             marked: !!f.marked,
+            markBonus: f.markBonus || 0,
+            armorShredTurns: f.armorShredTurns || 0,
             fireVuln: f.fireVuln || 0,
             dotOverTime: f.dotOverTime ? cloneJson(f.dotOverTime) : null,
             damageAmp: f.damageAmp || 1,
@@ -70,8 +76,39 @@
         };
     }
 
+    function tryPvPSurvivalMechanics(fighter) {
+        if (!player || player.health > 0) return false;
+        const c = fighter && fighter.combat;
+        if (typeof deathSaveActive !== 'undefined' && deathSaveActive) {
+            player.health = Math.max(1, Math.floor(player.maxHealth * 0.1));
+            deathSaveActive = false;
+            if (c) c.deathSaveActive = false;
+            addBattleLog('🛡️ Инстинкт выживания! Осталось 10% HP', 'success');
+            return true;
+        }
+        if (c && c.deathSaveActive) {
+            player.health = Math.max(1, Math.floor(player.maxHealth * 0.1));
+            c.deathSaveActive = false;
+            deathSaveActive = false;
+            addBattleLog('🛡️ Инстинкт выживания! Осталось 10% HP', 'success');
+            return true;
+        }
+        const reviveAb = player.abilities && player.abilities.find(ab =>
+            (ab.reviveOnDeath || ab.reviveOnce) && !(typeof reviveUsed !== 'undefined' && reviveUsed));
+        if (reviveAb && !(c && c.reviveUsed)) {
+            if (typeof reviveUsed !== 'undefined') reviveUsed = true;
+            if (c) c.reviveUsed = true;
+            const hpPct = reviveAb.reviveHp || reviveAb.revive || 50;
+            player.health = Math.max(1, Math.floor(player.maxHealth * hpPct / 100));
+            addBattleLog(`✨ ${reviveAb.name}! Воскрешение с ${hpPct}% HP`, 'success');
+            return true;
+        }
+        return false;
+    }
+
     function applyPlayerFromFighter(fighter) {
         const f = ensureFighterShape(fighter);
+        const prevHp = player.health;
         player.health = Math.max(0, Math.min(f.maxHealth, f.health));
         player.maxHealth = Math.max(1, f.maxHealth);
         player.attack = f.attack;
@@ -89,6 +126,35 @@
             window.pvpCombatEngine.applyCcFromFighterToPlayer(f);
         }
         playerSkipNextTurn = !!f.skipNextTurn;
+
+        if (f.combat) {
+            if (f.combat.deathSaveActive) deathSaveActive = true;
+            if (f.combat.reviveUsed && typeof reviveUsed !== 'undefined') reviveUsed = true;
+            if (f.combat.lingeringCloud) lingeringCloud = true;
+            if (f.combat.summonedSpirit) summonedSpirit = true;
+        }
+
+        if (player.health < prevHp && currentMonster && player.temporaryEffects) {
+            const counter = player.temporaryEffects.find(e => e.counterChance);
+            if (counter && Math.random() * 100 <= counter.counterChance) {
+                const counterDmg = Math.floor(
+                    (typeof getPlayerEffectiveAttack === 'function' ? getPlayerEffectiveAttack() : player.attack)
+                    * (counter.counterDmg || 80) / 100
+                );
+                if (typeof applyDamageToMonster === 'function') {
+                    applyDamageToMonster(counterDmg);
+                    addBattleLog(`↩️ Контратака! ${counterDmg} урона`, 'dmg');
+                }
+            }
+        }
+
+        if (tryPvPSurvivalMechanics(f)) {
+            f.health = player.health;
+            if (pvpState && pvpState.match) {
+                const localRole = typeof getLocalPvPRole === 'function' ? getLocalPvPRole() : 'host';
+                pvpState.match.players[localRole] = pullPlayerIntoFighter(f);
+            }
+        }
     }
 
     function pullPlayerIntoFighter(fighter) {
@@ -112,7 +178,11 @@
             abilityComboStep: typeof abilityComboStep !== 'undefined' ? abilityComboStep : 0,
             nextAttackBonus: typeof nextAttackBonus !== 'undefined' ? nextAttackBonus : 0,
             nextCritGuaranteed: !!nextCritGuaranteed,
-            markedTarget: !!markedTarget
+            markedTarget: !!markedTarget,
+            deathSaveActive: !!deathSaveActive,
+            reviveUsed: typeof reviveUsed !== 'undefined' ? !!reviveUsed : false,
+            lingeringCloud: !!lingeringCloud,
+            summonedSpirit: !!summonedSpirit
         };
         if (window.pvpCombatEngine) {
             window.pvpCombatEngine.syncFighterCcFromPlayer(f);
@@ -133,6 +203,8 @@
         f.activeBuffs = cloneJson(currentMonster.activeBuffs);
         f.armorShred = currentMonster.armorShred || 0;
         f.marked = !!currentMonster.marked;
+        f.markBonus = currentMonster.markBonus || 0;
+        f.armorShredTurns = currentMonster.armorShredTurns || 0;
         f.fireVuln = currentMonster.fireVuln || 0;
         f.dotOverTime = currentMonster.dotOverTime ? cloneJson(currentMonster.dotOverTime) : null;
         f.damageAmp = currentMonster.damageAmp || 1;
@@ -147,6 +219,31 @@
         nextAttackBonus = c.nextAttackBonus || 0;
         nextCritGuaranteed = !!c.nextCritGuaranteed;
         markedTarget = !!c.markedTarget;
+        deathSaveActive = !!c.deathSaveActive;
+        if (typeof reviveUsed !== 'undefined') reviveUsed = !!c.reviveUsed;
+        lingeringCloud = !!c.lingeringCloud;
+        summonedSpirit = !!c.summonedSpirit;
+    }
+
+    function pvpResolveEndOfTurnMonsterEffects() {
+        if (!currentMonster) return;
+        if (summonedSpirit) {
+            const spiritDamage = Math.floor(
+                (typeof getPlayerEffectiveAttack === 'function' ? getPlayerEffectiveAttack() : player.attack) * 0.8
+            );
+            if (typeof applyDamageToMonster === 'function') {
+                const applied = applyDamageToMonster(spiritDamage);
+                addBattleLog(`🌿 Дух природы наносит ${applied} урона!`, 'dmg');
+            }
+            summonedSpirit = false;
+        }
+        if (lingeringCloud && currentMonster.effects && currentMonster.effects.some(e => e.type === 'Яд')) {
+            const cloudDamage = Math.floor(currentMonster.maxHealth * 0.05);
+            if (typeof applyDamageToMonster === 'function') {
+                const applied = applyDamageToMonster(cloudDamage);
+                addBattleLog(`☁️ Ядовитое облако: ${applied} урона!`, 'dmg');
+            }
+        }
     }
 
     function applyCombatGlobalsFromFighter(fighter) {
@@ -290,6 +387,12 @@
             return;
         }
         if (player.health <= 0) {
+            const localFighter = pvpState.match.players[localRole];
+            if (tryPvPSurvivalMechanics(localFighter)) {
+                syncPvPBattleToMatch();
+            }
+        }
+        if (player.health <= 0) {
             pvpState.match.finished = true;
             pvpState.match.winner = remoteRole;
             pvpState.match.sig = getMatchSig(pvpState.match);
@@ -341,6 +444,8 @@
             return;
         }
         if (typeof endGlobalTurn === 'function') endGlobalTurn();
+        pvpResolveEndOfTurnMonsterEffects();
+        syncPvPBattleToMatch();
         broadcastPvPBattleTurn();
     };
 

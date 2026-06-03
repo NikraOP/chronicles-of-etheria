@@ -64,10 +64,21 @@ function getPlayerEffectiveDodge() {
     return Math.min(70, dodge);
 }
 
+function getPlayerCritDamagePercent(extraBonus) {
+    let cd = player.criticalDamage + (extraBonus || 0);
+    const critDmgBuff = player.temporaryEffects.find(e => e.critDmg);
+    if (critDmgBuff && critDmgBuff.critDmg) cd += critDmgBuff.critDmg;
+    return cd;
+}
+
 function playerAttackMissesFromBlind() {
     const blind = player.temporaryEffects.find(e => e.type === 'debuff_blind');
     if (!blind) return false;
-    const missChance = blind.value || 40;
+    let missChance = blind.value || 40;
+    if (typeof nextAccuracyBonus !== 'undefined' && nextAccuracyBonus > 0) {
+        missChance = Math.max(0, missChance - nextAccuracyBonus);
+        nextAccuracyBonus = 0;
+    }
     return Math.random() * 100 < missChance;
 }
 

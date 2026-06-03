@@ -307,6 +307,11 @@ function monsterTurn() {
     if (typeof setStrikeImpact === 'function') setStrikeImpact(null);
     updateMonsterBuffs();
 
+    if ((currentMonster.armorShredTurns || 0) > 0) {
+        currentMonster.armorShredTurns--;
+        if (currentMonster.armorShredTurns <= 0) currentMonster.armorShred = 0;
+    }
+
     if (currentMonster.dotOverTime && currentMonster.dotOverTime.remaining > 0) {
         const dotDmg = Math.floor(getPlayerEffectiveAttack() * currentMonster.dotOverTime.dmgPercent / 100);
         const applied = applyDamageToMonster(dotDmg);

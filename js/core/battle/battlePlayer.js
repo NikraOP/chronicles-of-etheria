@@ -177,7 +177,8 @@ function useBattleAbility(index) {
     }
 
     if (manaCost > 0) player.mana -= manaCost;
-    if (nextDoubleEffect) {
+    const doubleThisCast = nextDoubleEffect;
+    if (doubleThisCast) {
         addBattleLog(`🔁 Удвоенный эффект!`, 'crit');
         nextDoubleEffect = false;
     }
@@ -191,10 +192,12 @@ function useBattleAbility(index) {
         addBattleLog(`💢 Накопление ярости: +${bonus}% урона!`, 'crit');
     }
     
-    if (markedTarget && currentMonster.marked) {
-        dmg = Math.floor(dmg * 1.5);
-        addBattleLog(`🎯 Урон по отмеченной цели +50%!`, 'crit');
+    if (currentMonster.marked) {
+        const markPct = currentMonster.markBonus || 40;
+        dmg = Math.floor(dmg * (1 + markPct / 100));
+        addBattleLog(`🎯 Урон по отмеченной цели +${markPct}%!`, 'crit');
         currentMonster.marked = false;
+        currentMonster.markBonus = 0;
         markedTarget = false;
     }
     
@@ -213,12 +216,12 @@ function useBattleAbility(index) {
         }
     }
     
-    if (a.rampUp && dmg > 0) {
+    if (a.rampUp && (dmg > 0 || a.noDamage || !a.dmg)) {
         rageStack = Math.min(a.rampUp.maxStack, rageStack + 1);
         addBattleLog(`💢 Ярость растёт! Текущий уровень: ${rageStack}/${a.rampUp.maxStack}`, 'info');
     }
     
-    if (a.freeNextAction) {
+    if (a.freeNextAction || a.nextFree) {
         nextFreeMana = true;
         addBattleLog(`✨ Следующая способность бесплатна!`, 'info');
     }
@@ -250,14 +253,21 @@ function useBattleAbility(index) {
     
     if (a.mark) {
         currentMonster.marked = true;
+        currentMonster.markBonus = a.mark || 40;
         markedTarget = true;
-        addBattleLog(`🎯 Цель отмечена! Следующий удар +${a.mark}%`, 'info');
+        addBattleLog(`🎯 Цель отмечена! Следующий удар +${currentMonster.markBonus}%`, 'info');
     }
     
     if (a.markAll) {
         currentMonster.marked = true;
+        currentMonster.markBonus = a.mark || 40;
         markedTarget = true;
         addBattleLog(`🎯 Все враги отмечены!`, 'info');
+    }
+
+    if (a.nextAccuracy) {
+        nextAccuracyBonus += a.nextAccuracy;
+        addBattleLog(`🎯 Точность следующей атаки +${a.nextAccuracy}%!`, 'info');
     }
     
     if (a.reveal) {
@@ -313,10 +323,23 @@ function useBattleAbility(index) {
         }
     }
     
-    if (a.manaDrain && dmg > 0) {
-        const drainDmg = Math.floor(currentMonster.maxHealth * a.manaDrain / 100);
-        applyDamageToMonster(drainDmg, ignoreShieldsThisHit);
-        addBattleLog(`🏔️ Мороз высасывает силы: -${drainDmg} HP!`, 'dmg');
+    if (a.manaDrain) {
+        let manaDrained = false;
+        if (window.pvpBattleActive && typeof getLocalPvPRole === 'function' && typeof pvpState !== 'undefined' && pvpState && pvpState.match) {
+            const remoteRole = getLocalPvPRole() === 'host' ? 'guest' : 'host';
+            const remote = pvpState.match.players[remoteRole];
+            if (remote && remote.class === 'Маг' && (remote.maxMana || 0) > 0) {
+                const drain = Math.floor(remote.maxMana * a.manaDrain / 100);
+                remote.mana = Math.max(0, (remote.mana || 0) - drain);
+                addBattleLog(`🏔️ Высосано ${drain} маны соперника!`, 'dmg');
+                manaDrained = true;
+            }
+        }
+        if (!manaDrained && dmg > 0) {
+            const drainDmg = Math.floor(currentMonster.maxHealth * a.manaDrain / 100);
+            applyDamageToMonster(drainDmg, ignoreShieldsThisHit);
+            addBattleLog(`🏔️ Мороз высасывает силы: -${drainDmg} HP!`, 'dmg');
+        }
     }
     
     if (a.freezeExtend) {
@@ -328,6 +351,10 @@ function useBattleAbility(index) {
         currentMonster.fireVuln = a.value;
         addBattleLog(`🌋 Поле лавы! Уязвимость к огню +${a.value}%`, 'info');
     }
+    if (a.fireVuln) {
+        currentMonster.fireVuln = a.fireVuln;
+        addBattleLog(`🔥 Уязвимость к огню +${a.fireVuln}%!`, 'info');
+    }
     
     if (a.armorShred) {
         currentMonster.armorShred += a.armorShred;
@@ -335,7 +362,10 @@ function useBattleAbility(index) {
         dmg = calculateDamageWithShred(dmg, currentMonster.defense, currentMonster.armorShred);
     }
     
-    if (a.ignoreDef) {
+    if (a.pierce && dmg > 0) {
+        dmg = calculateDamage(dmg, 0);
+        addBattleLog('🏹 Сквозной выстрел — защита не учитывается!', 'crit');
+    } else if (a.ignoreDef) {
         const effDef = Math.floor(getMonsterCurrentDefense() * (1 - a.ignoreDef / 100));
         dmg = calculateDamage(dmg, effDef);
     }
@@ -346,14 +376,14 @@ function useBattleAbility(index) {
     }
     
     if (a.guaranteedCrit) {
-        dmg = Math.floor(dmg * (player.criticalDamage / 100));
+        dmg = Math.floor(dmg * (getPlayerCritDamagePercent(a.critDmgBonus || 0) / 100));
         addBattleLog(`✨ ГАРАНТИРОВАННЫЙ КРИТИЧЕСКИЙ УДАР!`, 'crit');
     }
     
     if (a.effect) {
         let effectDur = a.effect.dur;
         let effectVal = a.effect.val ?? a.effect.value;
-        if (nextDoubleEffect) {
+        if (doubleThisCast) {
             effectDur = Math.floor(effectDur * 1.5);
             effectVal = Math.floor(effectVal * 1.5);
         }
@@ -372,6 +402,9 @@ function useBattleAbility(index) {
     
     if (a.enemyDebuff) {
         currentMonster.armorShred = (currentMonster.armorShred || 0) + a.enemyDebuff.value;
+        if (a.enemyDebuff.dur) {
+            currentMonster.armorShredTurns = Math.max(currentMonster.armorShredTurns || 0, a.enemyDebuff.dur);
+        }
         addBattleLog(`🛡️ Защита врага снижена на ${a.enemyDebuff.value}%!`, 'info');
     }
     
@@ -394,7 +427,7 @@ function useBattleAbility(index) {
     
     if (a.buff) {
         let buffDur = a.buff.dur;
-        if (nextDoubleEffect) buffDur = Math.floor(buffDur * 1.5);
+        if (doubleThisCast) buffDur = Math.floor(buffDur * 1.5);
         const buffFx = { atk: a.buff.atk || 0, def: a.buff.def || 0, dodge: a.buff.dodge || 0, crit: a.buff.crit || 0, critDmg: a.buff.critDmg || 0, dur: buffDur, cdReduction: a.buff.cdReduction, freezeOnHit: a.freezeOnHit, counterChance: a.counterChance, counterDmg: a.counterDmg, freeOnDodge: a.freeOnDodge, ccImmune: a.ccImmune };
         player.temporaryEffects.push(buffFx);
         let buffText = [];
@@ -488,9 +521,22 @@ function useBattleAbility(index) {
     }
     
     if (a.burnMana && player.class === 'Маг') {
-        const manaBurn = Math.floor((player.maxMana || 100) * a.burnMana / 100);
-        player.temporaryEffects.push({ manaBurn: manaBurn, dur: 1 });
-        addBattleLog(`🔥 Выжжено ${manaBurn} маны врага!`, 'dmg');
+        let burned = false;
+        if (window.pvpBattleActive && typeof getLocalPvPRole === 'function' && typeof pvpState !== 'undefined' && pvpState && pvpState.match) {
+            const remoteRole = getLocalPvPRole() === 'host' ? 'guest' : 'host';
+            const remote = pvpState.match.players[remoteRole];
+            if (remote && remote.class === 'Маг' && (remote.maxMana || 0) > 0) {
+                const manaBurn = Math.floor(remote.maxMana * a.burnMana / 100);
+                remote.mana = Math.max(0, (remote.mana || 0) - manaBurn);
+                addBattleLog(`🔥 Сожжено ${manaBurn} маны соперника!`, 'dmg');
+                burned = true;
+            }
+        }
+        if (!burned) {
+            const manaBurn = Math.floor((player.maxMana || 100) * a.burnMana / 100);
+            player.temporaryEffects.push({ manaBurn: manaBurn, dur: 1 });
+            addBattleLog(`🔥 Выжжено ${manaBurn} маны (урон по цели)!`, 'dmg');
+        }
     }
     
     if (a.cdReduction) {
@@ -508,6 +554,11 @@ function useBattleAbility(index) {
         const manaRestore = Math.floor(player.maxMana * a.restoreManaPercent / 100);
         player.mana = Math.min(player.maxMana, player.mana + manaRestore);
         addBattleLog(`💎 +${manaRestore} маны (${a.restoreManaPercent}%)`, 'heal');
+    }
+    if (a.manaRefund && player.class === 'Маг') {
+        const refund = Math.floor(player.maxMana * a.manaRefund / 100);
+        player.mana = Math.min(player.maxMana, player.mana + refund);
+        addBattleLog(`💎 Возврат ${refund} маны (${a.manaRefund}%)`, 'heal');
     }
     
     if (a.echo) { 
@@ -542,7 +593,7 @@ function useBattleAbility(index) {
     let crit = a.guaranteedCrit || nextCritGuaranteed || Math.random() * 100 <= critChance;
     if (nextCritGuaranteed) nextCritGuaranteed = false;
     if (crit && !a.guaranteedCrit) {
-        dmg = Math.floor(dmg * (player.criticalDamage / 100));
+        dmg = Math.floor(dmg * (getPlayerCritDamagePercent() / 100));
         addBattleLog(`💥 КРИТИЧЕСКИЙ УДАР!`, 'crit');
     }
     
@@ -586,10 +637,11 @@ function useBattleAbility(index) {
     if (a.multiHit) {
         let totalDmg = 0;
         for (let h = 0; h < a.multiHit.hits; h++) {
-            let hitDmg = Math.floor(getPlayerEffectiveAttack() * (a.multiHit.baseDmg + (h * (a.multiHit.ramp || 0))) / 100);
-            if (a.multiHit.critRamp && h > 0) {
+            const step = a.multiHit.ramp ?? a.multiHit.increment ?? 0;
+            let hitDmg = Math.floor(getPlayerEffectiveAttack() * (a.multiHit.baseDmg + h * step) / 100);
+            if (a.multiHit.critRamp) {
                 if (Math.random() * 100 <= (player.criticalChance + h * a.multiHit.critRamp)) {
-                    hitDmg = Math.floor(hitDmg * (player.criticalDamage / 100));
+                    hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));
                     totalDmg += hitDmg;
                     addBattleLog(`💥 ${h + 1}-й удар КРИТИЧЕСКИЙ (${hitDmg})!`, 'crit');
                     continue;
@@ -620,16 +672,16 @@ function useBattleAbility(index) {
     if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
 
     const afterAbilityResolve = () => {
-        if (currentMonster.health <= 0) { 
-            if (extraTurn) {
+        if (currentMonster.health <= 0) {
+            if (extraTurn && !window.pvpBattleActive) {
                 addBattleLog(`⚡ Дополнительный ход за убийство!`, 'crit');
                 isPlayerTurn = true;
                 renderBattle();
                 updateBattleButtons();
                 return;
             }
-            victory(); 
-            return; 
+            victory();
+            return;
         }
         endPlayerActionChain();
     };
