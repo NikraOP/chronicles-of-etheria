@@ -26,6 +26,7 @@ function selectLocation(name) {
 
 function showProfessions() {
     stopGathering();
+    if (typeof flushPendingCraft === 'function') flushPendingCraft();
     let html = '<h2>🔧 Профессии</h2><p style="margin-bottom:15px;">Изучайте профессии, собирайте ресурсы и создавайте предметы. Каждый тир даёт бонусы!</p>';
     
     html += '<h3 style="color:var(--green); margin-top: 15px;">🌿 Добывающие профессии</h3><div class="profession-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">';
@@ -145,6 +146,7 @@ window.createNewCharacter = function() {
 window.showSaveLoadPanel = function() {
     console.log('showSaveLoadPanel вызвана');
     stopGathering();
+    if (typeof closeSettings === 'function') closeSettings();
     
     let html = '<h2>💾 Управление сохранениями</h2>';
     html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-bottom: 20px;">';

@@ -2,25 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>Хроники Этерии — Версия 3.0 (Модульная)</title>
     <link rel="stylesheet" href="css/style.css">
-    <style>
-        /* Дополнительные стили для плавной загрузки */
-        .loading-indicator {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            color: var(--gold);
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 16px;
-            z-index: 9999;
-            font-family: monospace;
-        }
-    </style>
+    <script src="js/ui/theme.js"></script>
 </head>
 <body>
     <div class="loading-indicator" id="loadingIndicator">⚔️ Загрузка Хроник Этерии... ⚔️</div>
@@ -60,6 +45,8 @@
     <!-- ===== ЗАГРУЗКА UI ===== -->
     <script src="js/ui/animations.js"></script>
     <script src="js/ui/render.js"></script>
+    <script src="js/ui/settings.js"></script>
+    <!-- theme.js уже в head для раннего применения темы -->
     <script src="js/ui/navigation.js"></script>
     
     <!-- ===== ГЛАВНЫЙ ФАЙЛ (ИНИЦИАЛИЗАЦИЯ) ===== -->

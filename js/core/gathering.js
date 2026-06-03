@@ -1,16 +1,28 @@
-let gatheringInterval = null;
+let gatheringRafId = null;
 let isGatheringLocked = false;
-let pendingGatherData = null; // Хранит данные о завершённой добыче
+let pendingGatherData = null;
+let activeGatherSession = null;
 
-function stopGathering() { 
-    if (gatheringInterval) { 
-        clearInterval(gatheringInterval); 
-        gatheringInterval = null; 
-        isGatheringLocked = false; 
-    } 
+function settlePendingCriticalGather() {
+    if (!pendingGatherData || !activeGatherSession || !activeGatherSession.outcome) return;
+    const { profId, resourceName, outcome } = activeGatherSession;
+    if (!outcome.hasCritical || outcome.criticalCount <= 0) return;
+    addResourceToPlayer(resourceName, outcome.criticalCount);
+    if (outcome.bonusExp > 0) applyProfessionExp(profId, outcome.bonusExp);
+    addMessage(`🌟 Критический бонус зачислен (+${outcome.criticalCount}x ${resourceName})`, 'success');
+    pendingGatherData = null;
 }
 
-// Получить бонусы за тир профессии (1-6)
+function stopGathering() {
+    if (gatheringRafId != null) {
+        cancelAnimationFrame(gatheringRafId);
+        gatheringRafId = null;
+    }
+    settlePendingCriticalGather();
+    isGatheringLocked = false;
+    activeGatherSession = null;
+}
+
 function getProfessionBonuses(tier) {
     const effectiveLevel = (tier - 1) * 10 + 5;
     return {
@@ -24,7 +36,7 @@ function getProfessionBonuses(tier) {
 }
 
 function getExpForNextTier(currentTier) {
-    switch(currentTier) {
+    switch (currentTier) {
         case 1: return 500;
         case 2: return 1000;
         case 3: return 2000;
@@ -34,57 +46,181 @@ function getExpForNextTier(currentTier) {
     }
 }
 
-// Функция для завершения сбора и добавления ресурсов
-function completeGathering(profId, resourceName, adjustedExp, bonuses, resourceTime) {
-    if (!pendingGatherData) return;
-    
-    const prof = player.professions[profId];
-    if (!prof) return;
-    
-    let gatheredCount = pendingGatherData.gatheredCount;
-    let bonusExp = pendingGatherData.bonusExp;
-    let totalExp = adjustedExp + bonusExp;
-    let oldTier = prof.tier || 1;
-    
-    // Добавляем ресурсы
+function playGatherCriticalFeedback() {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+            const ctx = new Ctx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(740, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1240, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.36);
+            setTimeout(() => ctx.close(), 400);
+        }
+    } catch (e) { /* без звукового файла — Web Audio */ }
+
+    const panel = document.getElementById('gatheringProgress');
+    if (panel) {
+        panel.classList.remove('gather-critical-burst');
+        void panel.offsetWidth;
+        panel.classList.add('gather-critical-burst');
+        setTimeout(() => panel.classList.remove('gather-critical-burst'), 700);
+    }
+    document.body.classList.remove('gather-screen-flash');
+    void document.body.offsetWidth;
+    document.body.classList.add('gather-screen-flash');
+    setTimeout(() => document.body.classList.remove('gather-screen-flash'), 450);
+}
+
+function addResourceToPlayer(resourceName, amount) {
+    if (!amount || amount <= 0) return;
     if (!player.resources[resourceName]) player.resources[resourceName] = 0;
-    player.resources[resourceName] += gatheredCount;
-    
-    // Добавляем опыт
-    prof.exp += totalExp;
-    
-    // Проверка повышения тира
+    player.resources[resourceName] += amount;
+}
+
+function applyProfessionExp(profId, expAmount) {
+    const prof = player.professions[profId];
+    if (!prof || !expAmount) return false;
+
+    prof.exp += expAmount;
     let expNeeded = getExpForNextTier(prof.tier);
     let leveledUp = false;
-    
+
     while (prof.exp >= expNeeded && prof.tier < 6) {
         prof.exp -= expNeeded;
         prof.tier = (prof.tier || 1) + 1;
         expNeeded = getExpForNextTier(prof.tier);
         leveledUp = true;
-        addMessage(`🎉 ПОВЫШЕНИЕ ТИРА! ${PROFESSIONS_DB.gathering.find(p => p.id === profId)?.name || profId} → ${prof.tier} тир!`, 'success');
-        
+        const profMeta = PROFESSIONS_DB.gathering.find(p => p.id === profId);
+        addMessage(`🎉 ПОВЫШЕНИЕ ТИРА! ${profMeta?.name || profId} → ${prof.tier} тир!`, 'success');
         const newBonuses = getProfessionBonuses(prof.tier);
         addMessage(`📈 Новые бонусы: скорость -${Math.floor(newBonuses.gatherSpeedBonus * 100)}%, двойная добыча +${Math.floor(newBonuses.doubleGatherChance * 100)}%`, 'info');
     }
-    
+
     if (prof.tier >= 6) prof.exp = Math.min(prof.exp, expNeeded);
-    saveGame();
-    
-    addMessage(`✅ Собрано: ${gatheredCount}x ${resourceName}! (+${Math.floor(totalExp)} XP)`, 'success');
-    
-    if (leveledUp) {
-        addMessage(`🏆 Теперь у вас ${prof.tier} тир профессии!`, 'success');
+    return leveledUp;
+}
+
+function rollGatherOutcome(bonuses, baseExp) {
+    let totalCount = 1;
+    let bonusExp = 0;
+    const doubleTriggered = Math.random() < bonuses.doubleGatherChance;
+    const rareTriggered = Math.random() < bonuses.rareResourceChance;
+
+    if (doubleTriggered) totalCount += 1;
+    if (rareTriggered) {
+        totalCount += Math.max(1, Math.floor(totalCount * 0.5));
+        bonusExp += Math.floor(baseExp * 0.5);
     }
-    
-    // Очищаем данные и обновляем интерфейс
+
+    const autoCount = 1;
+    const criticalCount = Math.max(0, totalCount - autoCount);
+    const hasCritical = criticalCount > 0;
+
+    return {
+        totalCount,
+        autoCount,
+        criticalCount,
+        doubleTriggered,
+        rareTriggered,
+        hasCritical,
+        bonusExp
+    };
+}
+
+function releaseGatherLockAndRefresh(profId, delayMs) {
     pendingGatherData = null;
+    activeGatherSession = null;
     isGatheringLocked = false;
-    
-    // Обновляем отображение
-    setTimeout(() => {
-        showGatheringResources(profId);
-    }, 500);
+    const grid = document.getElementById('gatherResourceGrid');
+    if (grid) grid.classList.remove('gather-grid-locked');
+    saveGame();
+    setTimeout(() => showGatheringResources(profId), delayMs == null ? 300 : delayMs);
+}
+
+function claimCriticalGather() {
+    if (!pendingGatherData || !activeGatherSession) return;
+
+    const { profId, resourceName, adjustedExp, outcome } = activeGatherSession;
+    if (outcome.criticalCount > 0) {
+        addResourceToPlayer(resourceName, outcome.criticalCount);
+    }
+    if (outcome.bonusExp > 0) applyProfessionExp(profId, outcome.bonusExp);
+
+    let labels = [];
+    if (outcome.doubleTriggered) labels.push('двойная добыча');
+    if (outcome.rareTriggered) labels.push('редкий ресурс');
+    addMessage(`🌟 Критический сбор: +${outcome.criticalCount}x ${resourceName}! (${labels.join(', ')})`, 'success');
+
+    const btn = document.getElementById('claimCriticalBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '✓ Забрано';
+    }
+
+    releaseGatherLockAndRefresh(profId, 400);
+}
+
+function onGatheringComplete(profId, resourceName, adjustedExp, outcome) {
+    addResourceToPlayer(resourceName, outcome.autoCount);
+
+    if (!outcome.hasCritical) {
+        const totalExp = adjustedExp + outcome.bonusExp;
+        applyProfessionExp(profId, totalExp);
+        addMessage(`✅ Собрано: ${outcome.autoCount}x ${resourceName} (+${Math.floor(totalExp)} XP)`, 'success');
+        const resultDiv = document.getElementById('gatherResult');
+        if (resultDiv) {
+            resultDiv.innerHTML = `<div class="gather-auto-toast">✅ +${outcome.autoCount} ${resourceName} · +${Math.floor(totalExp)} XP</div>`;
+        }
+        releaseGatherLockAndRefresh(profId, 280);
+        return;
+    }
+
+    applyProfessionExp(profId, adjustedExp);
+
+    pendingGatherData = outcome;
+    playGatherCriticalFeedback();
+
+    const resultDiv = document.getElementById('gatherResult');
+    if (!resultDiv) {
+        claimCriticalGather();
+        return;
+    }
+
+    let critLines = '';
+    if (outcome.doubleTriggered) critLines += '<div class="gather-crit-tag gather-crit-double">✨ Двойная добыча</div>';
+    if (outcome.rareTriggered) critLines += '<div class="gather-crit-tag gather-crit-rare">🌈 Редкий ресурс</div>';
+
+    resultDiv.innerHTML = `
+        <div class="gather-critical-panel">
+            <div class="gather-critical-title">🌟 Критический сбор!</div>
+            <div class="gather-critical-auto">✅ Обычная добыча: <strong>+${outcome.autoCount}</strong> ${resourceName} (уже в инвентаре)</div>
+            <div class="gather-critical-bonus">🎁 Бонус: <strong>+${outcome.criticalCount}</strong> ${resourceName}</div>
+            <div class="gather-crit-tags">${critLines}</div>
+            ${outcome.bonusExp > 0 ? `<div class="gather-critical-exp">⭐ Бонусный опыт при заборе: +${Math.floor(outcome.bonusExp)} XP</div>` : ''}
+            <button type="button" id="claimCriticalBtn" class="action-btn gather-claim-btn">🎒 Забрать бонус</button>
+        </div>
+    `;
+
+    const btn = document.getElementById('claimCriticalBtn');
+    if (btn) {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            claimCriticalGather();
+        }, { once: true });
+    }
+
+    addMessage(`⛏️ Базовая добыча +${outcome.autoCount} ${resourceName}. Заберите критический бонус!`, 'info');
+    isGatheringLocked = true;
 }
 
 function startGathering(profId, resourceName, time, exp, requiredTier) {
@@ -92,174 +228,168 @@ function startGathering(profId, resourceName, time, exp, requiredTier) {
         addMessage('⏳ Добыча уже идёт! Дождитесь завершения.', 'error');
         return;
     }
-    
+
     const prof = player.professions[profId];
     if (!prof) {
         addMessage('❌ Профессия не изучена!', 'error');
         return;
     }
-    
+
     const currentTier = prof.tier || 1;
-    const bonuses = getProfessionBonuses(currentTier);
-    
     if (currentTier < requiredTier) {
         addMessage(`❌ Нужен ${requiredTier} тир профессии для добычи этого ресурса! (сейчас ${currentTier})`, 'error');
         return;
     }
-    
+
+    const progressDiv = document.getElementById('gatheringProgress');
+    if (!progressDiv) return;
+
     stopGathering();
     isGatheringLocked = true;
-    const progressDiv = document.getElementById('gatheringProgress');
-    if (!progressDiv) { isGatheringLocked = false; return; }
-    
-    let adjustedTime = Math.max(2, Math.floor(time * (1 - bonuses.gatherSpeedBonus)));
-    let adjustedExp = Math.floor(exp * (1 + bonuses.expBonus));
-    
+    pendingGatherData = null;
+    const grid = document.getElementById('gatherResourceGrid');
+    if (grid) grid.classList.add('gather-grid-locked');
+
+    const bonuses = getProfessionBonuses(currentTier);
+    const adjustedTime = Math.max(2, Math.floor(time * (1 - bonuses.gatherSpeedBonus)));
+    const adjustedExp = Math.floor(exp * (1 + bonuses.expBonus));
     const totalTime = adjustedTime * 1000;
-    const startTime = Date.now();
-    
-    // Показываем прогресс-бар
+    const startTime = performance.now();
+
+    activeGatherSession = { profId, resourceName, adjustedExp, bonuses };
+
     progressDiv.innerHTML = `
-        <div class="gathering-progress" style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-top: 15px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="gathering-progress gather-active" id="gatherProgressPanel">
+            <div class="gather-progress-header">
                 <strong>⛏️ Добыча: ${resourceName}</strong>
                 <span id="gatherPercent">0%</span>
             </div>
-            <div class="gathering-bar" style="width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden;">
-                <div class="gathering-fill" id="gatherFill" style="width:0%; height: 100%; background: linear-gradient(90deg, var(--gold), var(--orange)); transition: width 0.1s linear;"></div>
+            <div class="gathering-bar">
+                <div class="gathering-fill" id="gatherFill"></div>
             </div>
-            <div style="margin-top: 10px; font-size: 11px; color: #aaa;">
-                ⚡ Бонус скорости: -${Math.floor(bonuses.gatherSpeedBonus * 100)}% | 📈 +${Math.floor(bonuses.expBonus * 100)}% опыта
+            <div class="gather-progress-hint">
+                ⚡ -${Math.floor(bonuses.gatherSpeedBonus * 100)}% времени · 📈 +${Math.floor(bonuses.expBonus * 100)}% опыта
             </div>
-            <div id="gatherResult" style="margin-top: 12px;"></div>
+            <div id="gatherResult"></div>
         </div>
     `;
-    
-    let animationInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        let percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
+
+    const tick = (now) => {
+        if (!isGatheringLocked || !activeGatherSession) return;
+
+        const elapsed = now - startTime;
+        const percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
         const fill = document.getElementById('gatherFill');
         const percentEl = document.getElementById('gatherPercent');
+
         if (fill) fill.style.width = percent + '%';
         if (percentEl) percentEl.textContent = percent + '%';
-        
-        if (percent >= 100) {
-            clearInterval(animationInterval);
-            clearInterval(gatheringInterval);
-            gatheringInterval = null;
-            
-            // Расчёт результатов
-            let gatheredCount = 1;
-            let bonusExp = 0;
-            let rareTriggered = false;
-            let doubleTriggered = false;
-            
-            if (Math.random() < bonuses.doubleGatherChance) {
-                gatheredCount++;
-                doubleTriggered = true;
-            }
-            
-            if (Math.random() < bonuses.rareResourceChance) {
-                gatheredCount = Math.floor(gatheredCount * 1.5);
-                bonusExp += adjustedExp * 0.5;
-                rareTriggered = true;
-            }
-            
-            // Сохраняем результаты для последующего сбора
-            pendingGatherData = {
-                gatheredCount: gatheredCount,
-                bonusExp: bonusExp,
-                doubleTriggered: doubleTriggered,
-                rareTriggered: rareTriggered
-            };
-            
-            // Показываем кнопку "Собрать" с результатами
-            const resultDiv = document.getElementById('gatherResult');
-            if (resultDiv) {
-                let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 8px; padding: 12px; margin-top: 10px;">';
-                resultHtml += '<div style="margin-bottom: 10px;">🎁 <strong>Добыча завершена!</strong></div>';
-                resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Получено: <span style="color: var(--gold); font-weight: bold;">' + gatheredCount + 'x ' + resourceName + '</span></div>';
-                if (doubleTriggered) resultHtml += '<div style="font-size: 11px; color: #2ecc71;">✨ Сработал шанс двойной добычи! +1 предмет</div>';
-                if (rareTriggered) resultHtml += '<div style="font-size: 11px; color: #f0c040;">🌈 Найден редкий ресурс! +50% к добыче</div>';
-                resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (adjustedExp + bonusExp) + ' XP</div>';
-                resultHtml += '<button id="collectGatherBtn" class="action-btn" style="margin-top: 12px; width: 100%; padding: 10px; background: linear-gradient(135deg, #27ae60, #2ecc71);">🎒 Собрать ресурсы</button>';
-                resultHtml += '</div>';
-                resultDiv.innerHTML = resultHtml;
-                
-                document.getElementById('collectGatherBtn').onclick = () => {
-                    completeGathering(profId, resourceName, adjustedExp, bonuses, adjustedTime);
-                };
-            }
-            
-            isGatheringLocked = false;
+
+        if (percent < 100) {
+            gatheringRafId = requestAnimationFrame(tick);
+            return;
         }
-    }, 100);
-    
-    gatheringInterval = animationInterval;
+
+        gatheringRafId = null;
+        const outcome = rollGatherOutcome(bonuses, adjustedExp);
+        activeGatherSession.outcome = outcome;
+
+        const panel = document.getElementById('gatherProgressPanel');
+        if (panel) panel.classList.add('gather-complete');
+
+        onGatheringComplete(profId, resourceName, adjustedExp, outcome);
+    };
+
+    gatheringRafId = requestAnimationFrame(tick);
+}
+
+function bindGatheringResourceGrid(profId, availableResources) {
+    const grid = document.getElementById('gatherResourceGrid');
+    if (!grid) return;
+
+    grid.onclick = (e) => {
+        const card = e.target.closest('.gather-resource-card');
+        if (!card || card.classList.contains('locked')) return;
+        if (isGatheringLocked) {
+            addMessage('⏳ Дождитесь окончания текущей добычи.', 'error');
+            return;
+        }
+
+        const idx = parseInt(card.getAttribute('data-resource-idx'), 10);
+        const r = availableResources[idx];
+        if (!r) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        startGathering(profId, r.name, r.time, r.exp, r.tier);
+    };
 }
 
 function showGatheringResources(profId) {
     stopGathering();
-    isGatheringLocked = false;
     pendingGatherData = null;
-    
+
     const prof = PROFESSIONS_DB.gathering.find(p => p.id === profId);
     if (!prof) return;
-    
+
     const resources = RESOURCES_DB[profId] || [];
-    const currentTier = player.professions[profId] ? (player.professions[profId].tier || 1) : 1;
-    const exp = player.professions[profId]?.exp || 0;
+    const playerProf = player.professions[profId];
+    const currentTier = playerProf ? (playerProf.tier || 1) : 1;
+    const exp = playerProf?.exp || 0;
     const bonuses = getProfessionBonuses(currentTier);
     const expNeeded = getExpForNextTier(currentTier);
     const percent = (expNeeded > 0 && currentTier < 6) ? (exp / expNeeded * 100) : 100;
-    
-    const availableResources = resources.filter(r => {
-        return r.locations.indexOf(player.location) !== -1 && currentTier >= r.tier;
-    });
-    
+
+    const availableResources = resources.filter(r =>
+        r.locations.indexOf(player.location) !== -1 && currentTier >= r.tier
+    );
+
     let html = '<h2>' + prof.icon + ' ' + prof.name + ' — Сбор ресурсов</h2>';
-    html += '<div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 15px;">';
-    html += '<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">';
-    html += '<div><span style="color: var(--gold);">📍</span> Локация: <strong>' + player.location + '</strong></div>';
-    html += '<div><span style="color: var(--gold);">⭐</span> Тир профессии: <strong>' + currentTier + '</strong>/6</div>';
-    html += '</div>';
-    
+    html += '<div class="gather-prof-panel">';
+    html += '<div class="gather-prof-row"><span>📍</span> <strong>' + player.location + '</strong></div>';
+    html += '<div class="gather-prof-row"><span>⭐</span> Тир <strong>' + currentTier + '</strong>/6</div>';
+
     if (currentTier < 6) {
-        html += '<div class="progress-bar" style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin: 10px 0; overflow: hidden;">' +
-                '<div style="width:' + percent + '%; height: 100%; background: linear-gradient(90deg, #f39c12, #f0c040); transition: width 0.3s;"></div></div>';
-        html += '<div style="font-size: 11px;">До ' + (currentTier + 1) + ' тира: ' + Math.floor(exp) + '/' + expNeeded + ' XP</div>';
+        html += '<div class="progress-bar gather-tier-bar"><div class="gather-tier-fill" style="width:' + percent + '%;"></div></div>';
+        html += '<div class="gather-tier-text">До ' + (currentTier + 1) + ' тира: ' + Math.floor(exp) + '/' + expNeeded + ' XP</div>';
     } else {
-        html += '<div style="color: gold; font-size: 12px; margin: 8px 0;">🏆 МАКСИМАЛЬНЫЙ ТИР! Все бонусы доступны</div>';
+        html += '<div class="gather-tier-maxed">🏆 Максимальный тир</div>';
     }
-    
-    html += '<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">';
-    html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">⚡ Скорость: -' + Math.floor(bonuses.gatherSpeedBonus * 100) + '%</span>';
-    html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">🍀 Двойная добыча: ' + Math.floor(bonuses.doubleGatherChance * 100) + '%</span>';
-    html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">✨ Редкий ресурс: ' + Math.floor(bonuses.rareResourceChance * 100) + '%</span>';
-    html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">📈 Опыт: +' + Math.floor(bonuses.expBonus * 100) + '%</span>';
+
+    html += '<div class="gather-bonus-chips">';
+    html += '<span>⚡ -' + Math.floor(bonuses.gatherSpeedBonus * 100) + '%</span>';
+    html += '<span>🍀 x2: ' + Math.floor(bonuses.doubleGatherChance * 100) + '%</span>';
+    html += '<span>✨ Редкое: ' + Math.floor(bonuses.rareResourceChance * 100) + '%</span>';
     html += '</div></div>';
-    
+
+    html += '<p class="gather-hint">После 100% обычный ресурс попадает в инвентарь сам. Кнопка «Забрать» — только при критическом сборе.</p>';
+
     if (availableResources.length === 0) {
-        html += '<p style="color:#e74c3c; text-align: center; padding: 20px;">Нет доступных ресурсов в этой локации! Повысьте тир профессии или смените локацию.</p>';
+        html += '<p class="gather-empty">Нет ресурсов в этой локации или не хватает тира профессии.</p>';
     } else {
-        html += '<div class="resource-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px;">';
-        availableResources.forEach(r => {
+        html += '<div class="resource-grid" id="gatherResourceGrid" data-prof-id="' + profId + '">';
+        availableResources.forEach((r, idx) => {
             const locked = currentTier < r.tier;
-            html += '<div class="resource-card' + (locked ? ' locked' : ' gathering') + '" onclick="' + (locked ? '' : 'startGathering(\'' + profId + '\',\'' + r.name + '\',' + r.time + ',' + r.exp + ',' + r.tier + ')') + '" style="' + (locked ? 'opacity:0.5;cursor:not-allowed;' : 'background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;') + '">' +
-                '<div style="display: flex; gap: 12px;">' +
-                    '<div class="resource-icon" style="font-size: 35px;">' + r.icon + '</div>' +
-                    '<div class="resource-info" style="flex: 1;">' +
-                        '<div class="resource-name" style="font-weight: 700; font-size: 14px;">' + r.name + '</div>' +
-                        '<div class="resource-desc" style="font-size: 10px; color: #aaa;">⭐ Тир ' + r.tier + '</div>' +
-                        '<div class="resource-req" style="font-size: 10px; color: var(--gold); margin-top: 4px;">⏱️ ' + r.time + ' сек | ⭐ +' + r.exp + ' XP</div>' +
-                        (locked ? '<div style="color:#e74c3c; font-size: 10px; margin-top: 4px;">🔒 Требуется ' + r.tier + ' тир</div>' : '') +
-                    '</div>' +
-                '</div>' +
-            '</div>';
+            html += '<div class="resource-card gather-resource-card' + (locked ? ' locked' : '') + '" data-resource-idx="' + idx + '" role="button" tabindex="0">';
+            html += '<div class="resource-icon">' + r.icon + '</div>';
+            html += '<div class="resource-info">';
+            html += '<div class="resource-name">' + r.name + '</div>';
+            html += '<div class="resource-desc">⭐ Тир ' + r.tier + '</div>';
+            html += '<div class="resource-req">⏱️ ' + r.time + ' с · +' + r.exp + ' XP</div>';
+            if (locked) html += '<div class="resource-locked">🔒 Нужен ' + r.tier + ' тир</div>';
+            html += '</div></div>';
         });
         html += '</div>';
     }
+
     html += '<div id="gatheringProgress"></div>';
-    html += '<button class="action-btn" onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
+    html += '<button type="button" class="action-btn" onclick="showProfessions()" style="margin-top:15px;width:100%;">↩️ Назад к профессиям</button>';
     document.getElementById('dynamicContent').innerHTML = html;
+
+    if (availableResources.length > 0) bindGatheringResourceGrid(profId, availableResources);
 }
+
+window.stopGathering = stopGathering;
+window.startGathering = startGathering;
+window.showGatheringResources = showGatheringResources;
+window.claimCriticalGather = claimCriticalGather;

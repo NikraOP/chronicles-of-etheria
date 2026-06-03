@@ -720,10 +720,8 @@ function useConsumable(type, index) {
         return;
     }
     
-    if (!isPlayerTurn) {
-        addMessage('❌ Сейчас не ваш ход!', 'error');
-        return;
-    }
+    if (!beginPlayerAction()) return;
+    if (window._strikeAnimActive) return;
     
     const cdType = type;
     if (window.getItemCooldown && window.getItemCooldown(cdType) > 0) {
@@ -805,6 +803,9 @@ function useConsumable(type, index) {
         return;
     }
     
+    isPlayerTurn = false;
+    updateBattleButtons();
+    
     itemsList.splice(index, 1);
     saveGame();
     
@@ -813,9 +814,8 @@ function useConsumable(type, index) {
         addBattleLog(`⏳ Предметы этого типа будут доступны через ${window.ITEM_COOLDOWNS[cdType]} ${window.ITEM_COOLDOWNS[cdType] === 1 ? 'ход' : (window.ITEM_COOLDOWNS[cdType] >= 2 && window.ITEM_COOLDOWNS[cdType] <= 4 ? 'хода' : 'ходов')}.`, 'info');
     }
     
-    renderBattle();
-    isPlayerTurn = false;
-    updateBattleButtons();
+    if (typeof updateBattleVitality === 'function') updateBattleVitality();
+    else renderBattle({ vitalsOnly: true });
     
     setTimeout(() => { 
         if (typeof monsterTurn !== 'undefined') monsterTurn(); 

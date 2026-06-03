@@ -50,7 +50,6 @@ function playerAttack() {
     }, {
         onImpact: () => floatDamage('enemy', appliedDamage, crit),
         isCrit: crit,
-        fastResolve: true,
         onAnimEnd: () => syncBattleDisplayAfterAnim()
     });
     updateBattleVitality();
@@ -142,14 +141,16 @@ function useBattleAbility(index) {
         return;
     }
 
-    renderBattle();
+    isPlayerTurn = false;
+    updateBattleButtons();
+    renderBattle({ force: true });
 
     if (playerAttackMissesFromBlind() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
         addBattleLog('👁️ Ослепление — способность промахнулась!', 'error');
         if (!nextNoCd) a.currentCooldown = a.cd;
         isPlayerTurn = false;
         endPlayerActionChain();
-        renderBattle();
+        renderBattle({ force: true });
         return;
     }
     if (monsterDodgesPlayerHit() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
@@ -160,9 +161,6 @@ function useBattleAbility(index) {
         renderBattle();
         return;
     }
-    
-    isPlayerTurn = false;
-    updateBattleButtons();
 
     if (manaCost > 0) player.mana -= manaCost;
     if (nextDoubleEffect) {

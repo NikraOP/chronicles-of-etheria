@@ -30,6 +30,7 @@ if (typeof animatePlayerAttack !== 'undefined') window.animatePlayerAttack = ani
 if (typeof animatePlayerAbility !== 'undefined') window.animatePlayerAbility = animatePlayerAbility;
 if (typeof animateEnemyAttack !== 'undefined') window.animateEnemyAttack = animateEnemyAttack;
 if (typeof setStrikeImpact !== 'undefined') window.setStrikeImpact = setStrikeImpact;
+if (typeof consumeStrikeImpact !== 'undefined') window.consumeStrikeImpact = consumeStrikeImpact;
 if (typeof floatDamage !== 'undefined') window.floatDamage = floatDamage;
 if (typeof showFloatingText !== 'undefined') window.showFloatingText = showFloatingText;
 if (typeof showHitEffect !== 'undefined') window.showHitEffect = showHitEffect;

@@ -85,8 +85,12 @@ function addBattleLog(msg, cls) {
 }
 
 function updateBattleButtons() {
-    const btns = document.querySelectorAll('.action-btn');
-    btns.forEach(btn => { if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn; });
+    if (!currentMonster) return;
+    const root = document.querySelector('.battle-wrapper');
+    if (!root) return;
+    root.querySelectorAll('.action-btn').forEach(btn => {
+        if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn;
+    });
 }
 
 /** Вызывать, когда ход переходит к игроку после хода монстра */

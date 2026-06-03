@@ -2,12 +2,21 @@
 
 function renderBattle(options) {
     options = options || {};
-    if (options.skipIfAnimating && window._strikeAnimActive) return;
     if (!currentMonster) return;
+    if (window._strikeAnimActive && !options.force) {
+        if (options.vitalsOnly) {
+            updateBattleVitality();
+            updateBattleButtons();
+            return;
+        }
+        safeRenderBattle();
+        return;
+    }
+    if (options.skipIfAnimating && window._strikeAnimActive) return;
     const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
     const av = getAvatar();
-    const pHp = (player.health / player.maxHealth * 100);
-    const mHp = (currentMonster.health / currentMonster.maxHealth * 100);
+    const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
+    const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
     const bgStyle = loc.bgColor;
     const monsterImg = currentMonster.img ? '<img src="' + currentMonster.img + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + currentMonster.icon + '\'">' : '<span class="sprite-fallback">' + currentMonster.icon + '</span>';
 
@@ -319,10 +328,10 @@ function updateBattleVitality() {
     );
 }
 
-// Анимации боя: визуал — полная длительность; ход — fastResolve (не ждать конца анимации)
-const STRIKE_DURATION_MS = 720;
-const STRIKE_HEAVY_MS = 810;
-const ENEMY_STRIKE_MS = 720;
+// Анимации боя (синхрон с CSS ~0.78s)
+const STRIKE_DURATION_MS = 780;
+const STRIKE_HEAVY_MS = 880;
+const ENEMY_STRIKE_MS = 780;
 const CAST_VISUAL_MS = 500;
 const CAST_RESOLVE_MS = 120;
 let pendingStrikeImpact = null;
@@ -336,6 +345,12 @@ function abilityNeedsStrike(ability, appliedDamage) {
 
 function setStrikeImpact(fn) {
     pendingStrikeImpact = typeof fn === 'function' ? fn : null;
+}
+
+function consumeStrikeImpact() {
+    const fn = pendingStrikeImpact;
+    pendingStrikeImpact = null;
+    return fn;
 }
 
 function getLungeDistance() {
@@ -381,11 +396,12 @@ function bindAnimationEndCleanup(el, classNames, maxMs, afterCleanup, requiredAn
     }
     const names = Array.isArray(classNames) ? classNames : [classNames];
     let done = false;
+    let fallbackId = null;
     const finish = () => {
         if (done) return;
         done = true;
+        if (fallbackId != null) clearTimeout(fallbackId);
         el.removeEventListener('animationend', onEnd);
-        el.removeEventListener('animationcancel', onEnd);
         names.forEach(c => el.classList.remove(c));
         el.style.animationDuration = '';
         if (afterCleanup) afterCleanup();
@@ -396,8 +412,7 @@ function bindAnimationEndCleanup(el, classNames, maxMs, afterCleanup, requiredAn
         finish();
     };
     el.addEventListener('animationend', onEnd);
-    el.addEventListener('animationcancel', onEnd);
-    setTimeout(finish, (maxMs || 720) + 80);
+    fallbackId = setTimeout(finish, (maxMs || 780) + 120);
 }
 
 function playPlayerCast(callback, options) {
@@ -457,7 +472,7 @@ function playStrikeAnimation(attackerSide, callback, options) {
     };
 
     if (attackerEl) {
-        attackerEl.classList.remove('player-attacking', 'enemy-attacking', 'is-striking');
+        attackerEl.classList.remove('player-attacking', 'enemy-attacking', 'is-striking', 'casting-ability');
         void attackerEl.offsetWidth;
         attackerEl.style.animationDuration = animSec;
         attackerEl.classList.add(attackClass, 'is-striking');
@@ -483,7 +498,13 @@ function playStrikeAnimation(attackerSide, callback, options) {
             defenderEl.classList.remove(hitClass, 'taking-damage');
             void defenderEl.offsetWidth;
             defenderEl.classList.add(hitClass);
-            bindAnimationEndCleanup(defenderEl, hitClass, 500);
+            bindAnimationEndCleanup(
+                defenderEl,
+                hitClass,
+                520,
+                null,
+                isPlayer ? 'victimKnockbackFromPlayer' : 'victimKnockbackFromEnemy'
+            );
         }
         if (defenderWrap) {
             defenderWrap.classList.remove('combat-hit-flash');
@@ -526,13 +547,13 @@ function animatePlayerAbility(callback, ability, appliedDamage, crit, extraOptio
         isCrit: crit,
         heavy: heavy,
         duration: heavy ? STRIKE_HEAVY_MS : STRIKE_DURATION_MS,
-        fastResolve: true
+        fastResolve: false
     });
 }
 
 function animatePlayerAttack(callback, options) {
     options = options || {};
-    options.fastResolve = options.fastResolve !== false;
+    if (options.fastResolve === undefined) options.fastResolve = false;
     if (options.duration == null) {
         options.duration = options.heavy || options.isCrit ? STRIKE_HEAVY_MS : STRIKE_DURATION_MS;
     }
@@ -771,6 +792,7 @@ function showReflectEffect(target, value) {
 
 window.showReflectEffect = showReflectEffect;
 window.setStrikeImpact = setStrikeImpact;
+window.consumeStrikeImpact = consumeStrikeImpact;
 window.safeRenderBattle = safeRenderBattle;
 window.syncBattleDisplayAfterAnim = syncBattleDisplayAfterAnim;
 window.updateBattleVitality = updateBattleVitality;

@@ -7,18 +7,18 @@ function selectClass(className) {
     console.log('Выбран класс:', className);
     
     window.selectedClass = className;
-    document.getElementById('genderSelection').style.display = 'block';
-    document.getElementById('branchSelection').style.display = 'none';
+    document.getElementById('genderSelection').classList.remove('hidden');
+    document.getElementById('branchSelection').classList.add('hidden');
     document.getElementById('startBtn').style.display = 'none';
     
     const genderDiv = document.getElementById('genders');
     genderDiv.innerHTML = `
         <div class="class-option" onclick="selectGender('male')">
-            <div style="font-size: 45px;">👨</div>
+            <div class="class-icon">👨</div>
             <h3>Мужской</h3>
         </div>
         <div class="class-option" onclick="selectGender('female')">
-            <div style="font-size: 45px;">👩</div>
+            <div class="class-icon">👩</div>
             <h3>Женский</h3>
         </div>
     `;
@@ -29,8 +29,8 @@ function selectGender(gender) {
     console.log('Выбран пол:', gender);
     
     window.selectedGender = gender;
-    document.getElementById('genderSelection').style.display = 'none';
-    document.getElementById('branchSelection').style.display = 'block';
+    document.getElementById('genderSelection').classList.add('hidden');
+    document.getElementById('branchSelection').classList.remove('hidden');
     
     const branchesDiv = document.getElementById('branches');
     let branches = [];
@@ -40,9 +40,9 @@ function selectGender(gender) {
     
     branchesDiv.innerHTML = branches.map(b => `
         <div class="class-option" onclick="selectBranch('${b}', event)">
-            <div style="font-size: 45px;">${getBranchIcon(b)}</div>
+            <div class="class-icon">${getBranchIcon(b)}</div>
             <h3>${b}</h3>
-            <small style="font-size: 10px;">${getBranchDescription(b)}</small>
+            <small>${getBranchDescription(b)}</small>
         </div>
     `).join('');
     
@@ -84,9 +84,9 @@ function selectBranch(branch, event) {
     console.log('Выбрана ветка:', branch);
     
     window.selectedBranch = branch;
-    document.querySelectorAll('.class-option').forEach(opt => opt.style.border = 'none');
+    document.querySelectorAll('#branchSelection .class-option').forEach(opt => opt.classList.remove('selected'));
     if (event && event.currentTarget) {
-        event.currentTarget.style.border = '2px solid var(--gold)';
+        event.currentTarget.classList.add('selected');
     }
 }
 
@@ -314,17 +314,11 @@ function resetBaseStats() {
 }
 
 function getAvatar() {
-    console.log('=== getAvatar ===');
-    console.log('player.schoolImg:', player.schoolImg);
-    
     if (player.schoolImg && player.schoolImg !== '') {
         const imgPath = player.schoolImg;
-        console.log('Пытаемся загрузить изображение:', imgPath);
-        
         return `<img class="player-avatar" src="${imgPath}" 
-                      onerror="console.error('❌ ОШИБКА ЗАГРУЗКИ: изображение не найдено по пути', '${imgPath}'); this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${getFallbackAvatar()}'">`;
+                      onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='${getFallbackAvatar()}'">`;
     }
-    console.log('Изображение не указано, используем эмодзи');
     return getFallbackAvatar();
 }
 
@@ -355,7 +349,7 @@ function showModal(title, icon, message, buttonText, callback) {
             <div style="font-size: 48px;">${icon}</div>
             <h3>${title}</h3>
             <p>${message}</p>
-            <button class="action-btn" onclick="closeModal()">${buttonText}</button>
+            <button type="button" class="modal-btn" onclick="closeModal()">${buttonText}</button>
         </div>
     `;
     modal.style.display = 'flex';

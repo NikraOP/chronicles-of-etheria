@@ -1,6 +1,7 @@
 // js/core/battle/battleEnd.js
 
 function victory() {
+    if (!currentMonster) return;
     let gold = Math.floor((currentMonster.exp / 4 + player.level * 1.5) * currentMonster.goldMult / 15);
     gold = Math.floor(gold * 1.0);
     
@@ -20,6 +21,8 @@ function victory() {
         addMessage(`🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ${player.level} уровень!`, 'success');
     }
     currentMonster = null;
+    isPlayerTurn = true;
+    window._strikeAnimActive = false;
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();
@@ -37,6 +40,8 @@ function gameOver() {
     player.health = Math.floor(player.maxHealth / 2);
     if (player.class === 'Маг') player.mana = Math.floor(player.maxMana / 2);
     currentMonster = null;
+    isPlayerTurn = true;
+    window._strikeAnimActive = false;
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();

@@ -25,6 +25,11 @@ function getProfessionBonuses(tier) {
 
 let pendingCraftData = null;
 
+function flushPendingCraft() {
+    if (!pendingCraftData || !pendingCraftData.profId) return;
+    completeCrafting(pendingCraftData.profId, { silent: true });
+}
+
 // Функция для сбора всех рецептов профессии из всех категорий
 function getAllRecipesForProfession(profId) {
     const recipesData = CRAFTING_RECIPES[profId];
@@ -42,7 +47,8 @@ function getAllRecipesForProfession(profId) {
     return allRecipes;
 }
 
-function completeCrafting(profId) {
+function completeCrafting(profId, options) {
+    options = options || {};
     if (!pendingCraftData) {
         addMessage('❌ Нет данных о крафте!', 'error');
         return;
@@ -176,12 +182,12 @@ function completeCrafting(profId) {
     
     saveGame();
     pendingCraftData = null;
-    showCraftingRecipes(profId);
+    if (!options.silent) showCraftingRecipes(profId);
 }
 
 function showCraftingRecipes(profId) {
     stopGathering();
-    pendingCraftData = null;
+    if (pendingCraftData) flushPendingCraft();
     
     const allRecipes = getAllRecipesForProfession(profId);
     
@@ -334,6 +340,10 @@ function showCraftingRecipes(profId) {
 }
 
 function prepareCraft(profId, recipeName) {
+    if (pendingCraftData) {
+        addMessage('⏳ Сначала заберите созданный предмет!', 'error');
+        return;
+    }
     const allRecipes = getAllRecipesForProfession(profId);
     const recipe = allRecipes.find(r => r.name === recipeName);
     
@@ -382,6 +392,7 @@ function prepareCraft(profId, recipeName) {
     
     // Сохраняем данные о крафте
     pendingCraftData = {
+        profId: profId,
         recipe: recipe,
         adjustedExp: recipe.exp || recipe.time || 0,
         bonuses: bonuses,

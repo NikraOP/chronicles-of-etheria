@@ -21,8 +21,7 @@ function init() {
                 updateAllItemPrices();
                 updateAllAbilities();
                 resetBaseStats();
-                player.health = player.maxHealth;
-                if (player.class === 'Маг') player.mana = player.maxMana;
+                clampPlayerVitalsAfterLoad();
                 renderGame();
                 console.log('Сохранение загружено, скинов:', player.unlockedSkins?.length || 0);
                 return;
@@ -404,22 +403,18 @@ function importSaveFile(file) {
             if (importedPlayer.currentSkin === undefined) importedPlayer.currentSkin = null;
             if (importedPlayer.gender === undefined) importedPlayer.gender = 'male';
             
-            player = importedPlayer;
+            player = migrateOldSave(importedPlayer);
             
-            // Инициализация остальных полей
             if (!player.professions) player.professions = {};
             if (!player.resources) player.resources = {};
-            if (!player.inventory) player.inventory = { armor: [], weapons: [], stones: [], potions: [], foods: [], elixirs: [], scrolls: [] };
             if (!player.temporaryEffects) player.temporaryEffects = [];
             if (!player.abilities) player.abilities = [];
             
-            // Восстанавливаем скины
             initSkinsSystem();
             
             resetBaseStats();
             updateAllAbilities();
-            player.health = player.maxHealth;
-            if (player.class === 'Маг') player.mana = player.maxMana;
+            clampPlayerVitalsAfterLoad();
             
             saveGame();
             renderGame();
@@ -533,23 +528,12 @@ function handleImportSave(event) {
     event.target.value = '';
 }
 
-function addSaveLoadButton() {
-    const navGrid = document.querySelector('.nav-grid');
-    if (navGrid && !document.querySelector('.nav-card[onclick="showSaveLoadPanel()"]')) {
-        const saveLoadCard = document.createElement('div');
-        saveLoadCard.className = 'nav-card';
-        saveLoadCard.setAttribute('onclick', 'showSaveLoadPanel()');
-        saveLoadCard.innerHTML = '<div class="nav-card-icon">💾</div><div class="nav-card-title">Сохранения</div>';
-        navGrid.appendChild(saveLoadCard);
-    }
-}
-
 // ===== НАВИГАЦИЯ =====
+// Сохранения — только в Настройках → вкладка «Игра»
 
 const originalRenderGame = renderGame;
 renderGame = function() {
     originalRenderGame();
-    setTimeout(addSaveLoadButton, 100);
     setTimeout(addSkinsButton, 150);
 };
 
@@ -561,6 +545,22 @@ window.addEventListener('beforeunload', function() {
 });
 
 // ===== МИГРАЦИЯ СТАРЫХ СОХРАНЕНИЙ =====
+
+function clampPlayerVitalsAfterLoad() {
+    if (!player) return;
+    if (typeof player.health !== 'number' || player.health < 1) {
+        player.health = player.maxHealth;
+    } else {
+        player.health = Math.min(player.health, player.maxHealth);
+    }
+    if (player.class === 'Маг') {
+        if (typeof player.mana !== 'number' || player.mana < 0) {
+            player.mana = player.maxMana;
+        } else {
+            player.mana = Math.min(player.mana, player.maxMana);
+        }
+    }
+}
 
 function migrateOldSave(playerData) {
     if (!playerData.schoolImg && playerData.class && playerData.branch) {

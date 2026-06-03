@@ -88,9 +88,10 @@ function useMonsterAbility(ability) {
     if (ability.chance && Math.random() * 100 > ability.chance) return false;
     
     const enemySprite = document.getElementById('enemySprite');
-    if (enemySprite) {
+    const useCastGlow = ability.type !== 'damage';
+    if (enemySprite && useCastGlow) {
         enemySprite.classList.add('casting-ability');
-        setTimeout(() => enemySprite.classList.remove('casting-ability'), 800);
+        setTimeout(() => enemySprite.classList.remove('casting-ability'), 520);
     }
     
     showFloatingText('enemy', ability.name, ability.type);
@@ -333,7 +334,8 @@ function monsterTurn() {
         if (stunEffect.dur <= 0) currentMonster.effects = currentMonster.effects.filter(e => e !== stunEffect);
         finishMonsterPhase();
         onPlayerTurnStart();
-        renderBattle();
+        if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
+        else renderBattle();
         return;
     }
     
@@ -344,7 +346,8 @@ function monsterTurn() {
         if (immune.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== immune);
         finishMonsterPhase();
         onPlayerTurnStart();
-        renderBattle();
+        if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
+        else renderBattle();
         return;
     }
     
@@ -390,7 +393,8 @@ function monsterTurn() {
             addBattleLog(`👁️ ${currentMonster.name} ослеплён и промахивается!`, 'info');
             finishMonsterPhase();
             onPlayerTurnStart();
-            renderBattle();
+            if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
+            else renderBattle();
             return;
         }
         const monsterAtk = getMonsterCurrentAttack();
@@ -469,6 +473,8 @@ function monsterTurn() {
         }
     }
     
+    const monsterImpactFn = typeof consumeStrikeImpact === 'function' ? consumeStrikeImpact() : null;
+
     animateEnemyAttack(() => {
         if (player.health <= 0) { 
             const reviveAb = player.abilities && player.abilities.find(a => (a.reviveOnDeath || a.reviveOnce) && !reviveUsed);
@@ -477,16 +483,19 @@ function monsterTurn() {
                 const hpPct = reviveAb.reviveHp || reviveAb.revive || 50;
                 player.health = Math.floor(player.maxHealth * hpPct / 100);
                 addBattleLog(`✨ ${reviveAb.name}! Вы воскресли с ${hpPct}% HP!`, 'success');
+                finishMonsterPhase();
                 onPlayerTurnStart();
                 if (typeof safeRenderBattle === 'function') safeRenderBattle();
-                else renderBattle();
+                else renderBattle({ force: true });
                 return;
             }
             gameOver(); 
             return; 
         }
+        finishMonsterPhase();
         onPlayerTurnStart();
     }, {
+        onImpact: monsterImpactFn || undefined,
         onAnimEnd: () => syncBattleDisplayAfterAnim()
     });
     
@@ -564,5 +573,4 @@ function monsterTurn() {
         return;
     }
     
-    finishMonsterPhase();
 }
