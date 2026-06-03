@@ -1,13 +1,30 @@
 // PvP Arena: Trystero/MQTT WebRTC 1v1 for static hosting.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 1;
-const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=2';
+const PVP_TRYSTERO_URL = '../vendor/trystero-mqtt.bundle.mjs?v=3';
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v2-mqtt';
 const PVP_TRYSTERO_RELAY_URLS = Object.freeze([
     'wss://broker.emqx.io:8084/mqtt',
     'wss://broker-cn.emqx.io:8084/mqtt',
     'wss://test.mosquitto.org:8081/mqtt',
     'wss://broker.hivemq.com:8884/mqtt'
+]);
+// TURN relay for cross-network WebRTC (phone LTE + home Wi‑Fi). STUN comes from Trystero defaults.
+const PVP_TURN_CONFIG = Object.freeze([
+    {
+        urls: Object.freeze([
+            'turn:openrelay.metered.ca:80',
+            'turn:openrelay.metered.ca:443',
+            'turn:openrelay.metered.ca:443?transport=tcp',
+            'turns:openrelay.metered.ca:443?transport=tcp',
+            'turn:global.relay.metered.ca:80',
+            'turn:global.relay.metered.ca:443',
+            'turn:global.relay.metered.ca:443?transport=tcp',
+            'turns:global.relay.metered.ca:443?transport=tcp'
+        ]),
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    }
 ]);
 
 let pvpRoom = null;
@@ -412,7 +429,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP использует Trystero через публичные MQTT-брокеры (EMQX, Mosquitto, HiveMQ). Если соединение не нашлось, оба игрока должны создать новый код и попробовать ещё раз.</p>
+            <p class="pvp-hint">PvP: MQTT-сигналинг + TURN relay для игры с телефона или другого Wi‑Fi (не только с одного ПК). Если соперник не находится — новый код у обоих, попробуйте мобильный интернет или Chrome.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
         </section>
     `;
@@ -468,7 +485,12 @@ function getPvPTransportConfig() {
         appId: PVP_TRYSTERO_APP_ID,
         relayConfig: {
             urls: [...PVP_TRYSTERO_RELAY_URLS]
-        }
+        },
+        turnConfig: PVP_TURN_CONFIG.map(server => ({
+            urls: [...server.urls],
+            username: server.username,
+            credential: server.credential
+        }))
     };
 }
 
@@ -513,7 +535,10 @@ function joinPvPTransportRoom(code, sessionId) {
             onJoinError(details) {
                 if (sessionId !== pvpSessionId) return;
                 const err = details && details.error ? String(details.error) : 'ошибка P2P';
-                pvpLog(`PvP: ${err}`, 'error');
+                const natHint = /ice|candidate|connection|timeout|failed|unreachable/i.test(err)
+                    ? ' Проверьте интернет и firewall; для разных сетей нужен TURN (включён).'
+                    : '';
+                pvpLog(`PvP: ${err}.${natHint}`, 'error');
                 renderPvPArena();
             }
         });

@@ -77,8 +77,16 @@ function testTransportConfigRelays() {
     assert(!configJson.includes('tracker.openwebtorrent.com'), 'openwebtorrent relay must not be configured');
     assert(configA.relayConfig.urls !== configB.relayConfig.urls, 'relay urls array must be copied');
 
+    const turn = configA.turnConfig;
+    assert(Array.isArray(turn) && turn.length >= 1, 'turnConfig must include TURN servers');
+    assert(turn[0].username && turn[0].credential, 'TURN must have username and credential');
+    assert(JSON.stringify(turn).includes('turn:openrelay.metered.ca'), 'Open Relay TURN missing');
+    assert(configA.turnConfig !== configB.turnConfig, 'turnConfig array must be copied');
+
     configA.relayConfig.urls.push('wss://mutated.example');
     assert(!configB.relayConfig.urls.includes('wss://mutated.example'), 'relay config mutation leaked');
+    turn[0].urls.push('turn:mutated.example');
+    assert(!configB.turnConfig[0].urls.includes('turn:mutated.example'), 'turnConfig mutation leaked');
 }
 
 async function testObjectActionAdapter() {
