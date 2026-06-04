@@ -5830,17 +5830,103 @@ body.settings-open .main-header .settings-gear-btn {
 }
 .friend-card__footer {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    gap: 10px;
     margin-top: 12px;
     padding-top: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.04);
     font-size: 10px;
     color: var(--text-muted);
 }
+.friend-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.friend-duel-btn {
+    flex: 1 1 100%;
+    min-height: 44px;
+    font-weight: 700;
+    border-color: rgba(232, 85, 69, 0.45) !important;
+    background: linear-gradient(145deg, rgba(192, 57, 43, 0.22) 0%, rgba(0, 0, 0, 0.35) 100%) !important;
+}
+.friend-duel-btn:hover:not(:disabled) {
+    border-color: rgba(232, 184, 74, 0.55) !important;
+    box-shadow: var(--shadow-gold);
+}
+.friend-card__footer-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 .friend-card__footer-icon {
     font-size: 11px;
     opacity: 0.7;
+}
+
+.modal-duel {
+    text-align: center;
+    padding: 4px 2px 8px;
+    max-width: 360px;
+    margin: 0 auto;
+}
+.modal-duel__icon {
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 8px 20px rgba(232, 85, 69, 0.35));
+}
+.modal-duel__title {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: var(--gold-light);
+    letter-spacing: 0.04em;
+}
+.modal-duel__msg {
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+.modal-duel__msg strong {
+    color: var(--gold-light);
+}
+.modal-duel__meta {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.modal-duel__hint {
+    margin: 0 0 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.modal-duel__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.modal-btn--primary {
+    border-color: rgba(61, 214, 140, 0.5) !important;
+    background: linear-gradient(145deg, rgba(61, 214, 140, 0.2) 0%, rgba(0, 0, 0, 0.35) 100%) !important;
+}
+.modal-btn--ghost {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+@media (min-width: 400px) {
+    .modal-duel__actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+    .modal-duel__actions .modal-btn {
+        flex: 1 1 140px;
+        min-height: 44px;
+    }
 }
 
 @media (max-width: 600px) {

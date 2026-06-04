@@ -198,21 +198,26 @@ function pvpCloudSendMessage(type, payload) {
     });
 }
 
-async function enterPvPCloudAsHost(roomCode) {
-    const snap = typeof getPvPPlayerSnapshot === 'function' ? getPvPPlayerSnapshot() : null;
-    const data = await pvpCloudCreateRoom(roomCode, snap);
+function applyPvPCloudHostSession(roomCode, sessionId, snap) {
+    if (!pvpState) return;
     pvpState.transport = 'cloud';
     pvpState.role = 'host';
-    pvpState.roomCode = data.roomCode || roomCode;
-    pvpState.cloudSessionId = data.sessionId;
+    pvpState.roomCode = roomCode;
+    pvpState.cloudSessionId = sessionId;
     pvpCloudLastSeq = 0;
     pvpRemotePeerId = 'cloud-peer';
     pvpState.status = 'hosting';
     pvpState.local = snap;
+    startPvPCloudPolling();
+}
+
+async function enterPvPCloudAsHost(roomCode) {
+    const snap = typeof getPvPPlayerSnapshot === 'function' ? getPvPPlayerSnapshot() : null;
+    const data = await pvpCloudCreateRoom(roomCode, snap);
+    applyPvPCloudHostSession(data.roomCode || roomCode, data.sessionId, snap);
     if (typeof pvpLog === 'function') {
         pvpLog('Комната в облаке создана. Код: ' + pvpState.roomCode, 'success');
     }
-    startPvPCloudPolling();
 }
 
 async function enterPvPCloudAsGuest(roomCode) {
@@ -252,6 +257,7 @@ function getPvPTransportLabel() {
 window.shouldUsePvPCloudTransport = shouldUsePvPCloudTransport;
 window.pvpCloudSendMessage = pvpCloudSendMessage;
 window.enterPvPCloudAsHost = enterPvPCloudAsHost;
+window.applyPvPCloudHostSession = applyPvPCloudHostSession;
 window.enterPvPCloudAsGuest = enterPvPCloudAsGuest;
 window.leavePvPCloudTransport = leavePvPCloudTransport;
 window.stopPvPCloudPolling = stopPvPCloudPolling;

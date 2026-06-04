@@ -4,12 +4,18 @@
 const FRIENDS_API_LS_KEY = 'etheria_friends_api_v1';
 const FRIENDS_PROFILE_PUSH_MS = 2500;
 const FRIENDS_LIST_POLL_MS = 6000;
+const FRIENDS_INVITE_POLL_WAIT_SEC = 18;
 
 let friendsScreenActive = false;
 let friendsSessionPromise = null;
 let friendsProfilePushTimer = null;
 let friendsProfilePushInFlight = false;
 let friendsListPollTimer = null;
+let friendsInvitePollTimer = null;
+let friendsInvitePollInFlight = false;
+let friendsInvitePollSince = 0;
+let friendsInvitePollActive = false;
+let friendsLastHandledInviteId = '';
 
 function isGitHubPagesHost() {
     const host = typeof location !== 'undefined' ? location.hostname : '';
@@ -354,6 +360,10 @@ function buildFriendsPublicProfile() {
 function friendsErrorMessage(err) {
     const code = err && (err.message || err.data && err.data.error);
     if (code === 'unauthorized') return 'Сессия устарела — откройте вкладку «Друзья» снова.';
+    if (code === 'not_friend') return 'Можно вызывать на бой только друзей из списка.';
+    if (code === 'invalid_target') return 'Некорректный игрок для вызова.';
+    if (code === 'invite_not_found') return 'Приглашение устарело или уже обработано.';
+    if (code === 'room_exists') return 'Комната уже занята — попробуйте снова.';
     if (code === 'code_not_found') return 'Код не найден. Друг должен хотя бы раз открыть вкладку «Друзья» в игре.';
     if (code === 'self_friend') return 'Нельзя добавить свой собственный код.';
     if (code === 'friends_limit') return 'Слишком много друзей на сервере.';
@@ -381,6 +391,7 @@ async function ensureFriendsOnlineSession(options) {
             player.friends.friendCode = data.friendCode;
             player.friends.lastSyncAt = data.updatedAt || Date.now();
             if (typeof saveGame === 'function') saveGame();
+            startFriendsInvitePolling();
             return true;
         } catch (err) {
             if (!options.silent && typeof addMessage === 'function') {
@@ -551,10 +562,169 @@ function renderFriendEquipmentGrid(equipment) {
     return html;
 }
 
+function closeBattleInviteModal() {
+    const modal = document.getElementById('modalOverlay');
+    if (modal) modal.style.display = 'none';
+    window._battleInviteModalOpen = false;
+    window._pendingBattleInviteId = '';
+}
+
+function showBattleInviteModal(invite) {
+    if (!invite || !invite.inviteId) return;
+    if (window._battleInviteModalOpen) return;
+    if (window.pvpBattleActive) return;
+    const modal = document.getElementById('modalOverlay');
+    const content = document.getElementById('modalContent');
+    if (!modal || !content) return;
+    const name = escapeFriendsHtml(invite.fromName || 'Друг');
+    const cls = escapeFriendsHtml(invite.fromClass || '');
+    const meta = cls ? '<span class="modal-duel__meta">' + cls + '</span>' : '';
+    window._battleInviteModalOpen = true;
+    window._pendingBattleInviteId = invite.inviteId;
+    content.innerHTML =
+        '<div class="modal-duel">' +
+        '<div class="modal-duel__icon" aria-hidden="true">⚔️</div>' +
+        '<h3 class="modal-duel__title">Вызов на PvP</h3>' +
+        '<p class="modal-duel__msg"><strong>' + name + '</strong> приглашает вас на бой 1 на 1.' + meta + '</p>' +
+        '<p class="modal-duel__hint">Примите — откроется арена. Отклоните — вызов будет отменён.</p>' +
+        '<div class="modal-duel__actions">' +
+        '<button type="button" class="modal-btn modal-btn--primary" onclick="acceptBattleInvite()">Принять</button>' +
+        '<button type="button" class="modal-btn modal-btn--ghost" onclick="declineBattleInvite()">Отклонить</button>' +
+        '</div></div>';
+    modal.style.display = 'flex';
+}
+
+async function acceptBattleInvite() {
+    const inviteId = window._pendingBattleInviteId;
+    closeBattleInviteModal();
+    if (!inviteId) return;
+    friendsLastHandledInviteId = inviteId;
+    try {
+        await ensureFriendsOnlineSession({ silent: false });
+        const data = await friendsHttpFetch('/api/v1/pvp/invite/' + encodeURIComponent(inviteId) + '/respond', {
+            method: 'POST',
+            body: { accept: true }
+        });
+        if (!data.roomCode) throw new Error('no_room');
+        if (typeof addMessage === 'function') addMessage('⚔️ Принят вызов — подключаемся к арене…', 'success');
+        if (typeof showPvPArena === 'function') showPvPArena();
+        if (typeof joinPvPRoomWithCode === 'function') joinPvPRoomWithCode(data.roomCode);
+    } catch (err) {
+        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+    }
+}
+
+async function declineBattleInvite() {
+    const inviteId = window._pendingBattleInviteId;
+    closeBattleInviteModal();
+    if (!inviteId) return;
+    friendsLastHandledInviteId = inviteId;
+    try {
+        await ensureFriendsOnlineSession({ silent: true });
+        await friendsHttpFetch('/api/v1/pvp/invite/' + encodeURIComponent(inviteId) + '/respond', {
+            method: 'POST',
+            body: { accept: false }
+        });
+        if (typeof addMessage === 'function') addMessage('Вызов на бой отклонён.', 'info');
+    } catch (_) { /* ignore */ }
+}
+
+function scheduleFriendsInvitePoll(delayMs) {
+    if (!friendsInvitePollActive) return;
+    if (friendsInvitePollTimer) clearTimeout(friendsInvitePollTimer);
+    friendsInvitePollTimer = setTimeout(friendsInvitePollTick, delayMs == null ? 400 : delayMs);
+}
+
+async function friendsInvitePollTick() {
+    if (!player || !player.friends || !player.friends.playerId) {
+        scheduleFriendsInvitePoll(8000);
+        return;
+    }
+    if (getFriendsBackendKind() !== 'http') return;
+    if (friendsInvitePollInFlight) return;
+    if (window._battleInviteModalOpen || window.pvpBattleActive) {
+        scheduleFriendsInvitePoll(3000);
+        return;
+    }
+    friendsInvitePollInFlight = true;
+    try {
+        if (!player.friends.syncToken) await ensureFriendsOnlineSession({ silent: true });
+        const data = await friendsHttpFetch(
+            '/api/v1/pvp/invites/poll?since=' + encodeURIComponent(String(friendsInvitePollSince || 0)) +
+            '&wait=' + FRIENDS_INVITE_POLL_WAIT_SEC
+        );
+        if (data && Number.isFinite(data.seq)) friendsInvitePollSince = data.seq;
+        const inv = data && data.invite;
+        if (inv && inv.inviteId && inv.status === 'pending' && inv.inviteId !== friendsLastHandledInviteId) {
+            showBattleInviteModal(inv);
+        }
+    } catch (_) { /* offline */ }
+    finally {
+        friendsInvitePollInFlight = false;
+        scheduleFriendsInvitePoll(500);
+    }
+}
+
+function startFriendsInvitePolling() {
+    if (getFriendsBackendKind() !== 'http') return;
+    if (friendsInvitePollActive) return;
+    friendsInvitePollActive = true;
+    scheduleFriendsInvitePoll(1200);
+}
+
+function stopFriendsInvitePolling() {
+    friendsInvitePollActive = false;
+    if (friendsInvitePollTimer) {
+        clearTimeout(friendsInvitePollTimer);
+        friendsInvitePollTimer = null;
+    }
+}
+
+async function challengeFriendToPvP(targetPlayerId, friendName) {
+    if (!player) return;
+    if (getFriendsBackendKind() !== 'http') {
+        if (typeof addMessage === 'function') {
+            addMessage('Вызов на бой работает через сервер Etheria (не Supabase).', 'error');
+        }
+        return;
+    }
+    const toId = String(targetPlayerId || '').trim();
+    if (!toId) {
+        if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга.', 'error');
+        return;
+    }
+    if (typeof getPvPPlayerSnapshot !== 'function') {
+        if (typeof addMessage === 'function') addMessage('❌ PvP недоступен.', 'error');
+        return;
+    }
+    friendsUpdateLiveStatus('loading');
+    const ready = await ensureFriendsOnlineSession({ silent: false });
+    if (!ready) return;
+    const snap = getPvPPlayerSnapshot();
+    try {
+        const data = await friendsHttpFetch('/api/v1/pvp/invite', {
+            method: 'POST',
+            body: { toPlayerId: toId, snapshot: snap }
+        });
+        if (typeof showPvPArena === 'function') showPvPArena();
+        if (typeof startPvPChallengeHost === 'function') {
+            startPvPChallengeHost(data.roomCode, data.sessionId);
+        }
+        if (typeof addMessage === 'function') {
+            addMessage('⚔️ Приглашение отправлено: ' + (friendName || 'другу'), 'success');
+        }
+        friendsUpdateLiveStatus('online');
+    } catch (err) {
+        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+        friendsUpdateLiveStatus('online');
+    }
+}
+
 function renderFriendCard(entry) {
     const p = entry.profile || {};
     const st = p.stats || {};
     const updated = formatFriendSyncTime(entry.updatedAt);
+    const playerId = entry.playerId || '';
     let statsHtml = '<div class="friend-card__stats">';
     statsHtml += renderFriendStatChip('❤️', (st.health || 0) + '/' + (st.maxHealth || 0), 'hp');
     statsHtml += renderFriendStatChip('⚔️', String(st.attack || 0), 'atk');
@@ -581,7 +751,15 @@ function renderFriendCard(entry) {
         '</div>' +
         '</div>' +
         renderFriendEquipmentGrid(p.equipment) +
-        '<footer class="friend-card__footer"><span class="friend-card__footer-icon" aria-hidden="true">🕐</span> Обновлено: ' + escapeFriendsHtml(updated) + '</footer>' +
+        '<footer class="friend-card__footer">' +
+        '<div class="friend-card__actions">' +
+        (playerId
+            ? '<button type="button" class="action-btn friend-duel-btn" onclick="challengeFriendToPvP(' +
+                JSON.stringify(playerId) + ',' + JSON.stringify(p.name || 'Герой') + ')">⚔️ Вызвать на бой</button>'
+            : '') +
+        '</div>' +
+        '<span class="friend-card__footer-time"><span class="friend-card__footer-icon" aria-hidden="true">🕐</span> Обновлено: ' +
+        escapeFriendsHtml(updated) + '</span></footer>' +
         '</article>';
 }
 
@@ -639,6 +817,7 @@ async function friendsOpenScreen() {
     await ensureFriendsOnlineSession({ silent: true });
     await refreshFriendsFromServer();
     startFriendsLiveUpdates();
+    startFriendsInvitePolling();
     scheduleFriendsProfilePush();
     renderFriendsScreenInner();
 }
@@ -728,6 +907,7 @@ function friendsHookRenderGame() {
         orig.apply(this, arguments);
         if (player && player.friends && player.friends.playerId) {
             scheduleFriendsProfilePush();
+            startFriendsInvitePolling();
         }
     };
     window.__friendsRenderHooked = true;
@@ -750,3 +930,7 @@ window.buildFriendsPublicProfile = buildFriendsPublicProfile;
 window.renderFriendPortraitHTML = renderFriendPortraitHTML;
 window.resolveFriendPortraitFromProfile = resolveFriendPortraitFromProfile;
 window.findSkinDefInDb = findSkinDefInDb;
+window.challengeFriendToPvP = challengeFriendToPvP;
+window.acceptBattleInvite = acceptBattleInvite;
+window.declineBattleInvite = declineBattleInvite;
+window.startFriendsInvitePolling = startFriendsInvitePolling;

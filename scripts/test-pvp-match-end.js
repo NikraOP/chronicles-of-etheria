@@ -13,6 +13,7 @@ const arenaSrc = fs.readFileSync(path.join(root, 'js/core/pvpArena.js'), 'utf8')
 const damageSrc = fs.readFileSync(path.join(root, 'js/core/battle/battleDamage.js'), 'utf8');
 const playerSrc = fs.readFileSync(path.join(root, 'js/core/player.js'), 'utf8');
 const battleUiSrc = fs.readFileSync(path.join(root, 'js/core/battle/battleUI.js'), 'utf8');
+const friendsSrc = fs.readFileSync(path.join(root, 'js/core/friends.js'), 'utf8');
 
 let failed = 0;
 function assert(cond, msg) {
@@ -39,6 +40,11 @@ assert(arenaSrc.includes('function renderPvPArena') && arenaSrc.includes("pvpSta
 assert(arenaSrc.includes('equipment: sanitizePvPEquipmentMap'), 'snapshot carries equipment');
 assert(arenaSrc.includes('renderPvPEquipmentGrid'), 'arena equipment grid renderer');
 assert(arenaSrc.includes('pvp-fighters-board'), 'fighters board layout');
+assert(friendsSrc.includes('challengeFriendToPvP'), 'friends challenge button handler');
+assert(friendsSrc.includes('showBattleInviteModal'), 'battle invite modal');
+assert(friendsSrc.includes('/api/v1/pvp/invites/poll'), 'invite poll endpoint client');
+assert(arenaSrc.includes('startPvPChallengeHost'), 'host from invite session');
+assert(arenaSrc.includes('joinPvPRoomWithCode'), 'join by invite code');
 
 if (failed) process.exit(1);
 console.log('\nPvP match-end checks passed.');

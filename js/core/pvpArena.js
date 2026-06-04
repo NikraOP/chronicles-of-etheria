@@ -2053,6 +2053,29 @@ function createPvPRoom() {
         });
 }
 
+function joinPvPRoomWithCode(code) {
+    const roomCode = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!roomCode || roomCode.length < 4) {
+        addMessage('Некорректный код PvP комнаты.', 'error');
+        return;
+    }
+    resetPvPConnection();
+    pvpState = createEmptyPvPState();
+    pvpState.role = 'guest';
+    pvpState.roomCode = roomCode;
+    pvpState.local = getPvPPlayerSnapshot();
+    pvpState.status = 'connecting';
+    pvpLog('Подключаемся к комнате...', 'info');
+    renderPvPArena();
+    enterPvPCloudAsGuest(roomCode)
+        .then(function () { renderPvPArena(); })
+        .catch(function (err) {
+            if (typeof handlePvPError === 'function') handlePvPError(err);
+            else pvpLog(String(err && err.message || err), 'error');
+            renderPvPArena();
+        });
+}
+
 function joinPvPRoom() {
     const input = document.getElementById('pvpJoinCode');
     const code = input ? input.value.trim().toUpperCase() : '';
@@ -2060,22 +2083,22 @@ function joinPvPRoom() {
         addMessage('Введите код PvP комнаты.', 'error');
         return;
     }
+    joinPvPRoomWithCode(code);
+}
+
+function startPvPChallengeHost(roomCode, sessionId) {
+    if (!player) return;
     resetPvPConnection();
-    const sessionId = pvpSessionId;
     pvpState = createEmptyPvPState();
-    pvpState.role = 'guest';
-    pvpState.roomCode = code;
+    pvpState.role = 'host';
+    pvpState.roomCode = String(roomCode || '').toUpperCase();
     pvpState.local = getPvPPlayerSnapshot();
-    pvpState.status = 'connecting';
-    pvpLog('Подключаемся к комнате...', 'info');
+    pvpState.status = 'hosting';
+    pvpLog('Ожидаем друга в комнате ' + pvpState.roomCode + '…', 'info');
+    if (typeof applyPvPCloudHostSession === 'function') {
+        applyPvPCloudHostSession(pvpState.roomCode, sessionId, pvpState.local);
+    }
     renderPvPArena();
-    enterPvPCloudAsGuest(code)
-        .then(function () { renderPvPArena(); })
-        .catch(function (err) {
-            if (typeof handlePvPError === 'function') handlePvPError(err);
-            else pvpLog(String(err && err.message || err), 'error');
-            renderPvPArena();
-        });
 }
 
 function handlePvPMessage(msg) {
@@ -2493,6 +2516,8 @@ function runPvPStressTest(iterations) {
 window.showPvPArena = showPvPArena;
 window.createPvPRoom = createPvPRoom;
 window.joinPvPRoom = joinPvPRoom;
+window.joinPvPRoomWithCode = joinPvPRoomWithCode;
+window.startPvPChallengeHost = startPvPChallengeHost;
 window.togglePvPReady = togglePvPReady;
 window.hostStartPvPMatch = hostStartPvPMatch;
 window.sendPvPAction = sendPvPAction;

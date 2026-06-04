@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { ensureDir, flushAll } from './lib/jsonFile.mjs';
 import { createAccountsApi } from './lib/accounts.mjs';
 import { createPvPRoomsApi } from './lib/pvpRooms.mjs';
+import { createBattleInvitesApi } from './lib/battleInvites.mjs';
 import { createHttpHelpers } from './lib/httpUtil.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,7 @@ const CORS_ORIGINS = (process.env.FRIENDS_CORS || '*').split(',').map(s => s.tri
 const { corsHeaders, json, readJsonBody } = createHttpHelpers(CORS_ORIGINS);
 const accounts = createAccountsApi(DATA_DIR);
 const pvp = createPvPRoomsApi(PVP_DIR);
+const battleInvites = createBattleInvitesApi(DATA_DIR, pvp, accounts);
 
 async function requireAuth(req, res, origin) {
     const { playerId, syncToken } = accounts.pickAuth(req);
@@ -162,6 +164,49 @@ const server = createServer(async (req, res) => {
             }
             friends.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
             json(res, 200, { ok: true, friends }, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/pvp/invite') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const toPlayerId = accounts.sanitizeId(body.toPlayerId);
+            const result = await battleInvites.createInvite(account, toPlayerId, body.snapshot);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const inviteRespondMatch = url.pathname.match(/^\/api\/v1\/pvp\/invite\/([a-zA-Z0-9_]+)\/respond$/);
+        if (req.method === 'POST' && inviteRespondMatch) {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const accept = !!(body && body.accept);
+            const result = await battleInvites.respondInvite(
+                account.playerId,
+                inviteRespondMatch[1],
+                accept
+            );
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/pvp/invites/poll') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const since = url.searchParams.get('since') || '0';
+            const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
+            const result = await battleInvites.pollInvites(account.playerId, since, waitMs);
+            json(res, 200, result, origin);
             return;
         }
 
