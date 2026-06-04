@@ -9,6 +9,7 @@ function isBattleZoneStaging() {
 }
 
 function isBattleEngaged() {
+    if (window.pvpBattleActive && !!currentMonster) return true;
     return battleEngaged && !!currentMonster && !window.pvpBattleActive;
 }
 

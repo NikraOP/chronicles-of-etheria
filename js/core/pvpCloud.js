@@ -117,18 +117,20 @@ async function pvpCloudPollTick() {
             if (pvpState.role === 'host' && pvpState.status === 'hosting') {
                 pvpState.status = 'connected';
             }
-            if (data.room.guestSnapshot && pvpState.role === 'host' && typeof sanitizePvPSnapshot === 'function') {
-                const remote = sanitizePvPSnapshot(data.room.guestSnapshot);
-                if (remote && (!pvpState.remote || pvpState.remote.name !== remote.name)) {
-                    pvpState.remote = remote;
-                    if (typeof renderPvPArena === 'function') renderPvPArena();
+            if (pvpState.status !== 'battle' && !window.pvpBattleActive) {
+                if (data.room.guestSnapshot && pvpState.role === 'host' && typeof sanitizePvPSnapshot === 'function') {
+                    const remote = sanitizePvPSnapshot(data.room.guestSnapshot);
+                    if (remote && (!pvpState.remote || pvpState.remote.name !== remote.name)) {
+                        pvpState.remote = remote;
+                        if (typeof renderPvPArena === 'function') renderPvPArena();
+                    }
                 }
-            }
-            if (data.room.hostSnapshot && pvpState.role === 'guest' && typeof sanitizePvPSnapshot === 'function') {
-                const remote = sanitizePvPSnapshot(data.room.hostSnapshot);
-                if (remote && !pvpState.remote) {
-                    pvpState.remote = remote;
-                    if (typeof renderPvPArena === 'function') renderPvPArena();
+                if (data.room.hostSnapshot && pvpState.role === 'guest' && typeof sanitizePvPSnapshot === 'function') {
+                    const remote = sanitizePvPSnapshot(data.room.hostSnapshot);
+                    if (remote && !pvpState.remote) {
+                        pvpState.remote = remote;
+                        if (typeof renderPvPArena === 'function') renderPvPArena();
+                    }
                 }
             }
         }
@@ -184,8 +186,9 @@ function pvpCloudSendMessage(type, payload) {
             payload: payload || {}
         }
     }).then(function () {
+        setPvPCloudSyncPending(false);
         if (typeof pvpLog === 'function' && (type === 'turn' || type === 'start')) {
-            pvpLog(type === 'turn' ? 'Ход синхронизирован с облаком.' : 'Матч отправлен в облако.', 'success');
+            pvpLog(type === 'turn' ? 'Ход синхронизирован с облаком.' : 'Старт матча на сервере.', 'success');
         }
         return true;
     }).catch(function (err) {

@@ -653,8 +653,14 @@ function matchUsesNegotiatedSnapshots(match) {
     if (!match || !pvpState.local || !pvpState.remote) return false;
     const localRole = getLocalPvPRole();
     const remoteRole = getRemotePvPRole();
-    return samePvPParticipant(match.players[localRole], pvpState.local)
-        && samePvPParticipant(match.players[remoteRole], pvpState.remote);
+    const localF = match.players[localRole];
+    const remoteF = match.players[remoteRole];
+    if (!localF || !remoteF) return false;
+    if (pvpState.transport === 'cloud') {
+        return localF.name === pvpState.local.name && remoteF.name === pvpState.remote.name;
+    }
+    return samePvPParticipant(localF, pvpState.local)
+        && samePvPParticipant(remoteF, pvpState.remote);
 }
 
 function buildInitialPvPMatch(hostSnapshot, guestSnapshot) {
@@ -1242,6 +1248,7 @@ function showPvPArena() {
 }
 
 function renderPvPArena() {
+    if (pvpState.status === 'battle' || window.pvpBattleActive) return;
     if (pvpState.status === 'ended' || (pvpState.match && pvpState.match.finished)) {
         resetPvPLobbyForRematch();
     }
@@ -1955,21 +1962,38 @@ function togglePvPReady() {
     renderPvPArena();
 }
 
-function hostStartPvPMatch() {
+async function hostStartPvPMatch() {
     if (pvpState.role !== 'host' || !pvpState.localReady || !pvpState.remoteReady || !pvpState.remote) return;
     pvpState.local = getPvPPlayerSnapshot();
     if (pvpState.local) pvpState.local.health = pvpState.local.maxHealth;
     if (pvpState.remote) pvpState.remote.health = pvpState.remote.maxHealth;
     pvpState.match = buildInitialPvPMatch(pvpState.local, pvpState.remote);
-    if (pvpState.match && pvpState.match.players) {
-        pvpState.match.players.host.health = pvpState.match.players.host.maxHealth;
-        pvpState.match.players.guest.health = pvpState.match.players.guest.maxHealth;
+    if (!pvpState.match || !pvpState.match.players) {
+        pvpLog('Не удалось создать матч.', 'error');
+        return;
     }
+    pvpState.match.players.host.health = pvpState.match.players.host.maxHealth;
+    pvpState.match.players.guest.health = pvpState.match.players.guest.maxHealth;
+
+    if (pvpState.transport === 'cloud' && typeof pvpCloudSendMessage === 'function') {
+        const sent = await pvpCloudSendMessage('start', { match: pvpState.match });
+        if (!sent) {
+            pvpState.match = null;
+            pvpLog('Не удалось отправить старт на сервер. Повторите.', 'error');
+            renderPvPArena();
+            return;
+        }
+    } else {
+        sendPvPMessage('start', { match: pvpState.match });
+    }
+
     pvpState.status = 'battle';
-    sendPvPMessage('start', { match: pvpState.match });
     pvpLog('Матч начался.', 'success');
-    if (typeof enterPvPBossBattle === 'function') enterPvPBossBattle();
-    else renderPvPBattle();
+    if (typeof enterPvPBossBattle === 'function') {
+        enterPvPBossBattle();
+    } else {
+        renderPvPBattle();
+    }
 }
 
 function getLocalPvPRole() {

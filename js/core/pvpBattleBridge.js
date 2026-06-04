@@ -400,6 +400,7 @@
         }
 
         syncPvPBattleFromMatch();
+        if (typeof syncBattleZoneLayout === 'function') syncBattleZoneLayout();
         addBattleLog('🏟️ PvP матч начался!', 'info');
         if (typeof renderBattle === 'function') renderBattle({ force: true });
 
