@@ -110,11 +110,88 @@ function buildDungeonRoomSnapshot() {
     };
 }
 
+function getDungeonDuoSlotHealth(slot) {
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || !slot) return 0;
+    if (slot === duo.role) return player ? Math.max(0, player.health || 0) : 0;
+    const ally = getDungeonDuoAlly();
+    return ally ? Math.max(0, ally.health || 0) : 0;
+}
+
+function isDungeonDuoSlotAlive(slot) {
+    return getDungeonDuoSlotHealth(slot) > 0;
+}
+
+function markDungeonDuoDeadSlotsActed() {
+    if (!isDungeonDuoSlotAlive('host')) dungeonDuoRoundActs.host = true;
+    if (!isDungeonDuoSlotAlive('guest')) dungeonDuoRoundActs.guest = true;
+}
+
+function dungeonDuoPickActiveSlot() {
+    if (!dungeonDuoRoundActs.host && isDungeonDuoSlotAlive('host')) return 'host';
+    if (!dungeonDuoRoundActs.guest && isDungeonDuoSlotAlive('guest')) return 'guest';
+    return null;
+}
+
+function dungeonDuoFirstAliveSlot() {
+    if (isDungeonDuoSlotAlive('host')) return 'host';
+    if (isDungeonDuoSlotAlive('guest')) return 'guest';
+    return 'host';
+}
+
 function dungeonDuoLocalCanAct() {
     if (!isDungeonDuoBattleActive()) return !!isPlayerTurn;
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     if (!duo || !duo.role) return !!isPlayerTurn;
-    return dungeonDuoCoopPlayerPhase && duo.role === dungeonDuoActiveSlot;
+    return dungeonDuoCoopPlayerPhase &&
+        duo.role === dungeonDuoActiveSlot &&
+        isDungeonDuoSlotAlive(duo.role);
+}
+
+function onDungeonDuoPartnerDowned() {
+    if (!isDungeonDuoBattleActive()) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || !duo.role) return;
+    const deadSlot = duo.role === 'host' ? 'guest' : 'host';
+    markDungeonDuoDeadSlotsActed();
+    dungeonDuoRoundActs[deadSlot] = true;
+    const next = dungeonDuoPickActiveSlot();
+    if (next) {
+        dungeonDuoActiveSlot = next;
+        isPlayerTurn = dungeonDuoLocalCanAct();
+        if (typeof addBattleLog === 'function') {
+            addBattleLog('💀 Союзник выбыл — ваш ход.', 'warning');
+        }
+    } else {
+        markDungeonDuoDeadSlotsActed();
+        isPlayerTurn = false;
+        if (dungeonDuoRoundActs.host && dungeonDuoRoundActs.guest && duo.role === 'host') {
+            resetDungeonDuoRoundActs();
+            markDungeonDuoDeadSlotsActed();
+            if (typeof broadcastDungeonDuoRoomState === 'function') broadcastDungeonDuoRoomState();
+            startDungeonDuoMonsterPhase();
+        }
+    }
+    if (duo.role === 'host' && typeof broadcastDungeonDuoRoomState === 'function' && next) {
+        broadcastDungeonDuoRoomState();
+    }
+    if (typeof updateBattleButtons === 'function') updateBattleButtons();
+}
+
+function onDungeonDuoLocalPlayerDowned() {
+    if (!isDungeonDuoBattleActive()) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || !duo.role) return;
+    isPlayerTurn = false;
+    dungeonDuoRoundActs[duo.role] = true;
+    if (typeof addBattleLog === 'function') addBattleLog('💀 Вы выбыли. Бой продолжает напарник.', 'warning');
+    if (typeof addMessage === 'function') addMessage('💀 Вы выбыли из боя. Напарник сражается дальше.', 'warning');
+    if (typeof sendDuoDungeonBattleAction === 'function') {
+        const snap = typeof buildDungeonRoomSnapshot === 'function' ? buildDungeonRoomSnapshot() : null;
+        if (snap && typeof fillPartyInSnapshot === 'function') fillPartyInSnapshot(snap);
+        sendDuoDungeonBattleAction({ type: 'player_downed', snapshot: snap, slot: duo.role });
+    }
+    if (typeof updateBattleButtons === 'function') updateBattleButtons();
 }
 
 function pushDungeonDuoBattleVisual(visual) {
@@ -228,8 +305,13 @@ function applyDungeonDuoRoomSnapshot(payload) {
         }
     }
 
+    markDungeonDuoDeadSlotsActed();
     const canAct = dungeonDuoLocalCanAct();
-    isPlayerTurn = canAct;
+    if (!isDungeonDuoSlotAlive(duo && duo.role) && duo) {
+        isPlayerTurn = false;
+    } else {
+        isPlayerTurn = canAct;
+    }
     if (canAct && !wasLocalTurn && typeof addBattleLog === 'function') addBattleLog('✅ Ваш ход.', 'success');
     if (!canAct && wasLocalTurn && dungeonDuoCoopPlayerPhase && typeof addBattleLog === 'function') {
         addBattleLog('⏳ Ход союзника…', 'info');
@@ -282,9 +364,11 @@ function onDungeonDuoPlayerActionEnded() {
     if (!duo || !duo.role) return;
 
     dungeonDuoRoundActs[duo.role] = true;
+    markDungeonDuoDeadSlotsActed();
 
     if (!dungeonDuoRoundActs.host || !dungeonDuoRoundActs.guest) {
-        dungeonDuoActiveSlot = dungeonDuoRoundActs.host ? 'guest' : 'host';
+        const next = dungeonDuoPickActiveSlot();
+        dungeonDuoActiveSlot = next || dungeonDuoFirstAliveSlot();
         isPlayerTurn = dungeonDuoLocalCanAct();
         if (typeof addBattleLog === 'function' && !isPlayerTurn) {
             addBattleLog('⏳ Ход союзника…', 'info');
@@ -301,7 +385,8 @@ function onDungeonDuoPlayerActionEnded() {
     }
 
     resetDungeonDuoRoundActs();
-    dungeonDuoActiveSlot = 'host';
+    markDungeonDuoDeadSlotsActed();
+    dungeonDuoActiveSlot = dungeonDuoFirstAliveSlot();
 
     if (duo.role === 'guest') {
         if (typeof sendDuoDungeonBattleAction === 'function') {
@@ -334,9 +419,10 @@ function onDungeonDuoMonsterPhaseComplete() {
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     if (!duo || duo.role !== 'host') return;
     resetDungeonDuoRoundActs();
+    markDungeonDuoDeadSlotsActed();
     dungeonDuoCoopPlayerPhase = true;
-    dungeonDuoActiveSlot = 'host';
-    isPlayerTurn = true;
+    dungeonDuoActiveSlot = dungeonDuoFirstAliveSlot();
+    isPlayerTurn = dungeonDuoLocalCanAct();
     broadcastDungeonDuoRoomState();
     if (typeof updateBattleButtons === 'function') updateBattleButtons();
 }
@@ -380,16 +466,39 @@ function applyRemoteDuoDungeonBattleActionImpl(payload) {
         if (typeof playRemoteDungeonDuoVisual === 'function') playRemoteDungeonDuoVisual(payload.visual);
         return;
     }
+    if (payload.type === 'player_downed') {
+        if (payload.snapshot) applyDungeonDuoRoomSnapshot(payload.snapshot);
+        if (payload.slot) dungeonDuoRoundActs[payload.slot] = true;
+        markDungeonDuoDeadSlotsActed();
+        const next = dungeonDuoPickActiveSlot();
+        if (next) {
+            dungeonDuoActiveSlot = next;
+            isPlayerTurn = dungeonDuoLocalCanAct();
+            if (typeof addBattleLog === 'function') addBattleLog('💀 Союзник выбыл — ваш ход.', 'warning');
+            broadcastDungeonDuoRoomState();
+        }
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        return;
+    }
     if (payload.type === 'end_turn') {
         if (payload.snapshot) applyDungeonDuoRoomSnapshot(payload.snapshot);
-        dungeonDuoRoundActs.guest = true;
-        if (!dungeonDuoRoundActs.host) {
-            dungeonDuoActiveSlot = 'host';
-            isPlayerTurn = true;
+        if (payload.acted === 'guest') dungeonDuoRoundActs.guest = true;
+        if (payload.acted === 'host') dungeonDuoRoundActs.host = true;
+        markDungeonDuoDeadSlotsActed();
+        const next = dungeonDuoPickActiveSlot();
+        if (next) {
+            dungeonDuoActiveSlot = next;
+            isPlayerTurn = next === 'host';
             broadcastDungeonDuoRoomState();
             if (typeof updateBattleButtons === 'function') updateBattleButtons();
             return;
         }
+        if (dungeonDuoRoundActs.host && dungeonDuoRoundActs.guest) {
+            isPlayerTurn = false;
+            broadcastDungeonDuoRoomState();
+            startDungeonDuoMonsterPhase();
+        }
+        return;
     }
 
     if (payload.type === 'both_ready' || (dungeonDuoRoundActs.host && dungeonDuoRoundActs.guest)) {
@@ -410,6 +519,9 @@ window.broadcastDungeonDuoRoomState = broadcastDungeonDuoRoomState;
 window.applyDungeonDuoRoomSnapshot = applyDungeonDuoRoomSnapshot;
 window.startDungeonDuoBattleMode = startDungeonDuoBattleMode;
 window.stopDungeonDuoBattleMode = stopDungeonDuoBattleMode;
+window.resetDungeonDuoRoundActs = resetDungeonDuoRoundActs;
+window.getDungeonDuoActiveSlot = function () { return dungeonDuoActiveSlot; };
+window.getDungeonDuoRoundActs = function () { return Object.assign({}, dungeonDuoRoundActs); };
 window.onDungeonDuoPlayerActionEnded = onDungeonDuoPlayerActionEnded;
 window.applyRemoteDuoDungeonBattleActionImpl = applyRemoteDuoDungeonBattleActionImpl;
 window.requestDungeonDuoStateSync = requestDungeonDuoStateSync;
@@ -420,3 +532,7 @@ window.applyDungeonDuoLocalPartySnapshot = applyDungeonDuoLocalPartySnapshot;
 window.dungeonDuoLocalCanAct = dungeonDuoLocalCanAct;
 window.pushDungeonDuoBattleVisual = pushDungeonDuoBattleVisual;
 window.playRemoteDungeonDuoVisual = playRemoteDungeonDuoVisual;
+window.isDungeonDuoSlotAlive = isDungeonDuoSlotAlive;
+window.getDungeonDuoSlotHealth = getDungeonDuoSlotHealth;
+window.onDungeonDuoPartnerDowned = onDungeonDuoPartnerDowned;
+window.onDungeonDuoLocalPlayerDowned = onDungeonDuoLocalPlayerDowned;

@@ -178,6 +178,15 @@ function resolvePlayerDefeatInBattle() {
         }
         return 'revived';
     }
+    if (window.dungeonDuoBattleActive && typeof getDuoDungeonState === 'function' &&
+        typeof isDungeonDuoSlotAlive === 'function') {
+        const duo = getDuoDungeonState();
+        const partnerSlot = duo.role === 'host' ? 'guest' : 'host';
+        if (isDungeonDuoSlotAlive(partnerSlot) && typeof onDungeonDuoLocalPlayerDowned === 'function') {
+            onDungeonDuoLocalPlayerDowned();
+            return 'defeated';
+        }
+    }
     if (typeof gameOver === 'function') gameOver();
     return 'defeated';
 }

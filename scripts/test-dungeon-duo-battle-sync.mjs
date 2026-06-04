@@ -27,7 +27,11 @@ const ctx = {
     updateBattleButtons: () => {},
     renderBattle: () => {},
     addBattleLog: () => {},
-    setBattleFocusIndex: () => {},
+    setFocusedEnemyIndex: () => {},
+    setTimeout: () => {},
+    startMonsterPhaseAfterPlayer: () => {},
+    beginMonsterQueuePhase: () => {},
+    monsterTurn: () => {},
     floatDamage: () => {},
     playStrikeAnimation: (side, cb) => { ctx._lastStrikeSide = side; if (cb) cb(); }
 };
@@ -81,5 +85,13 @@ ctx.playRemoteDungeonDuoVisual({ actorSlot: 'host', action: 'attack', damage: 12
 if (ctx._lastStrikeSide !== 'ally') {
     throw new Error('guest should see host strike as ally, got ' + ctx._lastStrikeSide);
 }
+
+ctx.duoDungeonState.role = 'host';
+ctx.setDungeonDuoAlly({ name: 'G', health: 0, maxHealth: 100, class: 'Маг', temporaryEffects: [{ shield: 30, dur: 3 }] });
+ctx.resetDungeonDuoRoundActs();
+ctx.applyDungeonDuoRoomSnapshot({ activeSlot: 'host', isPlayerPhase: true, party: {}, enemies: [] });
+ctx.onDungeonDuoPartnerDowned();
+if (!ctx.dungeonDuoLocalCanAct()) throw new Error('host should get turn when guest is dead before acting');
+if (ctx.getDungeonDuoActiveSlot() !== 'host') throw new Error('activeSlot should be host when guest dead');
 
 console.log('ok dungeon duo battle sync');

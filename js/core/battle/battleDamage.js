@@ -145,10 +145,43 @@ function applyDamageToAlly(damage) {
     const ally = typeof getDungeonDuoAlly === 'function' ? getDungeonDuoAlly() : null;
     if (!ally || ally.health <= 0) return 0;
     let remainingDamage = Math.max(0, Math.floor(damage));
+    const dr = Array.isArray(ally.temporaryEffects)
+        ? ally.temporaryEffects.find(function (e) { return e && e.damageReduction; })
+        : null;
+    if (dr && remainingDamage > 0) {
+        remainingDamage = Math.max(1, Math.floor(remainingDamage * (1 - dr.damageReduction / 100)));
+    }
+    if (Array.isArray(ally.temporaryEffects)) {
+        for (let i = 0; i < ally.temporaryEffects.length; i++) {
+            const fx = ally.temporaryEffects[i];
+            if (!fx || fx.shield === undefined || fx.shield <= 0) continue;
+            const absorbed = Math.min(fx.shield, remainingDamage);
+            fx.shield -= absorbed;
+            remainingDamage -= absorbed;
+            if (absorbed > 0 && typeof addBattleLog === 'function') {
+                addBattleLog('🛡️ Щит союзника поглотил ' + absorbed + ' урона!', 'info');
+            }
+            if (fx.shield <= 0) {
+                ally.temporaryEffects.splice(i, 1);
+                i--;
+                if (typeof addBattleLog === 'function') addBattleLog('🛡️ Щит союзника разрушен!', 'info');
+            }
+        }
+    }
+    let hpLoss = 0;
     if (remainingDamage > 0) {
+        hpLoss = Math.min(remainingDamage, ally.health || 0);
         ally.health = Math.max(0, (ally.health || 0) - remainingDamage);
     }
-    return remainingDamage;
+    if (ally.health <= 0 && window.dungeonDuoBattleActive &&
+        typeof onDungeonDuoPartnerDowned === 'function') {
+        onDungeonDuoPartnerDowned();
+    }
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (duo && duo.role === 'host' && typeof broadcastDungeonDuoRoomState === 'function') {
+        broadcastDungeonDuoRoomState();
+    }
+    return hpLoss;
 }
 
 /** @returns {{ target: 'player'|'ally', applied: number }} */
@@ -157,7 +190,9 @@ function applyMonsterDamageToTarget(rawDmg, forcedTarget) {
         || (typeof pickMonsterCombatTarget === 'function' ? pickMonsterCombatTarget() : 'player');
     if (target === 'ally') {
         let dmg = Math.max(0, Math.floor(rawDmg));
-        dmg = calculateDamageWithDebuffs(dmg, getAllyEffectiveDefense(), []);
+        const ally = typeof getDungeonDuoAlly === 'function' ? getDungeonDuoAlly() : null;
+        const allyFx = ally && Array.isArray(ally.temporaryEffects) ? ally.temporaryEffects : [];
+        dmg = calculateDamageWithDebuffs(dmg, getAllyEffectiveDefense(), allyFx);
         return { target: 'ally', applied: applyDamageToAlly(dmg) };
     }
     let dmg = Math.max(0, Math.floor(rawDmg));
