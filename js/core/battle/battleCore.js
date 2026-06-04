@@ -105,6 +105,7 @@ function updateBattleButtons() {
         if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn;
     });
     if (typeof updateAbilityBattleHotbar === 'function') updateAbilityBattleHotbar();
+    if (typeof updateBattleActionKeyHints === 'function') updateBattleActionKeyHints();
 }
 
 /** Вызывать, когда ход переходит к игроку после хода монстра */

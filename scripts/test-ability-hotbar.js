@@ -19,7 +19,8 @@ const ctx = {
             { name: 'Пассивка', icon: '✨', lvl: 1, passive: true, currentCooldown: 0 }
         ],
         abilityQuickSlots: [null, null, null, null, null],
-        abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5']
+        abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
+        battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE' }
     },
     currentMonster: { name: 'Slime', health: 10, maxHealth: 10 },
     isPlayerTurn: true,
@@ -73,5 +74,16 @@ assert(ctx.findAbilityHotbarSlotByKeyCode('KeyQ') === 3, 'find slot by key');
 const editorHtml = ctx.buildAbilityHotbarEditorHtml();
 assert(editorHtml.indexOf('ability-hotbar__bind') !== -1, 'editor has bind buttons');
 assert(editorHtml.indexOf('data-bind-slot="0"') !== -1, 'bind slot 0');
+
+ctx.ensureBattleKeys(ctx.player);
+ctx.setBattleKey('attack', 'KeyQ');
+assert(ctx.player.battleKeys.attack === 'KeyQ', 'battle attack key');
+ctx.setBattleKey('dodge', 'KeyQ');
+assert(ctx.player.battleKeys.attack === 'KeyA', 'duplicate battle key resets attack default');
+assert(ctx.player.battleKeys.dodge === 'KeyQ', 'dodge gets KeyQ');
+
+const settingsHtml = ctx.buildBattleKeysSettingsHtml();
+assert(settingsHtml.indexOf('data-battle-bind="attack"') !== -1, 'settings attack bind');
+assert(settingsHtml.indexOf('data-battle-bind="abilities"') !== -1, 'settings abilities bind');
 
 console.log('test-ability-hotbar: OK');

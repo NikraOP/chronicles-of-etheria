@@ -617,6 +617,11 @@ function migrateOldSave(playerData) {
     } else if (!Array.isArray(playerData.abilityQuickKeys)) {
         playerData.abilityQuickKeys = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
     }
+    if (typeof ensureBattleKeys === 'function') {
+        ensureBattleKeys(playerData);
+    } else if (!playerData.battleKeys || typeof playerData.battleKeys !== 'object') {
+        playerData.battleKeys = { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE' };
+    }
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];

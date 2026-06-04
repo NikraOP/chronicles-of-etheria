@@ -32,12 +32,15 @@ function showSettings(activeTab) {
         }
     } else {
         body.innerHTML =
+            (typeof buildBattleKeysSettingsHtml === 'function' ? buildBattleKeysSettingsHtml() : '') +
             '<section class="settings-section settings-section-game">' +
             '<p class="theme-editor-desc">Управление сохранением и персонажем.</p>' +
             '<div class="settings-game-actions">' +
             '<button type="button" class="action-btn" onclick="closeSettings();showSaveLoadPanel()">💾 Сохранения</button>' +
             '<button type="button" class="action-btn theme-btn-ghost" onclick="if(window.createNewCharacter) window.createNewCharacter()">🔄 Новый персонаж</button>' +
             '</div></section>';
+        if (typeof initBattleKeysSettings === 'function') initBattleKeysSettings();
+        if (typeof sanitizeBattleKeys === 'function') sanitizeBattleKeys();
     }
 
     const gear = document.querySelector('.settings-gear-btn');

@@ -121,6 +121,7 @@ function renderBattle(options) {
         logHTML + '</div>';
     document.getElementById('dynamicContent').innerHTML = html;
     updateBattleButtons();
+    if (typeof updateBattleActionKeyHints === 'function') updateBattleActionKeyHints();
 }
 
 function setCombatantShieldDisplay(wrapper, shieldValue, maxHp, remainingTurns) {

@@ -1,10 +1,17 @@
 // Быстрый доступ: 5 активных слотов способностей (настройка + бой + бинды клавиш)
 const ABILITY_QUICK_SLOT_COUNT = 5;
 const DEFAULT_ABILITY_QUICK_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
+const DEFAULT_BATTLE_KEYS = {
+    attack: 'KeyA',
+    dodge: 'KeyD',
+    abilities: 'KeyE'
+};
+const BATTLE_KEY_ACTIONS = ['attack', 'dodge', 'abilities'];
 const HOTBAR_BIND_FORBIDDEN = new Set(['Tab', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Unidentified', 'Dead']);
 
 let _hotbarPickName = null;
 let _hotbarBindSlotIndex = null;
+let _battleBindAction = null;
 
 function escapeHotbarText(s) {
     if (!s) return '';
@@ -71,8 +78,186 @@ function isAbilityHotbarTypingTarget(el) {
     const tag = (el.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
     if (el.isContentEditable) return true;
-    if (el.closest && el.closest('.modal-overlay, #modalOverlay, #nameInput')) return true;
+    if (el.closest && el.closest('.modal-overlay, #modalOverlay, #nameInput, .settings-panel')) return true;
     return false;
+}
+
+function isBattleScreenActive() {
+    return !!(typeof document !== 'undefined' && document.querySelector('.battle-wrapper'));
+}
+
+function ensureBattleKeys(p) {
+    if (!p) return;
+    if (!p.battleKeys || typeof p.battleKeys !== 'object') {
+        p.battleKeys = Object.assign({}, DEFAULT_BATTLE_KEYS);
+    }
+    BATTLE_KEY_ACTIONS.forEach(action => {
+        if (!p.battleKeys[action]) {
+            p.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
+        }
+    });
+}
+
+function getBattleKey(action) {
+    if (!player || BATTLE_KEY_ACTIONS.indexOf(action) < 0) return null;
+    ensureBattleKeys(player);
+    return player.battleKeys[action] || null;
+}
+
+function releaseKeyFromAllBinds(code, except) {
+    if (!player || !code) return;
+    ensureAbilityQuickKeys(player);
+    ensureBattleKeys(player);
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        if (except && except.type === 'quick' && except.index === i) continue;
+        if (player.abilityQuickKeys[i] === code) {
+            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
+        }
+    }
+    BATTLE_KEY_ACTIONS.forEach(action => {
+        if (except && except.type === 'battle' && except.action === action) return;
+        if (player.battleKeys[action] === code) {
+            player.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
+        }
+    });
+}
+
+function setBattleKey(action, code) {
+    if (!player || BATTLE_KEY_ACTIONS.indexOf(action) < 0) return false;
+    if (!isAbilityHotbarBindableKey(code)) {
+        if (typeof addMessage === 'function') addMessage('Эту клавишу нельзя назначить.', 'error');
+        return false;
+    }
+    ensureBattleKeys(player);
+    releaseKeyFromAllBinds(code, { type: 'battle', action: action });
+    player.battleKeys[action] = code;
+    saveGame();
+    return true;
+}
+
+function sanitizeBattleKeys() {
+    if (!player) return;
+    ensureBattleKeys(player);
+    const used = new Map();
+    BATTLE_KEY_ACTIONS.forEach(action => {
+        let code = player.battleKeys[action];
+        if (!code || !isAbilityHotbarBindableKey(code)) {
+            code = DEFAULT_BATTLE_KEYS[action];
+            player.battleKeys[action] = code;
+        }
+        if (used.has(code)) {
+            player.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
+            code = player.battleKeys[action];
+        }
+        used.set(code, action);
+    });
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        const code = player.abilityQuickKeys[i];
+        if (code && used.has(code)) {
+            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
+        } else if (code) {
+            used.set(code, 'quick-' + i);
+        }
+    }
+}
+
+function cancelAllKeyBindModes() {
+    _hotbarBindSlotIndex = null;
+    _battleBindAction = null;
+    refreshAbilityHotbarBindUi();
+    refreshSettingsBattleKeysUi();
+}
+
+function startBattleKeyBind(action) {
+    if (BATTLE_KEY_ACTIONS.indexOf(action) < 0) return;
+    _battleBindAction = action;
+    _hotbarBindSlotIndex = null;
+    _hotbarPickName = null;
+    refreshSettingsBattleKeysUi();
+    refreshAbilityHotbarBindUi();
+    const labels = { attack: 'Атака', dodge: 'Уклонение', abilities: 'Способности' };
+    if (typeof addMessage === 'function') {
+        addMessage('«' + labels[action] + '»: нажмите клавишу (Esc — отмена).', 'info');
+    }
+}
+
+function executeBattleKeyAction(action) {
+    if (!currentMonster || !isPlayerTurn || !isBattleScreenActive()) return;
+    if (action === 'attack' && typeof playerAttack === 'function') playerAttack();
+    else if (action === 'dodge' && typeof attemptDodge === 'function') attemptDodge();
+    else if (action === 'abilities' && typeof showBattleAbilities === 'function') showBattleAbilities();
+}
+
+function buildBattleKeysSettingsHtml() {
+    if (!player) return '';
+    ensureBattleKeys(player);
+    const rows = [
+        { action: 'attack', icon: '⚔️', label: 'Атака' },
+        { action: 'dodge', icon: '💨', label: 'Уклонение' },
+        { action: 'abilities', icon: '✨', label: 'Меню способностей' }
+    ];
+    let html = '<section class="settings-section settings-section-keys" id="settingsBattleKeys">' +
+        '<h3 class="settings-section-title">⌨️ Клавиши боя</h3>' +
+        '<p class="theme-editor-desc">Назначьте клавиши для основных действий в бою. Слоты 1–5 настраиваются в разделе «Способности».</p>' +
+        '<div class="battle-keybind-list">';
+    rows.forEach(row => {
+        const listening = _battleBindAction === row.action;
+        const keyLabel = listening ? '…' : formatAbilityKeyLabel(getBattleKey(row.action));
+        html += '<div class="battle-keybind-row">' +
+            '<span class="battle-keybind-row__label">' + row.icon + ' ' + escapeHotbarText(row.label) + '</span>' +
+            '<button type="button" class="ability-hotbar__bind battle-keybind-row__btn' +
+            (listening ? ' ability-hotbar__bind--listening' : '') +
+            '" data-battle-bind="' + row.action + '">' + escapeHotbarText(keyLabel) + '</button>' +
+            '</div>';
+    });
+    html += '</div></section>';
+    return html;
+}
+
+function refreshSettingsBattleKeysUi() {
+    const root = document.getElementById('settingsBattleKeys');
+    if (!root) return;
+    root.outerHTML = buildBattleKeysSettingsHtml();
+    initBattleKeysSettings(document.getElementById('settingsBattleKeys'));
+}
+
+function initBattleKeysSettings(root) {
+    if (!root) root = document.getElementById('settingsBattleKeys');
+    if (!root) return;
+    root.querySelectorAll('[data-battle-bind]').forEach(btn => {
+        const action = btn.dataset.battleBind;
+        btn.addEventListener('click', function () {
+            if (_battleBindAction === action) {
+                cancelAllKeyBindModes();
+                return;
+            }
+            cancelAllKeyBindModes();
+            startBattleKeyBind(action);
+        });
+    });
+}
+
+function updateBattleActionKeyHints() {
+    if (!player || !isBattleScreenActive()) return;
+    ensureBattleKeys(player);
+    const map = {
+        btnAtk: { action: 'attack', prefix: '⚔️ Атака' },
+        btnDodge: { action: 'dodge', prefix: '💨 Уклон' },
+        btnAbi: { action: 'abilities', prefix: '✨ Способности' }
+    };
+    Object.keys(map).forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const key = formatAbilityKeyLabel(getBattleKey(map[id].action));
+        btn.title = map[id].prefix + ' (' + key + ')';
+        let hint = btn.querySelector('.battle-action-key');
+        if (!hint) {
+            hint = document.createElement('span');
+            hint.className = 'battle-action-key';
+            btn.insertBefore(hint, btn.firstChild);
+        }
+        hint.textContent = key;
+    });
 }
 
 function getAbilityQuickKey(slotIndex) {
@@ -116,12 +301,7 @@ function setAbilityQuickKey(slotIndex, code) {
         }
         return false;
     }
-    ensureAbilityQuickKeys(player);
-    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
-        if (i !== slotIndex && player.abilityQuickKeys[i] === code) {
-            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
-        }
-    }
+    releaseKeyFromAllBinds(code, { type: 'quick', index: slotIndex });
     player.abilityQuickKeys[slotIndex] = code;
     saveGame();
     return true;
@@ -129,6 +309,7 @@ function setAbilityQuickKey(slotIndex, code) {
 
 function startAbilityHotbarBind(slotIndex) {
     if (slotIndex < 0 || slotIndex >= ABILITY_QUICK_SLOT_COUNT) return;
+    _battleBindAction = null;
     _hotbarBindSlotIndex = slotIndex;
     _hotbarPickName = null;
     document.querySelectorAll('.ability-hotbar-source--picked').forEach(el => {
@@ -144,6 +325,7 @@ function cancelAbilityHotbarBind() {
     if (_hotbarBindSlotIndex === null) return;
     _hotbarBindSlotIndex = null;
     refreshAbilityHotbarBindUi();
+    refreshSettingsBattleKeysUi();
 }
 
 function refreshAbilityHotbarBindUi() {
@@ -407,6 +589,28 @@ function useQuickAbility(slotIndex) {
 function handleAbilityHotbarKeydown(e) {
     if (!player) return;
 
+    if (_battleBindAction !== null) {
+        if (e.code === 'Escape') {
+            e.preventDefault();
+            const action = _battleBindAction;
+            cancelAllKeyBindModes();
+            if (typeof addMessage === 'function') addMessage('Назначение клавиши отменено.', 'info');
+            return;
+        }
+        if (!isAbilityHotbarBindableKey(e.code)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const action = _battleBindAction;
+        setBattleKey(action, e.code);
+        _battleBindAction = null;
+        refreshSettingsBattleKeysUi();
+        const labels = { attack: 'Атака', dodge: 'Уклонение', abilities: 'Способности' };
+        if (typeof addMessage === 'function') {
+            addMessage('«' + labels[action] + '»: клавиша «' + formatAbilityKeyLabel(e.code) + '».', 'success');
+        }
+        return;
+    }
+
     if (_hotbarBindSlotIndex !== null) {
         if (e.code === 'Escape') {
             e.preventDefault();
@@ -421,21 +625,33 @@ function handleAbilityHotbarKeydown(e) {
         setAbilityQuickKey(slot, e.code);
         _hotbarBindSlotIndex = null;
         refreshAbilityHotbarEditor();
+        refreshSettingsBattleKeysUi();
         if (typeof addMessage === 'function') {
             addMessage('Слот ' + (slot + 1) + ': клавиша «' + formatAbilityKeyLabel(e.code) + '».', 'success');
         }
         return;
     }
 
-    if (!currentMonster || !isPlayerTurn) return;
     if (isAbilityHotbarTypingTarget(e.target)) return;
     if (e.repeat) return;
 
-    const slotIndex = findAbilityHotbarSlotByKeyCode(e.code);
-    if (slotIndex < 0) return;
-
-    e.preventDefault();
-    useQuickAbility(slotIndex);
+    if (currentMonster && isPlayerTurn && isBattleScreenActive()) {
+        ensureBattleKeys(player);
+        for (let a = 0; a < BATTLE_KEY_ACTIONS.length; a++) {
+            const action = BATTLE_KEY_ACTIONS[a];
+            if (player.battleKeys[action] === e.code) {
+                e.preventDefault();
+                executeBattleKeyAction(action);
+                return;
+            }
+        }
+        const slotIndex = findAbilityHotbarSlotByKeyCode(e.code);
+        if (slotIndex >= 0) {
+            e.preventDefault();
+            useQuickAbility(slotIndex);
+            return;
+        }
+    }
 }
 
 function initAbilityHotbarKeyListener() {
@@ -602,3 +818,11 @@ window.initAbilityHotbarKeyListener = initAbilityHotbarKeyListener;
 window.refreshAbilityHotbarEditor = refreshAbilityHotbarEditor;
 window.setAbilityQuickKey = setAbilityQuickKey;
 window.findAbilityHotbarSlotByKeyCode = findAbilityHotbarSlotByKeyCode;
+window.DEFAULT_BATTLE_KEYS = DEFAULT_BATTLE_KEYS;
+window.ensureBattleKeys = ensureBattleKeys;
+window.sanitizeBattleKeys = sanitizeBattleKeys;
+window.setBattleKey = setBattleKey;
+window.buildBattleKeysSettingsHtml = buildBattleKeysSettingsHtml;
+window.initBattleKeysSettings = initBattleKeysSettings;
+window.refreshSettingsBattleKeysUi = refreshSettingsBattleKeysUi;
+window.updateBattleActionKeyHints = updateBattleActionKeyHints;
