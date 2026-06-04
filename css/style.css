@@ -7747,6 +7747,76 @@ body.account-gate-active #app.account-gate-layout {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.prog-ability-row--multi {
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+.prog-ability-row--multi .prog-ability-row__body {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+.prog-ability-row__focus {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--gold-light);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    margin-top: 2px;
+    opacity: 0.88;
+}
+.prog-track-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    width: 100%;
+}
+.prog-track-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 9px;
+    min-height: 24px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-gold);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.12) 0%, rgba(0, 0, 0, 0.38) 100%);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.prog-track-chip:hover:not(.prog-track-chip--locked):not(.prog-track-chip--active) {
+    border-color: var(--gold-light);
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.22) 0%, rgba(0, 0, 0, 0.32) 100%);
+}
+.prog-track-chip--active {
+    border-color: var(--gold-light);
+    color: var(--gold-light);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.38) 100%);
+    box-shadow: var(--shadow-gold), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    text-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35);
+}
+.prog-track-chip--locked {
+    pointer-events: none;
+    opacity: 0.85;
+    cursor: default;
+}
+.prog-track-chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+@media (max-width: 768px) {
+    .prog-track-chip {
+        min-height: 28px;
+        padding: 5px 11px;
+    }
+}
 .prog-btn {
     width: 38px;
     height: 38px;

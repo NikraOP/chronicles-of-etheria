@@ -11,6 +11,7 @@ const PROGRESSION_BALANCE = {
     abilityRankLifesteal: [5, 4, 3],
     abilityRankDot: [10, 8, 6],
     abilityRankPermAtk: [2, 2, 1],
+    abilityRankScalar: [5, 4, 3],
     minManaAfterUpgrade: 0.5,
     minCdAfterUpgrade: 2,
     respecGoldBase: 500,

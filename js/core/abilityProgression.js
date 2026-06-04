@@ -1,9 +1,102 @@
 // abilityProgression.js — прокачка способностей (A) + уроки школы (E)
 
+var CC_EFFECT_TYPES = ['Оглушение', 'Ослепление', 'Заморозка', 'slow'];
+
 function ensurePlayerProgression(p) {
     if (!p) return;
     if (!p.abilityUpgrades || typeof p.abilityUpgrades !== 'object') p.abilityUpgrades = {};
+    if (!p.abilityUpgradeFocus || typeof p.abilityUpgradeFocus !== 'object') p.abilityUpgradeFocus = {};
     if (!Array.isArray(p.schoolLessons)) p.schoolLessons = [];
+}
+
+function abilityHasDmgTrack(a) {
+    return !!(a && (a.dmg || a.combo || a.multiHit || a.doubleHit || a.tripleHit || a.quadHit));
+}
+
+function getAbilityTemplateForPlayer(p, abilityName) {
+    const school = ABILITIES_DB[p.class] && ABILITIES_DB[p.class][p.branch];
+    if (!school || !school.abilities) return null;
+    return school.abilities.find(function (ab) { return ab.name === abilityName; }) || null;
+}
+
+function getEffectTrackLabel(effectType) {
+    if (effectType === 'Горение') return 'Сила горения';
+    if (effectType === 'Заморозка' || effectType === 'slow') return 'Сила контроля';
+    if (effectType === 'Яд' || effectType === 'Смертельный яд' || effectType === 'Кровотечение') return 'Сила DoT';
+    if (effectType === 'Оглушение' || effectType === 'Ослепление') return 'Сила эффекта';
+    return 'Сила эффекта';
+}
+
+/** Доступные ветки прокачки для способности (2+ — выбор игрока) */
+function getAbilityUpgradeTracks(ability) {
+    if (!ability) return [];
+    const tracks = [];
+    const seen = {};
+
+    function add(id, label, kind) {
+        if (seen[id]) return;
+        seen[id] = true;
+        tracks.push({ id: id, label: label, kind: kind });
+    }
+
+    if (abilityHasDmgTrack(ability)) add('dmg', 'Урон', 'dmg');
+    if (ability.effect && ability.effect.val != null) {
+        add('effect', getEffectTrackLabel(ability.effect.type), 'effect');
+    }
+    if (ability.effect && ability.effect.dur >= 1 && CC_EFFECT_TYPES.indexOf(ability.effect.type) >= 0) {
+        add('effectDur', 'Длительность', 'effectDur');
+    }
+    if (ability.splash != null) add('splash', 'Урон по соседям', 'scalar');
+    if (ability.fireVuln != null) add('fireVuln', 'Уязвимость к огню', 'scalar');
+    if (ability.consumeBurn != null) add('consumeBurn', 'Бонус по горению', 'scalar');
+    if (ability.burnMana != null) add('burnMana', 'Сжигание маны', 'scalar');
+    if (ability.manaToShield != null) add('manaToShield', 'Щит от маны', 'heal');
+    if (ability.buff && ability.buff.atk != null) add('buffAtk', 'Сила баффа', 'scalar');
+    if (ability.dotOverTime && ability.dotOverTime.dmgPerTurn != null) {
+        add('dotOverTime', 'Урон за ход', 'dmg');
+    }
+    if (ability.echo != null) add('echo', 'Сила эха', 'scalar');
+    if (ability.passive && ability.permAtk != null) add('permAtk', 'Пост. атака', 'permAtk');
+    if (ability.passive && ability.weakspot != null) add('weakspot', 'Слабые места', 'scalar');
+    if (ability.passive && ability.permCrit != null) add('permCrit', 'Шанс крита', 'scalar');
+    if (ability.heal || ability.maxHpShield || ability.shieldFromDamage || ability.shield) {
+        add('heal', 'Лечение / щит', 'heal');
+    }
+    if (ability.mana != null && ability.mana > 0) add('mana', 'Стоимость маны', 'mana');
+    if (ability.lifesteal != null) add('lifesteal', 'Вампиризм', 'lifesteal');
+    if (ability.cd >= 4) add('cd', 'Перезарядка', 'cd');
+
+    if (!tracks.length) add('dmg', 'Урон', 'dmg');
+    return tracks;
+}
+
+function getAbilityUpgradeFocus(p, abilityName) {
+    ensurePlayerProgression(p);
+    const stored = p.abilityUpgradeFocus[abilityName];
+    if (stored) return stored;
+    const rank = getAbilityUpgradeRank(p, abilityName);
+    if (rank <= 0) return null;
+    const tpl = getAbilityTemplateForPlayer(p, abilityName);
+    const tracks = getAbilityUpgradeTracks(tpl || {});
+    if (tracks.length) {
+        const legacy = abilityHasDmgTrack(tpl) ? 'dmg' : tracks[0].id;
+        p.abilityUpgradeFocus[abilityName] = legacy;
+        return legacy;
+    }
+    return null;
+}
+
+function setAbilityUpgradeFocus(p, abilityName, trackId) {
+    if (!p || !abilityName || !trackId) return false;
+    if (getAbilityUpgradeRank(p, abilityName) > 0) return false;
+    const tpl = getAbilityTemplateForPlayer(p, abilityName);
+    if (!tpl) return false;
+    const tracks = getAbilityUpgradeTracks(tpl);
+    if (!tracks.some(function (t) { return t.id === trackId; })) return false;
+    ensurePlayerProgression(p);
+    p.abilityUpgradeFocus[abilityName] = trackId;
+    if (typeof saveGame === 'function') saveGame();
+    return true;
 }
 
 function getProgressionPointsEarned(level) {
@@ -60,48 +153,101 @@ function getRespecGoldCost(p) {
         p.level * (PROGRESSION_BALANCE.respecGoldPerLevel || 100);
 }
 
-function getAbilityUpgradePreview(ability, nextRank) {
-    if (!ability || nextRank < 1) return '';
-    const B = PROGRESSION_BALANCE;
-    if (ability.dmg || ability.combo || ability.multiHit || ability.doubleHit || ability.tripleHit || ability.quadHit) {
-        return '+' + (B.abilityRankDmg[nextRank - 1] || 5) + '% урона';
-    }
-    if (ability.passive && ability.permAtk) {
-        return '+' + (B.abilityRankPermAtk[nextRank - 1] || 2) + '% пост. атаки';
-    }
-    if (ability.heal || ability.maxHpShield || ability.shieldFromDamage || ability.shield) {
-        return '+' + (B.abilityRankHeal[nextRank - 1] || 8) + '% лечения/щита';
-    }
-    if (ability.mana) {
-        return '−' + (B.abilityRankManaReduce[nextRank - 1] || 8) + '% маны';
-    }
-    if (ability.lifesteal) {
-        return '+' + (B.abilityRankLifesteal[nextRank - 1] || 5) + '% вампиризма';
-    }
-    if (ability.effect && ability.effect.val) {
-        return '+' + (B.abilityRankDot[nextRank - 1] || 10) + '% силы эффекта';
-    }
-    if (ability.cd >= 4 && nextRank === 3) {
-        return '−1 ход КД (мин. ' + (B.minCdAfterUpgrade || 2) + ')';
-    }
-    return '+5% урона';
+function sumRankBonuses(bonuses, rank) {
+    let total = 0;
+    for (let r = 0; r < rank && r < bonuses.length; r++) total += bonuses[r];
+    return total;
 }
 
-function canUpgradeAbility(p, abilityName) {
+function getAbilityUpgradePreview(ability, nextRank, trackId) {
+    if (!ability || nextRank < 1) return '';
+    const B = PROGRESSION_BALANCE;
+    const tracks = getAbilityUpgradeTracks(ability);
+    const tid = trackId || (tracks.length === 1 ? tracks[0].id : null);
+    if (!tid) return 'выберите ветку';
+    const pct = function (arr) {
+        return '+' + (arr[nextRank - 1] || arr[arr.length - 1] || 5) + '%';
+    };
+    const scalar = B.abilityRankScalar || B.abilityRankDmg;
+
+    switch (tid) {
+        case 'dmg':
+            return pct(B.abilityRankDmg) + ' урона';
+        case 'effect':
+            return pct(B.abilityRankDot) + ' силы эффекта';
+        case 'effectDur':
+            return nextRank >= 3 ? '+1 ход длительности' : 'к 3-му рангу: +1 ход';
+        case 'splash':
+            return pct(scalar) + ' урона по соседям';
+        case 'fireVuln':
+            return pct(scalar) + ' уязвимости к огню';
+        case 'consumeBurn':
+            return pct(scalar) + ' бонуса по горению';
+        case 'burnMana':
+            return pct(scalar) + ' сжигания маны';
+        case 'manaToShield':
+            return pct(B.abilityRankHeal) + ' щита от маны';
+        case 'buffAtk':
+            return pct(scalar) + ' силы баффа';
+        case 'dotOverTime':
+            return pct(B.abilityRankDmg) + ' урона за ход';
+        case 'echo':
+            return pct(scalar) + ' силы эха';
+        case 'permAtk':
+            return '+' + (B.abilityRankPermAtk[nextRank - 1] || 2) + '% пост. атаки';
+        case 'weakspot':
+            return pct(scalar) + ' к слабым местам';
+        case 'permCrit':
+            return pct(scalar) + ' шанса крита';
+        case 'heal':
+            return pct(B.abilityRankHeal) + ' лечения/щита';
+        case 'mana':
+            return '−' + (B.abilityRankManaReduce[nextRank - 1] || 8) + '% маны';
+        case 'lifesteal':
+            return pct(B.abilityRankLifesteal) + ' вампиризма';
+        case 'cd':
+            if (nextRank >= 3) {
+                return '−1 ход КД (мин. ' + (B.minCdAfterUpgrade || 2) + ')';
+            }
+            if (ability.mana > 0) {
+                return '−' + (B.abilityRankManaReduce[nextRank - 1] || 3) + '% маны (ранг ' + nextRank + ')';
+            }
+            return 'к 3-му рангу: −1 КД';
+        default:
+            return pct(B.abilityRankDmg) + ' урона';
+    }
+}
+
+function canUpgradeAbility(p, abilityName, trackId) {
     if (!p || !abilityName) return false;
     if (getAbilityUpgradePointsAvailable(p) <= 0) return false;
     const rank = getAbilityUpgradeRank(p, abilityName);
     if (rank >= (PROGRESSION_BALANCE.maxRanksPerAbility || 3)) return false;
-    const school = ABILITIES_DB[p.class] && ABILITIES_DB[p.class][p.branch];
-    if (!school) return false;
-    const tpl = school.abilities.find(function (a) { return a.name === abilityName; });
+    const tpl = getAbilityTemplateForPlayer(p, abilityName);
     if (!tpl || p.level < tpl.lvl) return false;
+    const tracks = getAbilityUpgradeTracks(tpl);
+    if (tracks.length > 1) {
+        const focus = trackId || getAbilityUpgradeFocus(p, abilityName);
+        if (!focus) return false;
+        if (!tracks.some(function (t) { return t.id === focus; })) return false;
+    }
     return true;
 }
 
-function upgradeAbility(p, abilityName) {
-    if (!canUpgradeAbility(p, abilityName)) return false;
+function upgradeAbility(p, abilityName, trackId) {
+    const tpl = getAbilityTemplateForPlayer(p, abilityName);
+    if (!tpl) return false;
+    const tracks = getAbilityUpgradeTracks(tpl);
+    let focus = trackId || getAbilityUpgradeFocus(p, abilityName);
+    if (tracks.length === 1) focus = tracks[0].id;
+    if (!focus) return false;
+    if (!canUpgradeAbility(p, abilityName, focus)) return false;
     ensurePlayerProgression(p);
+    if (getAbilityUpgradeRank(p, abilityName) === 0) {
+        p.abilityUpgradeFocus[abilityName] = focus;
+    } else if (p.abilityUpgradeFocus[abilityName] !== focus) {
+        return false;
+    }
     p.abilityUpgrades[abilityName] = getAbilityUpgradeRank(p, abilityName) + 1;
     if (typeof updateAllAbilities === 'function') updateAllAbilities();
     if (typeof resetBaseStats === 'function') resetBaseStats();
@@ -130,81 +276,151 @@ function learnSchoolLesson(p, lessonId) {
 function resetPlayerProgression(p) {
     ensurePlayerProgression(p);
     p.abilityUpgrades = {};
+    p.abilityUpgradeFocus = {};
     p.schoolLessons = [];
     if (typeof updateAllAbilities === 'function') updateAllAbilities();
     if (typeof resetBaseStats === 'function') resetBaseStats();
 }
 
-function applyAbilityRankUpgrades(ability, rank) {
-    if (!ability || rank <= 0) return;
+function applyRankPctField(ability, field, bonuses, rank) {
+    if (ability[field] == null) return;
+    if (ability['_' + field + 'Base'] == null) ability['_' + field + 'Base'] = ability[field];
+    const total = sumRankBonuses(bonuses, rank);
+    ability[field] = Math.floor(ability['_' + field + 'Base'] * (1 + total / 100));
+}
+
+function applyAbilityRankUpgrades(ability, rank, trackId) {
+    if (!ability || rank <= 0 || !trackId) return;
     const B = PROGRESSION_BALANCE;
+    const scalar = B.abilityRankScalar || B.abilityRankDmg;
     ability._upgradeRank = rank;
+    ability._upgradeFocus = trackId;
     ability._baseDesc = ability._baseDesc || ability.desc;
 
-    function addPct(field, bonuses) {
-        if (ability[field] == null) return;
-        if (ability['_' + field + 'Base'] == null) ability['_' + field + 'Base'] = ability[field];
-        let total = 0;
-        for (let r = 0; r < rank && r < bonuses.length; r++) total += bonuses[r];
-        ability[field] = Math.floor(ability['_' + field + 'Base'] * (1 + total / 100));
-    }
-
-    if (ability.dmg || ability.combo || ability.multiHit || ability.doubleHit || ability.tripleHit || ability.quadHit) {
-        if (ability.dmg) addPct('dmg', B.abilityRankDmg);
+    function applyDmgTrack() {
+        if (ability.dmg) applyRankPctField(ability, 'dmg', B.abilityRankDmg, rank);
         if (ability.combo && !ability._comboBase) ability._comboBase = ability.combo.slice();
         if (ability.combo && ability._comboBase) {
-            ability.combo = ability._comboBase.map(function (v, i) {
-                let t = 0;
-                for (let r = 0; r < rank && r < B.abilityRankDmg.length; r++) t += B.abilityRankDmg[r];
+            const t = sumRankBonuses(B.abilityRankDmg, rank);
+            ability.combo = ability._comboBase.map(function (v) {
                 return Math.floor(v * (1 + t / 100));
             });
         }
         if (ability.multiHit && !ability._multiHitBase) ability._multiHitBase = Object.assign({}, ability.multiHit);
         if (ability.multiHit && ability._multiHitBase) {
-            let t = 0;
-            for (let r = 0; r < rank && r < B.abilityRankDmg.length; r++) t += B.abilityRankDmg[r];
+            const t = sumRankBonuses(B.abilityRankDmg, rank);
             ability.multiHit = Object.assign({}, ability._multiHitBase, {
                 baseDmg: Math.floor(ability._multiHitBase.baseDmg * (1 + t / 100))
             });
         }
-    } else if (ability.passive && ability.permAtk) {
-        if (ability._permAtkBase == null) ability._permAtkBase = ability.permAtk;
-        let t = 0;
-        for (let r = 0; r < rank && r < B.abilityRankPermAtk.length; r++) t += B.abilityRankPermAtk[r];
-        ability.permAtk = ability._permAtkBase + t;
-    } else if (ability.heal || ability.maxHpShield || ability.shieldFromDamage || ability.shield) {
-        addPct('heal', B.abilityRankHeal);
-        addPct('maxHpShield', B.abilityRankHeal);
-        addPct('shieldFromDamage', B.abilityRankHeal);
-        addPct('shield', B.abilityRankHeal);
-    } else if (ability.mana) {
-        if (ability._manaBase == null) ability._manaBase = ability.mana;
-        let reduce = 0;
-        for (let r = 0; r < rank && r < B.abilityRankManaReduce.length; r++) reduce += B.abilityRankManaReduce[r];
-        ability.mana = Math.max(
-            Math.ceil(ability._manaBase * (B.minManaAfterUpgrade || 0.5)),
-            Math.floor(ability._manaBase * (1 - reduce / 100))
-        );
-    } else if (ability.lifesteal) {
-        addPct('lifesteal', B.abilityRankLifesteal);
-    } else if (ability.effect && ability.effect.val) {
-        if (!ability._effectBase) ability._effectBase = Object.assign({}, ability.effect);
-        let t = 0;
-        for (let r = 0; r < rank && r < B.abilityRankDot.length; r++) t += B.abilityRankDot[r];
-        ability.effect = Object.assign({}, ability._effectBase, {
-            val: Math.floor(ability._effectBase.val * (1 + t / 100))
-        });
     }
 
-    if (rank >= 3 && ability.cd >= 4 && ability._cdBase == null) {
-        ability._cdBase = ability.cd;
-    }
-    if (ability._cdBase != null && rank >= 3) {
-        ability.cd = Math.max(B.minCdAfterUpgrade || 2, ability._cdBase - 1);
+    switch (trackId) {
+        case 'dmg':
+            applyDmgTrack();
+            break;
+        case 'effect':
+            if (ability.effect && ability.effect.val != null) {
+                if (!ability._effectBase) ability._effectBase = Object.assign({}, ability.effect);
+                const t = sumRankBonuses(B.abilityRankDot, rank);
+                ability.effect = Object.assign({}, ability._effectBase, {
+                    val: Math.floor(ability._effectBase.val * (1 + t / 100))
+                });
+            }
+            break;
+        case 'effectDur':
+            if (ability.effect && rank >= 3) {
+                if (!ability._effectBase) ability._effectBase = Object.assign({}, ability.effect);
+                ability.effect = Object.assign({}, ability._effectBase, {
+                    dur: (ability._effectBase.dur || 1) + 1
+                });
+            }
+            break;
+        case 'splash':
+            applyRankPctField(ability, 'splash', scalar, rank);
+            break;
+        case 'fireVuln':
+            applyRankPctField(ability, 'fireVuln', scalar, rank);
+            break;
+        case 'consumeBurn':
+            applyRankPctField(ability, 'consumeBurn', scalar, rank);
+            break;
+        case 'burnMana':
+            applyRankPctField(ability, 'burnMana', scalar, rank);
+            break;
+        case 'manaToShield':
+            applyRankPctField(ability, 'manaToShield', B.abilityRankHeal, rank);
+            break;
+        case 'buffAtk':
+            if (ability.buff) {
+                if (!ability._buffBase) ability._buffBase = Object.assign({}, ability.buff);
+                const t = sumRankBonuses(scalar, rank);
+                ability.buff = Object.assign({}, ability._buffBase, {
+                    atk: Math.floor((ability._buffBase.atk || 0) * (1 + t / 100))
+                });
+            }
+            break;
+        case 'dotOverTime':
+            if (ability.dotOverTime) {
+                if (!ability._dotOverTimeBase) ability._dotOverTimeBase = Object.assign({}, ability.dotOverTime);
+                const t = sumRankBonuses(B.abilityRankDmg, rank);
+                ability.dotOverTime = Object.assign({}, ability._dotOverTimeBase, {
+                    dmgPerTurn: Math.floor(ability._dotOverTimeBase.dmgPerTurn * (1 + t / 100))
+                });
+            }
+            break;
+        case 'echo':
+            applyRankPctField(ability, 'echo', scalar, rank);
+            break;
+        case 'permAtk':
+            if (ability._permAtkBase == null) ability._permAtkBase = ability.permAtk;
+            ability.permAtk = ability._permAtkBase + sumRankBonuses(B.abilityRankPermAtk, rank);
+            break;
+        case 'weakspot':
+            applyRankPctField(ability, 'weakspot', scalar, rank);
+            break;
+        case 'permCrit':
+            applyRankPctField(ability, 'permCrit', scalar, rank);
+            break;
+        case 'heal':
+            applyRankPctField(ability, 'heal', B.abilityRankHeal, rank);
+            applyRankPctField(ability, 'maxHpShield', B.abilityRankHeal, rank);
+            applyRankPctField(ability, 'shieldFromDamage', B.abilityRankHeal, rank);
+            applyRankPctField(ability, 'shield', B.abilityRankHeal, rank);
+            break;
+        case 'mana':
+            if (ability._manaBase == null) ability._manaBase = ability.mana;
+            const reduce = sumRankBonuses(B.abilityRankManaReduce, rank);
+            ability.mana = Math.max(
+                Math.ceil(ability._manaBase * (B.minManaAfterUpgrade || 0.5)),
+                Math.floor(ability._manaBase * (1 - reduce / 100))
+            );
+            break;
+        case 'lifesteal':
+            applyRankPctField(ability, 'lifesteal', B.abilityRankLifesteal, rank);
+            break;
+        case 'cd':
+            if (ability.mana > 0 && rank < 3) {
+                if (ability._manaBase == null) ability._manaBase = ability.mana;
+                const reduceCd = sumRankBonuses(B.abilityRankManaReduce, rank);
+                ability.mana = Math.max(
+                    Math.ceil(ability._manaBase * (B.minManaAfterUpgrade || 0.5)),
+                    Math.floor(ability._manaBase * (1 - reduceCd / 100))
+                );
+            }
+            if (rank >= 3 && ability.cd >= 4) {
+                if (ability._cdBase == null) ability._cdBase = ability.cd;
+                ability.cd = Math.max(B.minCdAfterUpgrade || 2, ability._cdBase - 1);
+            }
+            break;
+        default:
+            applyDmgTrack();
     }
 
+    const trackLabel = (getAbilityUpgradeTracks(ability).find(function (t) { return t.id === trackId; }) || {}).label || trackId;
     const stars = '★'.repeat(rank);
-    ability.desc = ability._baseDesc + ' <span class="ability-upgrade-tag">' + stars + '</span>';
+    ability.desc = ability._baseDesc +
+        ' <span class="ability-upgrade-tag" title="' + trackLabel + '">' + stars + '</span>';
 }
 
 function aggregateSchoolLessonBonuses(p) {
@@ -243,7 +459,6 @@ function applySchoolLessonBonusesToPlayer(p) {
 
 function getLessonEffectMultiplier(p, effectType) {
     if (!p || !p._lessonBonuses) return 1;
-    const dotTypes = ['Горение', 'Кровотечение', 'Яд', 'Смертельный яд'];
     let mult = 1;
     if (p._lessonBonuses.dotPotency) mult += p._lessonBonuses.dotPotency / 100;
     if (effectType === 'Горение' && p._lessonBonuses.burnPotency) {
@@ -283,9 +498,12 @@ function buildPlayerAbilitiesFromSchool(p, options) {
         if (clone.combo) clone.combo = clone.combo.slice();
         if (clone.multiHit) clone.multiHit = Object.assign({}, clone.multiHit);
         if (clone.effect) clone.effect = Object.assign({}, clone.effect);
+        if (clone.buff) clone.buff = Object.assign({}, clone.buff);
+        if (clone.dotOverTime) clone.dotOverTime = Object.assign({}, clone.dotOverTime);
         if (!skipUpgrades) {
             const rank = getAbilityUpgradeRank(p, a.name);
-            applyAbilityRankUpgrades(clone, rank);
+            const focus = getAbilityUpgradeFocus(p, a.name);
+            if (rank > 0 && focus) applyAbilityRankUpgrades(clone, rank, focus);
         }
         return clone;
     });
@@ -295,7 +513,19 @@ function getPlayerAbilitiesForBattle(p, options) {
     return buildPlayerAbilitiesFromSchool(p, options);
 }
 
+function getAbilityUpgradeTrackLabel(p, abilityName) {
+    const tpl = getAbilityTemplateForPlayer(p, abilityName);
+    const focus = getAbilityUpgradeFocus(p, abilityName);
+    if (!tpl || !focus) return '';
+    const tr = getAbilityUpgradeTracks(tpl).find(function (t) { return t.id === focus; });
+    return tr ? tr.label : '';
+}
+
 window.ensurePlayerProgression = ensurePlayerProgression;
+window.getAbilityUpgradeTracks = getAbilityUpgradeTracks;
+window.getAbilityUpgradeFocus = getAbilityUpgradeFocus;
+window.setAbilityUpgradeFocus = setAbilityUpgradeFocus;
+window.getAbilityUpgradeTrackLabel = getAbilityUpgradeTrackLabel;
 window.getProgressionPointsEarned = getProgressionPointsEarned;
 window.getAbilityUpgradePointsAvailable = getAbilityUpgradePointsAvailable;
 window.getLessonPointsAvailable = getLessonPointsAvailable;

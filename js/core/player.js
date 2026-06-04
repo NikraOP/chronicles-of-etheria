@@ -181,6 +181,7 @@ function finalizeCharacter() {
         abilityQuickSlots: [null, null, null, null, null],
         abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
         abilityUpgrades: {},
+        abilityUpgradeFocus: {},
         schoolLessons: [],
         battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' },
         uiKeys: { back: 'Backspace' },
