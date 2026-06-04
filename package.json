@@ -14,6 +14,7 @@
     "test:jewelry": "node scripts/test-jewelry-equip.js",
     "test:craft-batch": "node scripts/test-craft-batch.js",
     "test:shop": "node scripts/test-shop-sell.js",
+    "test:divine-armor": "node scripts/test-divine-armor-craft.js",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test": "echo \"Error: no test specified\" && exit 1"
