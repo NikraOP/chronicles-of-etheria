@@ -4,6 +4,7 @@ function showShop() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
+    if (typeof buildItemImgRegistry === 'function') buildItemImgRegistry();
     stopGathering();
     let html = '<h2>🏪 Магазин</h2><p>💰 Золото: <span style="color:var(--gold);" id="shopGoldAmount">' + player.gold + '</span></p><div class="shop-tabs">';
     const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', '📜 Свитки добычи', 'Продажа ресурсов', 'Продажа предметов', '🎨 Скины'];
@@ -251,9 +252,14 @@ function buildShopSellItemCardHtml(item, sellPrice) {
     const statsHtml = renderItemStatsHtml(item);
     const rarityColor = getRarityColor(item.rarity);
     const rarityDisplay = getRarityDisplay(item.rarity);
+    const sellDisplay = typeof enrichItemForDisplay === 'function'
+        ? enrichItemForDisplay(item)
+        : (typeof pickItemVisualFields === 'function'
+            ? Object.assign({}, item, pickItemVisualFields(item))
+            : item);
     const itemIconHtml = typeof renderItemIconHTML === 'function'
-        ? renderItemIconHTML(item, { size: 40, fallback: item.icon || '📦' })
-        : '<div class="shop-item-card__emoji">' + (item.icon || '📦') + '</div>';
+        ? renderItemIconHTML(sellDisplay, { size: 40, fallback: sellDisplay.icon || '📦' })
+        : '<div class="shop-item-card__emoji">' + (sellDisplay.icon || '📦') + '</div>';
     return '<div class="item-card shop-item-card" onclick="sellItemKeepOpen(\'' + item.type + '\', ' + item.idx + ', ' + sellPrice + ')">' +
         '<div class="shop-item-card__row">' +
         '<div class="shop-item-card__icon">' + itemIconHtml + '</div>' +
@@ -402,9 +408,12 @@ function renderBuyItems(cat) {
             levelStatus = `<span style="color: #e74c3c;">🔒 Требуется ${item.lvl} уровень (ещё ${levelDiff})</span>`;
         }
         
+        const shopDisplayItem = typeof enrichItemForDisplay === 'function'
+            ? enrichItemForDisplay(item)
+            : item;
         html += `<div class="item-card shop-item-card shop-item-card--buy${canBuy ? '' : ' shop-item-card--disabled'}" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
             <div class="shop-item-card__row">
-                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(item, { size: 48, fallback: item.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (item.icon || '⚔️') + '</div>'}</div>
+                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(shopDisplayItem, { size: 48, fallback: shopDisplayItem.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (shopDisplayItem.icon || '⚔️') + '</div>'}</div>
                 <div class="shop-item-card__body">
                     <div class="shop-item-card__name" style="color: ${rarityColor};">${item.name}</div>
                     <div class="shop-item-card__stats">${statsHtml}</div>

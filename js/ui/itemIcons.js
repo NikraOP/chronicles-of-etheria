@@ -12,7 +12,7 @@ function registerItemDef(def) {
         return;
     }
     if (def.icon && !existing.icon) existing.icon = def.icon;
-    if (def.img) existing.img = def.img;
+    if (def.img && (!existing.img || existing.img.length < def.img.length)) existing.img = def.img;
 }
 
 function buildItemImgRegistry() {
@@ -64,7 +64,8 @@ function resolveItemImg(itemOrName) {
         const res = findResourceDefByName(itemOrName);
         return (res && res.img) ? res.img : '';
     }
-    if (itemOrName.img) return itemOrName.img;
+    const direct = itemOrName.img && String(itemOrName.img).trim();
+    if (direct) return direct;
     if (itemOrName.name && ITEM_IMG_REGISTRY[itemOrName.name]) {
         return ITEM_IMG_REGISTRY[itemOrName.name].img || '';
     }
@@ -90,10 +91,19 @@ function resolveItemIcon(itemOrName, fallback) {
 /** Поля icon/img для копирования в инвентарь при покупке/крафте */
 function pickItemVisualFields(source) {
     if (!source) return { icon: '📦', img: '' };
+    const directImg = source.img && String(source.img).trim();
+    const regImg = resolveItemImg(source);
     return {
         icon: source.icon || resolveItemIcon(source, '📦'),
-        img: source.img || resolveItemImg(source) || ''
+        img: directImg || regImg || ''
     };
+}
+
+/** Объект предмета с icon/img из реестра (магазин, продажа) */
+function enrichItemForDisplay(item) {
+    if (!item) return { icon: '📦', img: '' };
+    const visuals = pickItemVisualFields(item);
+    return Object.assign({}, item, visuals);
 }
 
 /**
@@ -158,6 +168,7 @@ window.buildItemImgRegistry = buildItemImgRegistry;
 window.resolveItemImg = resolveItemImg;
 window.resolveItemIcon = resolveItemIcon;
 window.pickItemVisualFields = pickItemVisualFields;
+window.enrichItemForDisplay = enrichItemForDisplay;
 window.renderItemIconHTML = renderItemIconHTML;
 window.ensureEquipmentScreenVisuals = ensureEquipmentScreenVisuals;
 window.findResourceDefByName = findResourceDefByName;

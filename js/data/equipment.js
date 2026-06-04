@@ -31,21 +31,21 @@ const EQUIPMENT_DB = {
         ],
         'Маг': [
             // === БАЗОВЫЕ ===
-            {name:'Дубовый посох',rarity:'Обычный',lvl:1,price:70,dmg:8,def:0,hp:15,crit:0,critDmg:0,dodge:0,icon:'🪄',img:''},
-            {name:'Кристальный скипетр',rarity:'Обычный',lvl:1,price:80,dmg:10,def:0,hp:0,crit:4,critDmg:0,dodge:0,icon:'💠',img:''},
-            {name:'Посох элементаля',rarity:'Необычный',lvl:5,price:180,dmg:15,def:0,hp:20,crit:8,critDmg:0,dodge:0,icon:'🌍',img:''},
-            {name:'Скипетр мудреца',rarity:'Необычный',lvl:5,price:200,dmg:17,def:0,hp:0,crit:0,critDmg:18,dodge:3,icon:'📜',img:''},
+            {name:'Дубовый посох',rarity:'Обычный',lvl:1,price:70,dmg:8,def:0,hp:15,crit:0,critDmg:0,dodge:0,icon:'🪄',img:'png/weapons/mage/mage_staff_1.png'},
+            {name:'Кристальный скипетр',rarity:'Обычный',lvl:1,price:80,dmg:10,def:0,hp:0,crit:4,critDmg:0,dodge:0,icon:'💠',img:'png/weapons/mage/mage_staff_2.png'},
+            {name:'Посох элементаля',rarity:'Необычный',lvl:5,price:180,dmg:15,def:0,hp:20,crit:8,critDmg:0,dodge:0,icon:'🌍',img:'png/weapons/mage/mage_staff_3.png'},
+            {name:'Скипетр мудреца',rarity:'Необычный',lvl:5,price:200,dmg:17,def:0,hp:0,crit:0,critDmg:18,dodge:3,icon:'📜',img:'png/weapons/mage/mage_staff_4.png'},
             
             // === СЕТ "Архимаг" (уровни 12-22) ===
-            {name:'Посох архимага',rarity:'Редкий',lvl:12,price:520,dmg:22,def:0,hp:0,crit:10,critDmg:18,dodge:0,icon:'🧙',img:''},
-            {name:'Скипетр волшебника',rarity:'Редкий',lvl:14,price:600,dmg:25,def:5,hp:20,crit:8,critDmg:20,dodge:0,icon:'✨',img:''},
-            {name:'Жезл чародея',rarity:'Эпический',lvl:18,price:1100,dmg:32,def:0,hp:40,crit:12,critDmg:25,dodge:5,icon:'🔮',img:''},
-            {name:'Посох заклинаний',rarity:'Эпический',lvl:22,price:1400,dmg:36,def:0,hp:60,crit:14,critDmg:28,dodge:0,icon:'📜',img:''},
+            {name:'Посох архимага',rarity:'Редкий',lvl:12,price:520,dmg:22,def:0,hp:0,crit:10,critDmg:18,dodge:0,icon:'🧙',img:'png/weapons/mage/mage_staff_5.png'},
+            {name:'Скипетр волшебника',rarity:'Редкий',lvl:14,price:600,dmg:25,def:5,hp:20,crit:8,critDmg:20,dodge:0,icon:'✨',img:'png/weapons/mage/mage_staff_6.png'},
+            {name:'Жезл чародея',rarity:'Эпический',lvl:18,price:1100,dmg:32,def:0,hp:40,crit:12,critDmg:25,dodge:5,icon:'🔮',img:'png/weapons/mage/mage_staff_7.png'},
+            {name:'Посох заклинаний',rarity:'Эпический',lvl:22,price:1400,dmg:36,def:0,hp:60,crit:14,critDmg:28,dodge:0,icon:'📜',img:'png/weapons/mage/mage_staff_8.png'},
             
             // === СЕТ "Легендарный" (уровни 28-38) ===
-            {name:'Посох короля-мага',rarity:'Легендарный',lvl:28,price:2600,dmg:44,def:0,hp:0,crit:16,critDmg:30,dodge:0,icon:'👑',img:''},
-            {name:'Скипетр драконьей магии',rarity:'Легендарный',lvl:32,price:3400,dmg:50,def:8,hp:50,crit:14,critDmg:32,dodge:0,icon:'🐉',img:''},
-            {name:'Жезл вечности',rarity:'Мифический',lvl:38,price:5200,dmg:60,def:0,hp:80,crit:18,critDmg:38,dodge:5,icon:'💎',img:''},
+            {name:'Посох короля-мага',rarity:'Легендарный',lvl:28,price:2600,dmg:44,def:0,hp:0,crit:16,critDmg:30,dodge:0,icon:'👑',img:'png/weapons/mage/mage_staff_9.png'},
+            {name:'Скипетр драконьей магии',rarity:'Легендарный',lvl:32,price:3400,dmg:50,def:8,hp:50,crit:14,critDmg:32,dodge:0,icon:'🐉',img:'png/weapons/mage/mage_staff_10.png'},
+            {name:'Жезл вечности',rarity:'Мифический',lvl:38,price:5200,dmg:60,def:0,hp:80,crit:18,critDmg:38,dodge:5,icon:'💎',img:'png/weapons/mage/mage_staff_11.png'},
             
             // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! =====
             // {name:'Посох древнего мага',...} - УДАЛЕНО
