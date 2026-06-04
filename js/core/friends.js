@@ -1,8 +1,15 @@
 /**
- * Друзья: синхронизация профиля на сервер, добавление по коду, просмотр статов и экипировки.
- * GitHub Pages: js/config/friendsEnv.js → Render API или Supabase.
+ * Друзья: профиль и список на сервере (Timeweb), авто-синхронизация, добавление по коду.
  */
 const FRIENDS_API_LS_KEY = 'etheria_friends_api_v1';
+const FRIENDS_PROFILE_PUSH_MS = 2500;
+const FRIENDS_LIST_POLL_MS = 6000;
+
+let friendsScreenActive = false;
+let friendsSessionPromise = null;
+let friendsProfilePushTimer = null;
+let friendsProfilePushInFlight = false;
+let friendsListPollTimer = null;
 
 function isGitHubPagesHost() {
     const host = typeof location !== 'undefined' ? location.hostname : '';
@@ -20,7 +27,7 @@ function getFriendsHttpApiDefault() {
         return String(window.ETHERIA_FRIENDS_HTTP_API).trim().replace(/\/+$/, '');
     }
     return isGitHubPagesHost()
-        ? 'https://etheria-friends-api.onrender.com'
+        ? 'https://5-42-103-145.sslip.io'
         : 'http://localhost:8790';
 }
 
@@ -31,9 +38,8 @@ function getFriendsBackendKind() {
 }
 
 function getFriendsBackendLabel() {
-    if (getFriendsBackendKind() === 'supabase') return 'Supabase (облако)';
-    if (isGitHubPagesHost()) return 'GitHub Pages → Render API';
-    return 'Локальный API';
+    if (getFriendsBackendKind() === 'supabase') return 'Supabase';
+    return 'Сервер Etheria';
 }
 
 const FRIENDS_SLOT_META = [
@@ -347,8 +353,8 @@ function buildFriendsPublicProfile() {
 
 function friendsErrorMessage(err) {
     const code = err && (err.message || err.data && err.data.error);
-    if (code === 'unauthorized') return 'Сессия устарела — нажмите «Синхронизировать» ещё раз.';
-    if (code === 'code_not_found') return 'Код друга не найден. Пусть друг сначала синхронизируется.';
+    if (code === 'unauthorized') return 'Сессия устарела — откройте вкладку «Друзья» снова.';
+    if (code === 'code_not_found') return 'Код не найден. Друг должен хотя бы раз открыть вкладку «Друзья» в игре.';
     if (code === 'self_friend') return 'Нельзя добавить свой собственный код.';
     if (code === 'friends_limit') return 'Слишком много друзей на сервере.';
     if (err && (err.message === 'Failed to fetch' || err.name === 'TypeError')) {
@@ -361,29 +367,102 @@ function friendsErrorMessage(err) {
     return 'Ошибка: ' + (code || 'неизвестно');
 }
 
-async function syncFriendsProfile() {
-    if (!player) {
-        if (typeof addMessage === 'function') addMessage('❌ Сначала создайте героя', 'error');
-        return false;
-    }
+async function ensureFriendsOnlineSession(options) {
+    options = options || {};
+    if (!player) return false;
     ensureFriendsPlayerState();
+    if (friendsSessionPromise) return friendsSessionPromise;
+
+    friendsSessionPromise = (async function () {
+        try {
+            const data = await friendsBackendSync(buildFriendsPublicProfile());
+            player.friends.playerId = data.playerId;
+            player.friends.syncToken = data.syncToken;
+            player.friends.friendCode = data.friendCode;
+            player.friends.lastSyncAt = data.updatedAt || Date.now();
+            if (typeof saveGame === 'function') saveGame();
+            return true;
+        } catch (err) {
+            if (!options.silent && typeof addMessage === 'function') {
+                addMessage('❌ ' + friendsErrorMessage(err), 'error');
+            }
+            return false;
+        } finally {
+            friendsSessionPromise = null;
+        }
+    })();
+
+    return friendsSessionPromise;
+}
+
+function scheduleFriendsProfilePush() {
+    if (!player) return;
+    ensureFriendsPlayerState();
+    if (!player.friends.playerId || !player.friends.syncToken) return;
+    if (friendsProfilePushTimer) clearTimeout(friendsProfilePushTimer);
+    friendsProfilePushTimer = setTimeout(friendsPushProfileNow, FRIENDS_PROFILE_PUSH_MS);
+}
+
+async function friendsPushProfileNow() {
+    if (!player || !player.friends || !player.friends.playerId) return;
+    if (friendsProfilePushInFlight) return;
+    friendsProfilePushInFlight = true;
     try {
         const data = await friendsBackendSync(buildFriendsPublicProfile());
-        player.friends.playerId = data.playerId;
-        player.friends.syncToken = data.syncToken;
-        player.friends.friendCode = data.friendCode;
         player.friends.lastSyncAt = data.updatedAt || Date.now();
+        if (data.friendCode) player.friends.friendCode = data.friendCode;
         if (typeof saveGame === 'function') saveGame();
-        if (typeof addMessage === 'function') {
-            addMessage('✅ Профиль синхронизирован. Код: ' + data.friendCode, 'success');
-        }
-        await refreshFriendsFromServer();
-        showFriends();
-        return true;
+        friendsUpdateLiveStatus('online');
     } catch (err) {
-        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
-        return false;
+        friendsUpdateLiveStatus('error');
+        console.warn('[friends] push failed', err);
+    } finally {
+        friendsProfilePushInFlight = false;
     }
+}
+
+function stopFriendsLiveUpdates() {
+    friendsScreenActive = false;
+    if (friendsListPollTimer) {
+        clearInterval(friendsListPollTimer);
+        friendsListPollTimer = null;
+    }
+}
+
+function startFriendsLiveUpdates() {
+    stopFriendsLiveUpdates();
+    friendsScreenActive = true;
+    friendsListPollTimer = setInterval(friendsListPollTick, FRIENDS_LIST_POLL_MS);
+}
+
+async function friendsListPollTick() {
+    if (!document.querySelector('.friends-screen')) {
+        stopFriendsLiveUpdates();
+        return;
+    }
+    await refreshFriendsFromServer();
+    if (document.querySelector('.friends-screen')) renderFriendsScreenInner();
+}
+
+function friendsUpdateLiveStatus(mode) {
+    const el = document.getElementById('friendsLiveStatus');
+    if (!el) return;
+    if (mode === 'loading') el.textContent = 'Подключение к серверу…';
+    else if (mode === 'online') el.textContent = 'На сервере · профиль обновляется автоматически';
+    else if (mode === 'error') el.textContent = 'Нет связи с сервером';
+    else el.textContent = 'На сервере';
+}
+
+async function syncFriendsProfile() {
+    const ok = await ensureFriendsOnlineSession({ silent: false });
+    if (ok) {
+        await refreshFriendsFromServer();
+        if (friendsScreenActive) renderFriendsScreenInner();
+        if (typeof addMessage === 'function') {
+            addMessage('✅ Профиль на сервере. Код: ' + (player.friends.friendCode || ''), 'success');
+        }
+    }
+    return ok;
 }
 
 async function refreshFriendsFromServer() {
@@ -402,23 +481,25 @@ async function refreshFriendsFromServer() {
 
 async function addFriendByCode(code) {
     if (!player) return;
-    ensureFriendsPlayerState();
     const normalized = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (normalized.length < 4) {
         if (typeof addMessage === 'function') addMessage('❌ Введите код друга (6 символов)', 'error');
         return;
     }
-    if (!player.friends.playerId || !player.friends.syncToken) {
-        if (typeof addMessage === 'function') addMessage('❌ Сначала нажмите «Синхронизировать»', 'error');
-        return;
-    }
+    friendsUpdateLiveStatus('loading');
+    const ready = await ensureFriendsOnlineSession({ silent: false });
+    if (!ready) return;
     try {
-        await friendsBackendAddFriend(normalized);
-        if (typeof addMessage === 'function') addMessage('✅ Друг добавлен: ' + normalized, 'success');
+        const data = await friendsBackendAddFriend(normalized);
+        const name = data.friend && data.friend.profile && data.friend.profile.name
+            ? data.friend.profile.name
+            : normalized;
+        if (typeof addMessage === 'function') addMessage('✅ В друзьях: ' + name, 'success');
         await refreshFriendsFromServer();
-        showFriends();
+        renderFriendsScreenInner();
     } catch (err) {
         if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+        friendsUpdateLiveStatus('online');
     }
 }
 
@@ -515,7 +596,8 @@ function copyFriendsCode() {
     ensureFriendsPlayerState();
     const code = player && player.friends && player.friends.friendCode;
     if (!code) {
-        if (typeof addMessage === 'function') addMessage('❌ Сначала синхронизируйте профиль', 'error');
+        ensureFriendsOnlineSession({ silent: false });
+        if (typeof addMessage === 'function') addMessage('Подождите, получаем ваш код…', 'info');
         return;
     }
     const text = code;
@@ -538,101 +620,81 @@ function submitAddFriend() {
 }
 
 function showFriends() {
+    if (!player) return;
+    if (typeof closeSettings === 'function') closeSettings();
     if (getFriendsBackendKind() === 'http' && typeof wakeCloudApi === 'function') {
         wakeCloudApi(getFriendsApiBase());
     }
-    if (!player) return;
-    if (typeof closeSettings === 'function') closeSettings();
     ensureFriendsPlayerState();
     const el = document.getElementById('dynamicContent');
     if (!el) return;
+    stopFriendsLiveUpdates();
+    friendsScreenActive = true;
+    el.innerHTML = '<div class="friends-screen friends-screen--loading"><h2>👥 Друзья</h2><p>Подключение к серверу…</p></div>';
+    friendsOpenScreen();
+}
+
+async function friendsOpenScreen() {
+    friendsUpdateLiveStatus('loading');
+    await ensureFriendsOnlineSession({ silent: true });
+    await refreshFriendsFromServer();
+    startFriendsLiveUpdates();
+    scheduleFriendsProfilePush();
+    renderFriendsScreenInner();
+}
+
+function renderFriendsScreenInner() {
+    if (!player) return;
+    const el = document.getElementById('dynamicContent');
+    if (!el) return;
+    ensureFriendsPlayerState();
 
     const f = player.friends;
-    const apiBase = getFriendsApiBase();
-    const backendKind = getFriendsBackendKind();
     const backendLabel = getFriendsBackendLabel();
-    const onGh = isGitHubPagesHost();
     const synced = !!(f.playerId && f.syncToken);
     const friends = f.cached || [];
-
-    const myProfile = typeof buildFriendsPublicProfile === 'function' ? buildFriendsPublicProfile() : null;
+    const myProfile = buildFriendsPublicProfile();
 
     let html = '<div class="friends-screen">';
     html += '<header class="friends-screen__head">';
     html += '<h2 class="friends-screen__title">👥 Друзья</h2>';
-    html += '<p class="friends-screen__hint">Синхронизируйте профиль в облако — друг вводит ваш код на сайте GitHub Pages и видит статы и экипировку. После смены вещей снова нажмите «Синхронизировать».</p>';
+    html += '<p class="friends-screen__hint">Как в онлайн-игре: откройте вкладку — профиль на сервере. Друг вводит ваш код — видит статы и вещи. Обновление автоматическое.</p>';
+    html += '<p id="friendsLiveStatus" class="friends-live-status">' + escapeFriendsHtml(synced ? 'На сервере' : 'Подключение…') + '</p>';
+    html += '<span class="friends-backend-badge">' + escapeFriendsHtml(backendLabel) + '</span>';
     html += '</header>';
-
-    html += '<section class="friends-panel friends-panel--api">';
-    html += '<h3 class="friends-panel__title">🌐 Облако</h3>';
-    html += '<p class="friends-backend-badge">' + escapeFriendsHtml(backendLabel) + '</p>';
-    if (backendKind === 'supabase') {
-        html += '<p class="friends-panel__note">Данные в Supabase. URL API вручную не нужен.</p>';
-    } else if (onGh) {
-        html += '<p class="friends-panel__note">Сайт: <strong>GitHub Pages</strong>. API: <code>' + escapeFriendsHtml(apiBase) + '</code></p>';
-        html += '<p class="friends-panel__note friends-panel__note--small">Если синхронизация не работает — один раз подключите Render Blueprint из репозитория (файл <code>render.yaml</code>, см. docs/FRIENDS_GITHUB_PAGES.md).</p>';
-    } else {
-        html += '<div class="friends-api-row">';
-        html += '<input id="friendsApiUrl" class="hero-input friends-api-input" type="url" placeholder="http://localhost:8790" value="' + escapeFriendsHtml(apiBase) + '">';
-        html += '<button type="button" class="action-btn friends-api-save" onclick="saveFriendsApiFromUi()">Сохранить URL</button>';
-        html += '</div>';
-        html += '<p class="friends-panel__note">Локально: <code>npm run start:friends</code></p>';
-    }
-    html += '</section>';
 
     html += '<section class="friends-panel friends-panel--me">';
     html += '<div class="friends-me-layout">';
-    html += '<div class="friends-me-preview">' + renderFriendPortraitBlock(myProfile || {
-        name: player.name,
-        class: player.class,
-        branch: player.branch,
-        gender: player.gender,
-        currentSkin: player.currentSkin,
-        schoolImg: player.schoolImg
-    }, { size: 'preview' }) + '</div>';
+    html += '<div class="friends-me-preview">' + renderFriendPortraitBlock(myProfile, { size: 'preview' }) + '</div>';
     html += '<div class="friends-me-body">';
-    html += '<h3 class="friends-panel__title">🧙 Ваш профиль</h3>';
-    if (synced) {
-        html += '<div class="friends-code-badge">';
-        html += '<span class="friends-code-badge__label">Ваш код</span>';
+    html += '<h3 class="friends-panel__title">Ваш код для друзей</h3>';
+    if (synced && f.friendCode) {
+        html += '<div class="friends-code-badge friends-code-badge--large">';
         html += '<span class="friends-code-badge__code">' + escapeFriendsHtml(f.friendCode) + '</span>';
         html += '</div>';
-    }
-    html += '<div class="friends-toolbar friends-me-actions">';
-    html += '<button type="button" class="action-btn friends-sync-btn" onclick="syncFriendsProfile()">🔄 Синхронизировать</button>';
-    if (synced) {
         html += '<button type="button" class="action-btn friends-copy-code-btn" onclick="copyFriendsCode()">📋 Скопировать код</button>';
-    }
-    html += '</div>';
-    if (synced) {
-        html += '<p class="friends-sync-status">Последняя синхронизация: ' + escapeFriendsHtml(formatFriendSyncTime(f.lastSyncAt)) + '</p>';
+        html += '<p class="friends-sync-status">Обновлено: ' + escapeFriendsHtml(formatFriendSyncTime(f.lastSyncAt)) + '</p>';
     } else {
-        html += '<p class="friends-sync-status friends-sync-status--warn">Профиль ещё не на сервере — нажмите «Синхронизировать».</p>';
+        html += '<p class="friends-sync-status friends-sync-status--warn">Получаем код с сервера…</p>';
     }
-    html += '</div></div>';
-    html += '</section>';
+    html += '</div></div></section>';
 
     html += '<section class="friends-panel friends-panel--add">';
-    html += '<h3 class="friends-panel__title">➕ Добавить друга</h3>';
+    html += '<h3 class="friends-panel__title">➕ Добавить друга по коду</h3>';
     html += '<div class="friends-toolbar friends-add-row">';
-    html += '<input id="friendsAddCodeInput" class="hero-input friends-code-input" type="text" maxlength="8" placeholder="Код друга (6 символов)" autocomplete="off">';
-    html += '<button type="button" class="action-btn" onclick="submitAddFriend()"' + (synced ? '' : ' disabled') + '>Добавить</button>';
+    html += '<input id="friendsAddCodeInput" class="hero-input friends-code-input" type="text" maxlength="8" placeholder="Например ABC123" autocomplete="off">';
+    html += '<button type="button" class="action-btn friends-add-btn" onclick="submitAddFriend()">Добавить</button>';
     html += '</div>';
     html += '</section>';
 
     html += '<section class="friends-panel friends-panel--list">';
-    html += '<div class="friends-list-header friends-toolbar">';
-    html += '<h3 class="friends-panel__title">📋 Список друзей <span class="friends-list-count">(' + friends.length + ')</span></h3>';
-    if (synced) {
-        html += '<button type="button" class="action-btn friends-refresh-btn" onclick="refreshFriendsFromServer().then(function(){showFriends();})">🔄 Обновить</button>';
-    }
-    html += '</div>';
+    html += '<h3 class="friends-panel__title">📋 Друзья <span class="friends-list-count">(' + friends.length + ')</span></h3>';
 
     if (!friends.length) {
         html += '<div class="friends-empty">';
         html += '<div class="friends-empty__icon" aria-hidden="true">👥</div>';
-        html += '<p class="friends-empty__title">Пока нет друзей</p>';
-        html += '<p class="friends-empty__hint">Добавьте код после синхронизации обоих игроков.</p>';
+        html += '<p class="friends-empty__title">Пока никого нет</p>';
+        html += '<p class="friends-empty__hint">Попросите друга открыть «Друзья» в игре и прислать его код.</p>';
         html += '</div>';
     } else {
         html += '<div class="friends-list">';
@@ -641,11 +703,38 @@ function showFriends() {
         });
         html += '</div>';
     }
-    html += '</section>';
-    html += '</div>';
+    html += '</section></div>';
 
     el.innerHTML = html;
+    friendsUpdateLiveStatus(synced ? 'online' : 'loading');
 }
+
+function friendsHookSaveGame() {
+    if (window.__friendsSaveHooked) return;
+    const orig = window.saveGame;
+    if (typeof orig !== 'function') return;
+    window.saveGame = function () {
+        orig.apply(this, arguments);
+        scheduleFriendsProfilePush();
+    };
+    window.__friendsSaveHooked = true;
+}
+
+function friendsHookRenderGame() {
+    if (window.__friendsRenderHooked) return;
+    const orig = window.renderGame;
+    if (typeof orig !== 'function') return;
+    window.renderGame = function () {
+        orig.apply(this, arguments);
+        if (player && player.friends && player.friends.playerId) {
+            scheduleFriendsProfilePush();
+        }
+    };
+    window.__friendsRenderHooked = true;
+}
+
+friendsHookSaveGame();
+friendsHookRenderGame();
 
 window.showFriends = showFriends;
 window.syncFriendsProfile = syncFriendsProfile;
@@ -654,6 +743,8 @@ window.submitAddFriend = submitAddFriend;
 window.copyFriendsCode = copyFriendsCode;
 window.saveFriendsApiFromUi = saveFriendsApiFromUi;
 window.refreshFriendsFromServer = refreshFriendsFromServer;
+window.ensureFriendsOnlineSession = ensureFriendsOnlineSession;
+window.scheduleFriendsProfilePush = scheduleFriendsProfilePush;
 window.getFriendsApiBase = getFriendsApiBase;
 window.buildFriendsPublicProfile = buildFriendsPublicProfile;
 window.renderFriendPortraitHTML = renderFriendPortraitHTML;
