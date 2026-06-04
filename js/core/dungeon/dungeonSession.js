@@ -559,8 +559,12 @@ function enterCurrentRoomBattle() {
         startDungeonDuoBattleMode();
         const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
         if (duo && duo.role === 'host' && typeof setDungeonDuoAlly === 'function') {
-            const partySnap = typeof buildDungeonDuoPartySnapshot === 'function' ? buildDungeonDuoPartySnapshot() : null;
-            setDungeonDuoAlly(partySnap || { name: 'Союзник', health: player.maxHealth, maxHealth: player.maxHealth, class: '?' });
+            setDungeonDuoAlly(duo.remoteSnapshot || {
+                name: 'Союзник',
+                health: player.maxHealth,
+                maxHealth: player.maxHealth,
+                class: '?'
+            });
         }
     }
 

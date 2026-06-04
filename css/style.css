@@ -2862,6 +2862,15 @@ body.gather-screen-flash::after {
 .combatant-wrapper--ally .combatant-name {
     color: #3498db !important;
 }
+.combatant-skin-name {
+    margin-top: 3px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.72);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .dungeon-duo-lobby {
     max-width: 720px;
     margin: 0 auto;

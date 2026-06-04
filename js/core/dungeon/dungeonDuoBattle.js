@@ -24,13 +24,48 @@ function setDungeonDuoAlly(snapshot) {
     dungeonDuoAlly = snapshot ? { ...snapshot } : null;
 }
 
+function applyDungeonDuoLocalPartySnapshot(snapshot) {
+    if (!snapshot || !player) return;
+    if (typeof snapshot.maxHealth === 'number' && snapshot.maxHealth > 0) {
+        player.maxHealth = Math.max(1, Math.floor(snapshot.maxHealth));
+        player.health = Math.min(player.health, player.maxHealth);
+    }
+    if (typeof snapshot.health === 'number') {
+        player.health = Math.max(0, Math.min(player.maxHealth || snapshot.maxHealth || 1, Math.floor(snapshot.health)));
+    }
+    if (player.class === 'Маг') {
+        if (typeof snapshot.maxMana === 'number') player.maxMana = Math.max(0, Math.floor(snapshot.maxMana));
+        if (typeof snapshot.mana === 'number') player.mana = Math.max(0, Math.min(player.maxMana || snapshot.mana, Math.floor(snapshot.mana)));
+    }
+}
+
 function buildDungeonDuoPartySnapshot() {
     if (!player) return null;
+    const lobbySnap = typeof buildDuoLobbyPlayerSnapshot === 'function'
+        ? buildDuoLobbyPlayerSnapshot()
+        : {
+            name: player.name,
+            class: player.class,
+            branch: player.branch,
+            gender: player.gender || 'male',
+            schoolImg: player.schoolImg || '',
+            currentSkin: player.currentSkin || ''
+        };
     return {
+        ...lobbySnap,
         name: player.name,
         class: player.class,
+        branch: player.branch || '',
+        gender: player.gender || 'male',
         health: player.health,
         maxHealth: player.maxHealth,
+        mana: player.class === 'Маг' ? (player.mana || 0) : 0,
+        maxMana: player.class === 'Маг' ? (player.maxMana || 0) : 0,
+        attack: player.attack || 0,
+        defense: player.defense || 0,
+        criticalChance: player.criticalChance || 0,
+        criticalDamage: player.criticalDamage || 0,
+        dodgeChance: player.dodgeChance || 0,
         level: player.level
     };
 }
@@ -85,10 +120,12 @@ function applyDungeonDuoRoomSnapshot(payload) {
 
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     if (payload.party) {
-        if (duo && duo.role === 'host' && payload.party.guest) {
-            setDungeonDuoAlly(payload.party.guest);
-        } else if (duo && duo.role === 'guest' && payload.party.host) {
-            setDungeonDuoAlly(payload.party.host);
+        if (duo && duo.role === 'host') {
+            if (payload.party.host) applyDungeonDuoLocalPartySnapshot(payload.party.host);
+            if (payload.party.guest) setDungeonDuoAlly(payload.party.guest);
+        } else if (duo && duo.role === 'guest') {
+            if (payload.party.guest) applyDungeonDuoLocalPartySnapshot(payload.party.guest);
+            if (payload.party.host) setDungeonDuoAlly(payload.party.host);
         }
     }
 
@@ -101,9 +138,16 @@ function applyDungeonDuoRoomSnapshot(payload) {
         if (typeof syncCurrentMonsterFromFocus === 'function') syncCurrentMonsterFromFocus();
     }
 
+    const wasLocalTurn = !!isPlayerTurn;
     if (duo && duo.role === 'guest') {
         const canAct = payload.activeSlot === 'guest' && payload.isPlayerPhase !== false;
         isPlayerTurn = canAct;
+        if (canAct && !wasLocalTurn && typeof addBattleLog === 'function') addBattleLog('✅ Ваш ход.', 'success');
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        if (typeof renderBattle === 'function') renderBattle({ force: true });
+    } else if (duo && duo.role === 'host') {
+        isPlayerTurn = payload.activeSlot === 'host' && payload.isPlayerPhase !== false;
+        if (isPlayerTurn && !wasLocalTurn && typeof addBattleLog === 'function') addBattleLog('✅ Ваш ход.', 'success');
         if (typeof updateBattleButtons === 'function') updateBattleButtons();
         if (typeof renderBattle === 'function') renderBattle({ force: true });
     }
@@ -224,6 +268,7 @@ function applyRemoteDuoDungeonBattleActionImpl(payload) {
     }
     if (payload.type === 'sync_snapshot' && payload.snapshot) {
         applyDungeonDuoRoomSnapshot(payload.snapshot);
+        broadcastDungeonDuoRoomState();
         return;
     }
     if (payload.type === 'victory_claim') {
@@ -268,3 +313,4 @@ window.requestDungeonDuoStateSync = requestDungeonDuoStateSync;
 window.onDungeonDuoMonsterPhaseComplete = onDungeonDuoMonsterPhaseComplete;
 window.buildDungeonDuoPartySnapshot = buildDungeonDuoPartySnapshot;
 window.fillPartyInSnapshot = fillPartyInSnapshot;
+window.applyDungeonDuoLocalPartySnapshot = applyDungeonDuoLocalPartySnapshot;

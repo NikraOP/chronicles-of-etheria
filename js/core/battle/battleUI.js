@@ -143,17 +143,49 @@ function buildEnemyCombatantWrapperHtml(monster, enemyIndex, isFocused, statusSl
         '</div></div>';
 }
 
+function getDuoAllyFallbackAvatar(ally) {
+    if (!ally) return '👥';
+    if (ally.skinIcon) return ally.skinIcon;
+    if (ally.class === 'Воин') return '🗡️';
+    if (ally.class === 'Маг') return '🧙';
+    if (ally.class === 'Лучник') return '🏹';
+    return '👥';
+}
+
+function buildDuoAllySpriteInnerHtml(ally) {
+    const portrait = typeof resolveDuoPlayerPortrait === 'function'
+        ? resolveDuoPlayerPortrait(ally)
+        : { img: ally && (ally.portraitImg || ally.avatar || ally.schoolImg || ''), skinName: ally && ally.skinName, skinIcon: ally && ally.skinIcon };
+    const img = portrait && portrait.img
+        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(portrait.img) : portrait.img)
+        : '';
+    const fb = escapeBattleHtml(getDuoAllyFallbackAvatar(Object.assign({}, ally || {}, portrait || {})));
+    if (!img) return '<span class="sprite-fallback">' + fb + '</span>';
+    return '<img class="player-avatar" src="' + escapeBattleHtml(img) + '" alt=""' +
+        ' onerror="this.onerror=null;this.classList.add(\'combatant-avatar--hidden\');' +
+        'var n=this.nextElementSibling;if(n)n.classList.add(\'sprite-fallback--show\');">' +
+        '<span class="sprite-fallback sprite-fallback--reserve" aria-hidden="true">' + fb + '</span>';
+}
+
 function buildDungeonAllyCombatantHtml() {
     if (!window.dungeonDuoBattleActive || typeof getDungeonDuoAlly !== 'function') return '';
     const ally = getDungeonDuoAlly();
     if (!ally) return '';
     const aHp = ally.maxHealth > 0 ? (ally.health / ally.maxHealth * 100) : 0;
+    const portrait = typeof resolveDuoPlayerPortrait === 'function' ? resolveDuoPlayerPortrait(ally) : ally;
+    const manaText = ally.class === 'Маг' && ally.maxMana > 0
+        ? ' | 💎' + (ally.mana || 0) + '/' + ally.maxMana
+        : '';
+    const skinText = portrait && portrait.skinName
+        ? '<div class="combatant-skin-name">' + escapeBattleHtml((portrait.skinIcon ? portrait.skinIcon + ' ' : '') + portrait.skinName) + '</div>'
+        : '';
     return '<div class="combatant-wrapper combatant-wrapper--ally" id="allyWrapper">' +
-        '<div class="combatant-sprite"><span class="sprite-fallback">👥</span></div>' +
+        '<div class="combatant-sprite">' + buildDuoAllySpriteInnerHtml(ally) + '</div>' +
         '<div class="combatant-info">' +
         '<div class="combatant-name" style="color:#3498db;">' + escapeBattleHtml(ally.name || 'Союзник') + '</div>' +
         '<div class="health-bar"><div class="health-fill player-hp" style="width:' + aHp + '%;"></div></div>' +
-        '<div class="health-text">' + (ally.health || 0) + '/' + (ally.maxHealth || 0) + '</div>' +
+        '<div class="health-text">' + (ally.health || 0) + '/' + (ally.maxHealth || 0) + manaText + '</div>' +
+        skinText +
         '</div></div>';
 }
 

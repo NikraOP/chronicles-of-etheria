@@ -132,6 +132,8 @@ function onPlayerTurnStart() {
             if (typeof broadcastDungeonDuoRoomState === 'function') broadcastDungeonDuoRoomState();
         } else if (duo && duo.role === 'guest') {
             isPlayerTurn = false;
+            updateBattleButtons();
+            return false;
         }
     }
     if (playerFrozenTurns > 0) {

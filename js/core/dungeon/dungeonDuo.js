@@ -62,14 +62,81 @@ function setDuoDungeonPartnerId(peerId) {
     syncDuoDungeonPartnerId();
 }
 
+function findDuoSkinDefInDb(className, gender, branch, skinId) {
+    if (!skinId || typeof SKINS_DB === 'undefined') return null;
+    const classSkins = SKINS_DB[className];
+    if (!classSkins) return null;
+    const genderSkins = classSkins[gender || 'male'] || classSkins.male;
+    if (!genderSkins) return null;
+    const schoolSkins = genderSkins[branch];
+    if (!Array.isArray(schoolSkins)) return null;
+    return schoolSkins.find(function (s) { return s && s.id === skinId; }) || null;
+}
+
+function findDefaultDuoSkinDefInDb(className, gender, branch) {
+    if (typeof SKINS_DB === 'undefined') return null;
+    const classSkins = SKINS_DB[className];
+    if (!classSkins) return null;
+    const genderSkins = classSkins[gender || 'male'] || classSkins.male;
+    if (!genderSkins) return null;
+    const schoolSkins = genderSkins[branch];
+    if (!Array.isArray(schoolSkins)) return null;
+    return schoolSkins.find(function (s) { return s && s.price === 0; }) || schoolSkins[0] || null;
+}
+
+function resolveDuoPlayerPortrait(snapshot) {
+    if (!snapshot) return { img: '', skinName: '', skinIcon: '' };
+    const className = snapshot.class || '';
+    const gender = snapshot.gender || 'male';
+    const branch = snapshot.branch || '';
+    let skinDef = null;
+    if (snapshot.currentSkin) skinDef = findDuoSkinDefInDb(className, gender, branch, snapshot.currentSkin);
+    if (!skinDef) skinDef = findDefaultDuoSkinDefInDb(className, gender, branch);
+
+    let img = String(snapshot.portraitImg || snapshot.avatar || snapshot.schoolImg || '').trim();
+    let skinName = String(snapshot.skinName || '').trim();
+    let skinIcon = String(snapshot.skinIcon || '').trim();
+    if (skinDef) {
+        if (skinDef.img) img = skinDef.img;
+        if (!skinName && skinDef.name) skinName = skinDef.name;
+        if (!skinIcon && skinDef.icon) skinIcon = skinDef.icon;
+    }
+    if (!img && typeof ABILITIES_DB !== 'undefined' && ABILITIES_DB[className] && ABILITIES_DB[className][branch]) {
+        img = ABILITIES_DB[className][branch].img || '';
+    }
+    return { img: img, skinName: skinName, skinIcon: skinIcon };
+}
+
 function buildDuoLobbyPlayerSnapshot() {
     if (typeof player === 'undefined' || !player) return null;
+    const portrait = resolveDuoPlayerPortrait({
+        class: player.class,
+        branch: player.branch,
+        gender: player.gender,
+        currentSkin: player.currentSkin,
+        schoolImg: player.schoolImg
+    });
     return {
         name: player.name || 'Игрок',
         class: player.class || '',
         branch: player.branch || '',
+        gender: player.gender || 'male',
         level: player.level || 1,
-        schoolImg: player.schoolImg || ''
+        health: player.health || 0,
+        maxHealth: player.maxHealth || 0,
+        mana: player.class === 'Маг' ? (player.mana || 0) : 0,
+        maxMana: player.class === 'Маг' ? (player.maxMana || 0) : 0,
+        attack: player.attack || 0,
+        defense: player.defense || 0,
+        criticalChance: player.criticalChance || 0,
+        criticalDamage: player.criticalDamage || 0,
+        dodgeChance: player.dodgeChance || 0,
+        schoolImg: portrait.img || player.schoolImg || '',
+        portraitImg: portrait.img || '',
+        avatar: portrait.img || player.schoolImg || '',
+        currentSkin: player.currentSkin || '',
+        skinName: portrait.skinName || '',
+        skinIcon: portrait.skinIcon || ''
     };
 }
 
@@ -645,5 +712,6 @@ window.applyRemoteDuoDungeonRoomState = applyRemoteDuoDungeonRoomState;
 window.applyRemoteDuoDungeonBattleAction = applyRemoteDuoDungeonBattleAction;
 window.setDuoDungeonRunStatus = setDuoDungeonRunStatus;
 window.buildDuoLobbyPlayerSnapshot = buildDuoLobbyPlayerSnapshot;
+window.resolveDuoPlayerPortrait = resolveDuoPlayerPortrait;
 window.refreshDuoDungeonLobbyUI = refreshDuoDungeonLobbyUI;
 window.setDuoDungeonPartnerId = setDuoDungeonPartnerId;

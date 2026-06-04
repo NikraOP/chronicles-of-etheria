@@ -346,7 +346,6 @@ function useBattleAbility(index) {
         if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
 
         const launchTargeting = function () {
-            if (!beginPlayerAction()) return;
             beginBattleTargeting({
                 type: 'ability',
                 abilityId: index,
