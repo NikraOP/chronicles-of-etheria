@@ -3,6 +3,8 @@
 let battleEnemies = [];
 let battleEnemyFocusIndex = 0;
 let _monsterQueuePhaseActive = false;
+/** Индексы врагов, которые ещё не ходили в текущей фазе монстров */
+let _monsterQueuePending = [];
 
 function cloneBattleEnemyFromTemplate(mData, scale, goldMult) {
     const monsterAbilities = mData.abilities || [];
@@ -76,59 +78,74 @@ function clearBattleEnemies() {
     battleEnemies = [];
     battleEnemyFocusIndex = 0;
     _monsterQueuePhaseActive = false;
+    _monsterQueuePending = [];
 }
 
-/** В начале фазы монстров — фокус на первого живого. */
+/** В начале фазы монстров — очередь живых (каждый бьёт ровно один раз за фазу). */
 function beginMonsterQueuePhase() {
     const enemies = getBattleEnemies();
+    _monsterQueuePending = [];
     if (enemies.length <= 1) {
         _monsterQueuePhaseActive = false;
         return;
     }
-    _monsterQueuePhaseActive = true;
     for (let i = 0; i < enemies.length; i++) {
-        if (enemies[i] && enemies[i].health > 0) {
-            setFocusedEnemyIndex(i);
-            syncCurrentMonsterFromFocus();
-            return;
-        }
+        if (enemies[i] && enemies[i].health > 0) _monsterQueuePending.push(i);
     }
+    if (_monsterQueuePending.length <= 1) {
+        _monsterQueuePhaseActive = false;
+        _monsterQueuePending = [];
+        return;
+    }
+    _monsterQueuePhaseActive = true;
+    setFocusedEnemyIndex(_monsterQueuePending[0]);
+    syncCurrentMonsterFromFocus();
 }
 
-/**
- * Следующий живой враг ходит; иначе false (фаза монстров завершена).
- */
-function advanceMonsterQueue() {
+function startNextMonsterInQueue() {
     const enemies = getBattleEnemies();
-    if (enemies.length <= 1 || !_monsterQueuePhaseActive) return false;
-    const cur = getBattleEnemyFocusIndex();
-    const n = enemies.length;
-    for (let step = 1; step <= n; step++) {
-        const idx = (cur + step) % n;
-        if (enemies[idx] && enemies[idx].health > 0) {
-            setFocusedEnemyIndex(idx);
-            syncCurrentMonsterFromFocus();
-            if (typeof addBattleLog === 'function') {
-                addBattleLog('👹 ' + enemies[idx].name + ' ходит!', 'info');
-            }
-            if (typeof renderBattle === 'function') renderBattle({ force: true });
-            setTimeout(function () {
-                if (typeof monsterTurn === 'function') monsterTurn();
-            }, 150);
-            return true;
-        }
+    if (!_monsterQueuePending.length) return false;
+    const next = _monsterQueuePending[0];
+    if (!enemies[next] || enemies[next].health <= 0) {
+        _monsterQueuePending.shift();
+        return startNextMonsterInQueue();
     }
-    _monsterQueuePhaseActive = false;
-    return false;
+    setFocusedEnemyIndex(next);
+    syncCurrentMonsterFromFocus();
+    if (typeof addBattleLog === 'function') {
+        addBattleLog('👹 ' + enemies[next].name + ' ходит!', 'info');
+    }
+    if (typeof renderBattle === 'function') renderBattle({ force: true });
+    setTimeout(function () {
+        if (typeof monsterTurn === 'function') monsterTurn();
+    }, 150);
+    return true;
+}
+
+/** @deprecated Используйте finishMonsterTurnOrQueue */
+function advanceMonsterQueue() {
+    return _monsterQueuePhaseActive && _monsterQueuePending.length > 0;
 }
 
 function finishMonsterTurnOrQueue() {
-    if (typeof advanceMonsterQueue === 'function' && advanceMonsterQueue()) {
-        return;
+    const enemies = getBattleEnemies();
+    const cur = getBattleEnemyFocusIndex();
+
+    if (_monsterQueuePhaseActive && _monsterQueuePending.length) {
+        _monsterQueuePending = _monsterQueuePending.filter(function (i) {
+            return i !== cur && enemies[i] && enemies[i].health > 0;
+        });
+        if (_monsterQueuePending.length > 0) {
+            startNextMonsterInQueue();
+            return;
+        }
     }
+
     _monsterQueuePhaseActive = false;
+    _monsterQueuePending = [];
     if (typeof finishMonsterPhase === 'function') finishMonsterPhase();
     if (typeof onPlayerTurnStart === 'function') onPlayerTurnStart();
+    if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
 }
 
 /** @returns {boolean} true — бой продолжается; false — вызвана victory() или враг ещё жив */

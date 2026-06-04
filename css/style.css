@@ -2840,21 +2840,78 @@ body.gather-screen-flash::after {
     margin-right: 0 !important;
     margin-left: 0 !important;
 }
-.battle-enemies-pack--count-2,
-.battle-enemies-pack--count-3 {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: flex-start;
-    gap: 8px 12px;
+.battle-enemies-pack--count-2 {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto;
+    column-gap: 6px;
+    align-items: end;
+    justify-items: center;
+}
+.battle-enemies-pack--count-2 .combatant-wrapper:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
 }
 .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2) {
-    transform: translate(14px, -10px);
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+    transform: translate(22px, -14px);
     z-index: 3;
 }
+.battle-enemies-pack--count-3 {
+    display: grid;
+    grid-template-columns: 132px 132px;
+    grid-template-rows: auto auto;
+    column-gap: 2px;
+    row-gap: 0;
+    align-items: end;
+    justify-items: center;
+}
+.battle-enemies-pack--count-3 .combatant-wrapper:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+}
 .battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
-    transform: translate(18px, -14px);
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    transform: translate(30px, -18px);
     z-index: 4;
+}
+.battle-enemies-pack--count-3 .combatant-wrapper:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+}
+.battle-enemies-pack .combatant-status-slot {
+    margin-top: 4px;
+    min-height: 0;
+}
+.battle-enemies-pack .monster-abilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+    max-width: 148px;
+}
+.battle-enemies-pack .monster-ability-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+    min-height: 0;
+}
+.battle-enemies-pack .monster-ability-badge .mab-name {
+    max-width: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.battle-enemies-pack .monster-buffs,
+.battle-enemies-pack .combatant-status-effects {
+    font-size: 9px;
+    line-height: 1.25;
 }
 .battle-enemies-pack .battle-enemy--focused {
     z-index: 5;
@@ -4474,9 +4531,14 @@ h3 { font-size: 18px; }
     .battle-enemies-pack .combatant-wrapper {
         width: 130px !important;
     }
-    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2),
+    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2) {
+        transform: translate(16px, -10px);
+    }
     .battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
-        transform: translateX(14px);
+        transform: translate(20px, -12px);
+    }
+    .battle-enemies-pack--count-3 {
+        grid-template-columns: 118px 118px;
     }
     #playerWrapper { margin: 0 !important; }
     .battle-targeting-hint {

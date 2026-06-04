@@ -168,10 +168,9 @@ function buildBattleEnemiesRowHtml() {
     for (let i = 0; i < enemies.length; i++) {
         const enemy = enemies[i];
         const isFocused = i === resolvedFocus;
-        let statusSlot = '';
-        if (isFocused) {
-            statusSlot = buildMonsterBuffsHTML() + buildMonsterStatusEffectsHTML() + buildMonsterAbilitiesHTML();
-        }
+        const statusSlot = buildMonsterBuffsHTML(enemy) +
+            buildMonsterStatusEffectsHTML(enemy) +
+            buildMonsterAbilitiesHTML(enemy);
         row += buildEnemyCombatantWrapperHtml(enemy, i, isFocused, statusSlot);
     }
     return '<div class="battle-enemies-pack battle-enemies-pack--count-' + packCount + '" id="enemyPack">' + row + '</div>';
@@ -465,9 +464,26 @@ function syncBattleDisplayAfterAnim() {
 function updateBattleStatusPanels() {
     if (!currentMonster) return;
 
-    const enemySlot = document.querySelector('#enemyWrapper .combatant-status-slot');
-    if (enemySlot) {
-        enemySlot.innerHTML = buildMonsterBuffsHTML() + buildMonsterStatusEffectsHTML() + buildMonsterAbilitiesHTML();
+    const packSlots = document.querySelectorAll('#enemyPack .combatant-wrapper[data-enemy-index] .combatant-status-slot');
+    if (packSlots.length && typeof getBattleEnemies === 'function') {
+        const roster = getBattleEnemies();
+        packSlots.forEach(function (slot) {
+            const wrap = slot.closest('.combatant-wrapper[data-enemy-index]');
+            if (!wrap) return;
+            const idx = parseInt(wrap.getAttribute('data-enemy-index'), 10);
+            const monster = roster[idx];
+            if (!monster) return;
+            slot.innerHTML = buildMonsterBuffsHTML(monster) +
+                buildMonsterStatusEffectsHTML(monster) +
+                buildMonsterAbilitiesHTML(monster);
+        });
+    } else {
+        const enemySlot = document.querySelector('#enemyWrapper .combatant-status-slot');
+        if (enemySlot) {
+            enemySlot.innerHTML = buildMonsterBuffsHTML() +
+                buildMonsterStatusEffectsHTML() +
+                buildMonsterAbilitiesHTML();
+        }
     }
 
     const playerSlot = document.querySelector('#playerWrapper .combatant-status-slot');
@@ -975,10 +991,11 @@ function buildMonsterAbilityTooltip(ability, currentCD) {
         `</div>`;
 }
 
-function buildMonsterBuffsHTML() {
-    if (!currentMonster || !currentMonster.activeBuffs) return '';
+function buildMonsterBuffsHTML(monster) {
+    const m = monster || currentMonster;
+    if (!m || !m.activeBuffs) return '';
     const buffs = [];
-    const b = currentMonster.activeBuffs;
+    const b = m.activeBuffs;
     if (b.atk) buffs.push(`⚔️ +${b.atk.value}% (${b.atk.remainingTurns})`);
     if (b.def) buffs.push(`🛡️ +${b.def.value}% (${b.def.remainingTurns})`);
     if (b.dodge) buffs.push(`💨 +${b.dodge.value}% (${b.dodge.remainingTurns})`);
@@ -989,10 +1006,11 @@ function buildMonsterBuffsHTML() {
     return `<div class="monster-buffs">${buffs.join(' · ')}</div>`;
 }
 
-function buildMonsterAbilitiesHTML() {
-    if (!currentMonster.abilities || !currentMonster.abilities.length) return '';
+function buildMonsterAbilitiesHTML(monster) {
+    const m = monster || currentMonster;
+    if (!m || !m.abilities || !m.abilities.length) return '';
     let html = '<div class="monster-abilities">';
-    for (const ability of currentMonster.abilities) {
+    for (const ability of m.abilities) {
         const currentCD = monsterAbilityCooldowns[ability.name] || 0;
         const isOnCooldown = currentCD > 0;
         let abilityColor = '', abilityIcon = '';
@@ -1090,9 +1108,10 @@ function buildStatusEffectsHTML(effects, extraClass) {
     return html;
 }
 
-function buildMonsterStatusEffectsHTML() {
-    if (!currentMonster || !currentMonster.effects || !currentMonster.effects.length) return '';
-    return buildStatusEffectsHTML(currentMonster.effects, 'monster-status-effects');
+function buildMonsterStatusEffectsHTML(monster) {
+    const m = monster || currentMonster;
+    if (!m || !m.effects || !m.effects.length) return '';
+    return buildStatusEffectsHTML(m.effects, 'monster-status-effects');
 }
 
 /** PvP: authoritative chips from match fighter.effects; PvE: dots + debuff chips on player. */
