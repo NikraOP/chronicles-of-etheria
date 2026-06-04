@@ -32,23 +32,26 @@ function renderBattleStaging() {
     const bgStyle = loc.bgColor;
     const av = getAvatar();
     const rosterHtml = buildStagingMonsterRosterHtml(candidates, isFixed);
+    const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 100;
 
     const html = '<div class="battle-wrapper battle-wrapper--staging">' +
         '<div class="battle-staging-header">' +
             '<h2 class="battle-staging-title">⚔️ ' + escapeBattleHtml(loc.name) + '</h2>' +
-            '<p class="battle-staging-sub">Поле боя. Противника ещё не видно — только возможные имена. Нажмите «В бой», чтобы начать.</p>' +
+            '<p class="battle-staging-sub">Возможные противники слева. Герой на месте боя — справа. Нажмите «В бой», чтобы встретить врага.</p>' +
         '</div>' +
         '<div class="battle-arena battle-arena--staging" style="background:' + bgStyle + ';" id="battleArena">' +
-            '<div class="combatant-wrapper battle-staging-player" id="playerWrapper">' +
+            '<div class="combatant-wrapper battle-staging-roster-slot" id="stagingRosterSlot">' +
+                '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
+            '</div>' +
+            '<div class="combatant-wrapper" id="playerWrapper">' +
                 '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
                 '<div class="combatant-info">' +
                     '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
+                    '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
                     '<div class="health-text">' + player.health + '/' + player.maxHealth +
                         (player.class === 'Маг' ? ' | 💎' + player.mana + '/' + player.maxMana : '') + '</div>' +
                 '</div>' +
             '</div>' +
-            '<div class="vs-badge vs-badge--staging">⚔️ Подготовка ⚔️</div>' +
-            '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
         '</div>' +
         '<div class="battle-staging-commit-wrap">' +
             '<button type="button" class="action-btn battle-commit-btn" id="battleCommitBtn" onclick="commitBattleStart()">⚔️ В бой</button>' +
