@@ -93,7 +93,8 @@ async function friendsHttpFetch(path, options) {
     if (player && player.friends && player.friends.syncToken) {
         headers['X-Sync-Token'] = player.friends.syncToken;
     }
-    const res = await fetch(friendsApiUrl(path), {
+    const doFetch = typeof cloudApiFetch === 'function' ? cloudApiFetch : fetch;
+    const res = await doFetch(friendsApiUrl(path), {
         method: options.method || 'GET',
         headers: headers,
         body: options.body ? JSON.stringify(options.body) : undefined
@@ -350,11 +351,12 @@ function friendsErrorMessage(err) {
     if (code === 'code_not_found') return 'Код друга не найден. Пусть друг сначала синхронизируется.';
     if (code === 'self_friend') return 'Нельзя добавить свой собственный код.';
     if (code === 'friends_limit') return 'Слишком много друзей на сервере.';
-    if (err && err.message === 'Failed to fetch') {
+    if (err && (err.message === 'Failed to fetch' || err.name === 'TypeError')) {
+        const hint = typeof cloudApiNetworkHint === 'function' ? cloudApiNetworkHint(err) : '';
         if (isGitHubPagesHost()) {
-            return 'API недоступен. Владельцу сайта: подключите Render Blueprint (docs/FRIENDS_GITHUB_PAGES.md) или Supabase в friendsEnv.js.';
+            return 'API недоступен.' + (hint || ' Подождите ~60 с (Render) или настройте Blueprint / Supabase (docs/FRIENDS_GITHUB_PAGES.md).');
         }
-        return 'Сервер недоступен. Запустите npm run start:friends или укажите URL API.';
+        return 'Сервер недоступен. Запустите npm run start:friends или укажите URL API.' + hint;
     }
     return 'Ошибка: ' + (code || 'неизвестно');
 }
@@ -536,6 +538,9 @@ function submitAddFriend() {
 }
 
 function showFriends() {
+    if (getFriendsBackendKind() === 'http' && typeof wakeCloudApi === 'function') {
+        wakeCloudApi(getFriendsApiBase());
+    }
     if (!player) return;
     if (typeof closeSettings === 'function') closeSettings();
     ensureFriendsPlayerState();

@@ -42,7 +42,8 @@ function pvpCloudUrl(path) {
 
 async function pvpCloudFetch(path, options) {
     options = options || {};
-    const res = await fetch(pvpCloudUrl(path), {
+    const doFetch = typeof cloudApiFetch === 'function' ? cloudApiFetch : fetch;
+    const res = await doFetch(pvpCloudUrl(path), {
         method: options.method || 'GET',
         headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {}),
         body: options.body ? JSON.stringify(options.body) : undefined
@@ -65,8 +66,9 @@ function pvpCloudErrorMessage(err) {
     const code = err && (err.message || (err.data && err.data.error));
     if (code === 'room_not_found') return 'Комната не найдена. Проверьте код.';
     if (code === 'room_full') return 'Комната уже занята.';
-    if (err && err.message === 'Failed to fetch') {
-        return 'Облако PvP недоступно. Подключите Render Blueprint (docs/FRIENDS_GITHUB_PAGES.md).';
+    if (err && (err.message === 'Failed to fetch' || err.name === 'TypeError')) {
+        const hint = typeof cloudApiNetworkHint === 'function' ? cloudApiNetworkHint(err) : '';
+        return 'Облако PvP недоступно.' + (hint || ' Подождите ~60 с (Render) или проверьте docs/FRIENDS_GITHUB_PAGES.md.');
     }
     return 'PvP облако: ' + (code || 'ошибка');
 }

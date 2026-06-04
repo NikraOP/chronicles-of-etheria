@@ -17,5 +17,16 @@
     if (onGitHubPages) {
         global.ETHERIA_FRIENDS_BACKEND = 'auto';
         global.ETHERIA_PVP_USE_CLOUD = true;
+        if (typeof document !== 'undefined' && typeof global.wakeCloudApi === 'function') {
+            var apiBase = global.ETHERIA_FRIENDS_HTTP_API;
+            function warmEtheriaCloudApi() {
+                global.wakeCloudApi(apiBase);
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', warmEtheriaCloudApi);
+            } else {
+                warmEtheriaCloudApi();
+            }
+        }
     }
 })(typeof window !== 'undefined' ? window : globalThis);

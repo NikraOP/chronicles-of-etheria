@@ -1110,6 +1110,11 @@ function loadPvPIceServersForJoin() {
 function preloadPvPAssets() {
     if (pvpPreloadStarted) return;
     pvpPreloadStarted = true;
+    if (typeof shouldUsePvPCloudTransport === 'function' && shouldUsePvPCloudTransport()) {
+        const base = typeof getPvPCloudApiBase === 'function' ? getPvPCloudApiBase() : '';
+        if (base && typeof wakeCloudApi === 'function') wakeCloudApi(base);
+        return;
+    }
     pvpSignalingBackend = 'mqtt';
     loadPvPIceServersFast().catch(() => {});
     loadPvPTransport('mqtt').catch(() => {});
