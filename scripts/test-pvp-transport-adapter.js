@@ -138,7 +138,7 @@ function testTransportConfigRelays() {
     assert(urls[0] === 'wss://nos.lol', 'nos.lol must be first Nostr relay');
     assert(!urls.includes('wss://purplepag.es'), 'purplepag must not be in relay urls');
     assert(urls.includes('wss://relay.mostr.pub'), 'relay.mostr.pub missing');
-    assert(configA.relayConfig.redundancy === 5, 'Nostr redundancy must be 5');
+    assert(configA.relayConfig.redundancy === 3, 'Nostr redundancy must be 3');
     context.setPvPSignalingBackend('mqtt');
     const configA2 = context.getPvPTransportConfig();
 
