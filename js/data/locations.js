@@ -65,12 +65,12 @@ const LOCATIONS = [
         monsters:[
             {name:'Хомяк-берсерк',icon:'🐹',img:'./monsters/xomVoi.png',hp:760,atk:98,exp:125,def:28,
                 abilities:[
-                    {name:'Ярость хомяка',type:'buff',effect:'atk',value:50,duration:2,chance:50,cooldown:5},
+                    {name:'Ярость хомяка',type:'buff',effect:'atk',value:50,duration:2,chance:50,cooldown:3},
                     {name:'Крутящая атака',type:'damage',multiplier:1.4,chance:55}
                 ]},
             {name:'Хомяк-некромант',icon:'💀',img:'./monsters/xomMAg.png',hp:870,atk:115,exp:140,def:18,
                 abilities:[
-                    {name:'Тёмный ритуал',type:'heal',value:20,chance:45,cooldown:3},
+                    {name:'Тёмный ритуал',type:'heal',value:20,chance:45,cooldown:5},
                     {name:'Проклятие',type:'debuff',effect:'def',value:25,duration:2,chance:35,cooldown:3}
                 ]},
             {name:'Император хомяков',icon:'👑',img:'./monsters/xomImp.png',hp:1000,atk:88,exp:180,def:32,
