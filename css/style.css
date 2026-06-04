@@ -2878,6 +2878,10 @@ body.gather-screen-flash::after {
     font-size: 13px;
     color: var(--text-secondary);
 }
+.dungeon-duo-lobby__transport {
+    color: var(--gold);
+    font-weight: 600;
+}
 .dungeon-duo-lobby__banner {
     display: flex;
     gap: 12px;

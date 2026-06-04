@@ -1,5 +1,5 @@
-// Duo dungeon online: MQTT signaling (same stack as PvP — see pvpArena.js).
-// Depends: pvp-mqtt-direct.bundle.mjs, HiveMQ/Shiftr relays; optional dungeonGenerator.js for run_seed.
+// Duo dungeon online: облако Etheria (по умолчанию) или MQTT fallback.
+// Cloud: js/core/dungeon/dungeonDuoCloud.js + friends-api /api/v1/dungeon-duo/*
 const DUNGEON_ROOM_PREFIX = 'etheria-dungeon-duo-';
 const DUNGEON_DUO_VERSION = 1;
 const DUNGEON_DUO_TRYSTERO_APP_ID = 'chronicles-of-etheria-dungeon-duo-v1';
@@ -44,11 +44,22 @@ function createEmptyDuoDungeonState() {
         localReady: false,
         remoteReady: false,
         remoteSnapshot: null,
+        transport: '',
+        cloudSessionId: '',
         runSeed: null,
         run: null,
         error: '',
         log: []
     };
+}
+
+function isDungeonDuoCloudTransport() {
+    return !!(duoDungeonState && duoDungeonState.transport === 'cloud');
+}
+
+function setDuoDungeonPartnerId(peerId) {
+    duoDungeonPartnerId = peerId ? String(peerId) : '';
+    syncDuoDungeonPartnerId();
 }
 
 function buildDuoLobbyPlayerSnapshot() {
@@ -70,13 +81,17 @@ function refreshDuoDungeonLobbyUI() {
 }
 
 function broadcastDuoDungeonLobbyPresence() {
-    if (!duoDungeonSendPacket || !duoDungeonPartnerId) return false;
     const snap = buildDuoLobbyPlayerSnapshot();
-    return sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, {
+    const payload = {
         ready: duoDungeonState.localReady,
         dungeonId: duoDungeonState.dungeonId,
         snapshot: snap || undefined
-    });
+    };
+    if (isDungeonDuoCloudTransport()) {
+        return sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, payload);
+    }
+    if (!duoDungeonSendPacket || !duoDungeonPartnerId) return false;
+    return sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, payload);
 }
 
 function duoDungeonLog(message, type) {
@@ -156,13 +171,28 @@ function setDungeonDuoRoomHandler(room, eventName, handler) {
 }
 
 function sendDuoDungeonMessage(type, payload) {
+    if (isDungeonDuoCloudTransport()) {
+        if (typeof dungeonDuoCloudSendMessage === 'function') {
+            dungeonDuoCloudSendMessage(type, payload || {});
+            return true;
+        }
+        return false;
+    }
     if (!duoDungeonSendPacket || !duoDungeonPartnerId) return false;
-    duoDungeonSendPacket({
-        v: DUNGEON_DUO_VERSION,
-        type,
-        payload: payload || {},
-        sentAt: Date.now()
-    }, duoDungeonPartnerId).catch(err => handleDungeonDuoError(err));
+    try {
+        const sent = duoDungeonSendPacket({
+            v: DUNGEON_DUO_VERSION,
+            type,
+            payload: payload || {},
+            sentAt: Date.now()
+        }, duoDungeonPartnerId);
+        if (sent && typeof sent.catch === 'function') {
+            sent.catch(function (err) { handleDungeonDuoError(err); });
+        }
+    } catch (err) {
+        handleDungeonDuoError(err);
+        return false;
+    }
     return true;
 }
 
@@ -344,6 +374,9 @@ function handleDungeonDuoMessage(msg) {
     if (!msg || msg.v !== DUNGEON_DUO_VERSION) return;
     const payload = msg.payload || {};
     switch (msg.type) {
+        case 'hello':
+            applyRemoteDuoDungeonLobbyReady(payload);
+            break;
         case DUNGEON_DUO_MSG.LOBBY_READY:
             applyRemoteDuoDungeonLobbyReady(payload);
             break;
@@ -448,7 +481,20 @@ function createDuoDungeonLobby(dungeonId) {
     duoDungeonState.dungeonId = id;
     duoDungeonState.roomCode = generateDuoDungeonCode();
     duoDungeonState.status = 'lobby';
-    duoDungeonLog(`Комната ${duoDungeonState.roomCode} (данж ${id}).`, 'info');
+    if (typeof shouldUseDungeonDuoCloudTransport === 'function' && shouldUseDungeonDuoCloudTransport()) {
+        duoDungeonLog('Создание комнаты на сервере…', 'info');
+        return (typeof enterDungeonDuoCloudAsHost === 'function'
+            ? enterDungeonDuoCloudAsHost(id, duoDungeonState.roomCode)
+            : Promise.reject(new Error('dungeonDuoCloud not loaded'))
+        ).then(function () {
+            refreshDuoDungeonLobbyUI();
+            return true;
+        }).catch(function (err) {
+            handleDungeonDuoError(err);
+            return false;
+        });
+    }
+    duoDungeonLog(`Комната ${duoDungeonState.roomCode} (данж ${id}, MQTT).`, 'info');
     return joinDungeonDuoTransportRoom(duoDungeonState.roomCode, sessionId).then(function () {
         refreshDuoDungeonLobbyUI();
         return true;
@@ -468,7 +514,20 @@ function joinDuoDungeonLobby(code) {
     duoDungeonState.role = 'guest';
     duoDungeonState.roomCode = roomCode;
     duoDungeonState.status = 'lobby';
-    duoDungeonLog(`Подключение к ${roomCode}…`, 'info');
+    if (typeof shouldUseDungeonDuoCloudTransport === 'function' && shouldUseDungeonDuoCloudTransport()) {
+        duoDungeonLog('Подключение к серверу…', 'info');
+        return (typeof enterDungeonDuoCloudAsGuest === 'function'
+            ? enterDungeonDuoCloudAsGuest(roomCode)
+            : Promise.reject(new Error('dungeonDuoCloud not loaded'))
+        ).then(function () {
+            refreshDuoDungeonLobbyUI();
+            return true;
+        }).catch(function (err) {
+            handleDungeonDuoError(err);
+            return false;
+        });
+    }
+    duoDungeonLog(`Подключение к ${roomCode} (MQTT)…`, 'info');
     return joinDungeonDuoTransportRoom(roomCode, sessionId).then(function () {
         refreshDuoDungeonLobbyUI();
         return true;
@@ -476,6 +535,9 @@ function joinDuoDungeonLobby(code) {
 }
 
 function leaveDuoDungeonLobby() {
+    if (isDungeonDuoCloudTransport() && typeof leaveDungeonDuoCloudTransport === 'function') {
+        leaveDungeonDuoCloudTransport();
+    }
     resetDungeonDuoConnection();
     duoDungeonState = createEmptyDuoDungeonState();
     duoDungeonLog('Комната данжа закрыта.', 'info');
@@ -512,7 +574,13 @@ function forfeitDuoDungeon() {
 function getDuoDungeonState() {
     return Object.assign({}, duoDungeonState, {
         partnerId: duoDungeonPartnerId,
-        partnerConnected: !!duoDungeonPartnerId
+        partnerConnected: isDungeonDuoCloudTransport()
+            ? (duoDungeonState.role === 'guest' || !!duoDungeonPartnerId ||
+                !!duoDungeonState.remoteSnapshot || duoDungeonState.remoteReady)
+            : !!duoDungeonPartnerId,
+        transportLabel: isDungeonDuoCloudTransport() && typeof getDungeonDuoTransportLabel === 'function'
+            ? getDungeonDuoTransportLabel()
+            : 'MQTT'
     });
 }
 
@@ -533,3 +601,4 @@ window.applyRemoteDuoDungeonBattleAction = applyRemoteDuoDungeonBattleAction;
 window.setDuoDungeonRunStatus = setDuoDungeonRunStatus;
 window.buildDuoLobbyPlayerSnapshot = buildDuoLobbyPlayerSnapshot;
 window.refreshDuoDungeonLobbyUI = refreshDuoDungeonLobbyUI;
+window.setDuoDungeonPartnerId = setDuoDungeonPartnerId;

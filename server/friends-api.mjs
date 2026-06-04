@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { ensureDir, flushAll } from './lib/jsonFile.mjs';
 import { createAccountsApi } from './lib/accounts.mjs';
 import { createPvPRoomsApi } from './lib/pvpRooms.mjs';
+import { createDungeonDuoRoomsApi } from './lib/dungeonDuoRooms.mjs';
 import { createBattleInvitesApi } from './lib/battleInvites.mjs';
 import { createFriendExchangesApi } from './lib/friendExchanges.mjs';
 import { createGameAccountsApi } from './lib/gameAccounts.mjs';
@@ -17,6 +18,7 @@ import { createHttpHelpers } from './lib/httpUtil.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.FRIENDS_DATA_DIR || join(__dirname, 'data', 'friends-store');
 const PVP_DIR = join(DATA_DIR, 'pvp-rooms');
+const DUNGEON_DUO_DIR = join(DATA_DIR, 'dungeon-duo-rooms');
 const PORT = Number(process.env.PORT || 8790);
 const startedAt = Date.now();
 
@@ -24,6 +26,7 @@ const CORS_ORIGINS = (process.env.FRIENDS_CORS || '*').split(',').map(s => s.tri
 const { corsHeaders, json, readJsonBody } = createHttpHelpers(CORS_ORIGINS);
 const accounts = createAccountsApi(DATA_DIR);
 const pvp = createPvPRoomsApi(PVP_DIR);
+const dungeonDuo = createDungeonDuoRoomsApi(DUNGEON_DUO_DIR);
 const battleInvites = createBattleInvitesApi(DATA_DIR, pvp, accounts);
 const friendExchanges = createFriendExchangesApi(DATA_DIR, accounts);
 const gameAccounts = createGameAccountsApi(DATA_DIR);
@@ -432,6 +435,54 @@ const server = createServer(async (req, res) => {
             return;
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/v1/dungeon-duo/room/create') {
+            const body = await readJsonBody(req);
+            const result = await dungeonDuo.createRoom(body);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/dungeon-duo/room/join') {
+            const body = await readJsonBody(req);
+            const result = await dungeonDuo.joinRoom(body);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const dduoEventMatch = url.pathname.match(/^\/api\/v1\/dungeon-duo\/room\/([A-Z0-9]+)\/event$/i);
+        if (req.method === 'POST' && dduoEventMatch) {
+            const body = await readJsonBody(req);
+            const result = await dungeonDuo.postEvent(dduoEventMatch[1], body);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const dduoPollMatch = url.pathname.match(/^\/api\/v1\/dungeon-duo\/room\/([A-Z0-9]+)\/poll$/i);
+        if (req.method === 'GET' && dduoPollMatch) {
+            const sessionId = String(url.searchParams.get('sessionId') || '').slice(0, 64);
+            const since = Math.max(0, parseInt(url.searchParams.get('since') || '0', 10) || 0);
+            const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
+            const result = await dungeonDuo.poll(dduoPollMatch[1], sessionId, since, waitMs);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
         json(res, 404, { ok: false, error: 'not_found' }, origin);
     } catch (err) {
         const code = err.message === 'body_too_large' ? 413 : 500;
@@ -446,6 +497,7 @@ process.on('SIGTERM', async () => {
 
 await ensureDir(DATA_DIR);
 await mkdir(PVP_DIR, { recursive: true });
+await mkdir(DUNGEON_DUO_DIR, { recursive: true });
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 70000;
 server.listen(PORT, '0.0.0.0', () => {

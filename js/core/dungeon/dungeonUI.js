@@ -426,7 +426,8 @@ function showDuoDungeonLobbyScreen() {
         '<header class="dungeon-duo-lobby__header">' +
         '<h2 class="dungeon-duo-lobby__title">👥 Дуо-комната</h2>' +
         '<p class="dungeon-duo-lobby__subtitle">' + escapeDungeonText(dungeonName) +
-        ' · ' + escapeDungeonText(roleLabel) + '</p>' +
+        ' · ' + escapeDungeonText(roleLabel) +
+        ' · <span class="dungeon-duo-lobby__transport">' + escapeDungeonText(duo.transportLabel || 'Сеть') + '</span></p>' +
         '</header>' +
         renderDuoLobbyConnectionBanner(duo) +
         '<div class="dungeon-duo-lobby__code-block">' +
