@@ -3260,6 +3260,10 @@ body.battle-engaged .battle-wrapper:has(#enemyPack) {
     pointer-events: none;
     white-space: nowrap;
 }
+.effect-chip-buff {
+    border-color: rgba(93, 173, 226, 0.45);
+    background: rgba(52, 120, 180, 0.18);
+}
 .combatant-wrapper--targetable-ally {
     outline-color: #5dade2;
     cursor: pointer;
