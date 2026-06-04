@@ -53,7 +53,7 @@ function renderBattleStaging() {
     const candidates = typeof getStagingMonsterCandidates === 'function' ? getStagingMonsterCandidates() : [];
     const isFixed = !!(window._stagedFixedMonster && window._stagedFixedMonster.monsterData);
     const bgStyle = loc.bgColor;
-    const av = getAvatar();
+    const playerSpriteHtml = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
     const rosterHtml = buildStagingMonsterRosterHtml(candidates, isFixed);
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 100;
 
@@ -68,7 +68,7 @@ function renderBattleStaging() {
                     '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
                 '</div>' +
                 '<div class="combatant-wrapper battle-staging-player-slot" id="playerWrapper">' +
-                    '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
+                    '<div class="combatant-sprite" id="playerSprite">' + playerSpriteHtml + '</div>' +
                     '<div class="combatant-info">' +
                         '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
                         '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
@@ -106,7 +106,7 @@ function renderBattle(options) {
     }
     if (options.skipIfAnimating && window._strikeAnimActive) return;
     const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
-    const av = getAvatar();
+    const playerSpriteHtml = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
     const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
     const bgStyle = loc.bgColor;
@@ -197,7 +197,7 @@ function renderBattle(options) {
         '</div>' +
         '<div class="vs-badge">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
         '<div class="combatant-wrapper" id="playerWrapper">' +
-            '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
+            '<div class="combatant-sprite" id="playerSprite">' + playerSpriteHtml + '</div>' +
             '<div class="combatant-info">' +
                 '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
                 '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +

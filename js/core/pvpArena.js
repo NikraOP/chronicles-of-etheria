@@ -1318,7 +1318,8 @@ function renderPvPPlayerCard(title, snapshot, ready) {
     if (!safeSnapshot) return `<div class="pvp-card pvp-player-card"><h3>${escapePvPText(title)}</h3><p>Некорректные данные игрока</p></div>`;
     let avatar = '';
     if (title === 'Ты' && typeof getAvatar === 'function') {
-        avatar = `<div class="pvp-avatar-live">${getAvatar()}</div>`;
+        const spriteInner = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
+        avatar = `<div class="pvp-avatar-live">${spriteInner}</div>`;
     } else {
         const remoteRel = title !== 'Ты' && typeof getPvPRemoteAvatarSrc === 'function'
             ? getPvPRemoteAvatarSrc()
@@ -2055,7 +2056,8 @@ function renderPvPCombatant(stats, side, snapshot) {
     const hpPct = Math.max(0, Math.min(100, stats.health / Math.max(1, stats.maxHealth) * 100));
     let avatar = '';
     if (side === 'player' && typeof getAvatar === 'function') {
-        avatar = `<div class="combatant-sprite"><span class="sprite-fallback">${getAvatar()}</span></div>`;
+        const spriteInner = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
+        avatar = `<div class="combatant-sprite">${spriteInner}</div>`;
     } else {
         let safeAvatar = '';
         if (side === 'enemy' && typeof getPvPRemoteAvatarSrc === 'function') {

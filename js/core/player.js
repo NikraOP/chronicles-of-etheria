@@ -369,6 +369,19 @@ function getAvatar() {
     return getFallbackAvatar();
 }
 
+/** HTML внутри .combatant-sprite: img и fallback — соседи, не вложенные в span. */
+function getCombatantSpriteHtml() {
+    if (player.schoolImg && player.schoolImg !== '') {
+        const imgPath = resolveGameAssetUrl(player.schoolImg);
+        const fb = getFallbackAvatar();
+        return '<img class="player-avatar" src="' + imgPath + '" alt=""' +
+            ' onerror="this.onerror=null;this.classList.add(\'combatant-avatar--hidden\');' +
+            'var n=this.nextElementSibling;if(n)n.classList.add(\'sprite-fallback--show\');">' +
+            '<span class="sprite-fallback sprite-fallback--reserve" aria-hidden="true">' + fb + '</span>';
+    }
+    return '<span class="sprite-fallback">' + getFallbackAvatar() + '</span>';
+}
+
 function getFallbackAvatar() {
     if (player.class === 'Воин') return '🗡️';
     if (player.class === 'Маг') return '🧙';
