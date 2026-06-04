@@ -632,6 +632,12 @@ function handleAbilityHotbarKeydown(e) {
         return;
     }
 
+    if (e.code === 'Escape' && currentMonster && window._battleAbilitiesMenuOpen) {
+        e.preventDefault();
+        if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
+        return;
+    }
+
     if (isAbilityHotbarTypingTarget(e.target)) return;
     if (e.repeat) return;
 

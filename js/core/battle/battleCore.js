@@ -32,6 +32,7 @@ let originalMonsterStats = {
 
 window.itemCooldowns = {
     potion: 0,
+    mana_potion: 0,
     elixir: 0,
     food: 0,
     scroll: 0
@@ -39,6 +40,7 @@ window.itemCooldowns = {
 
 window.ITEM_COOLDOWNS = {
     potion: 3,
+    mana_potion: 3,
     elixir: 5,
     food: 2,
     scroll: 6
@@ -48,7 +50,7 @@ let monsterAbilityCooldowns = {};
 let specialBattleRewardClaimed = false;
 
 window.resetItemCooldowns = function() {
-    window.itemCooldowns = { potion: 0, elixir: 0, food: 0, scroll: 0 };
+    window.itemCooldowns = { potion: 0, mana_potion: 0, elixir: 0, food: 0, scroll: 0 };
 };
 
 window.reduceItemCooldowns = function() {
@@ -56,7 +58,7 @@ window.reduceItemCooldowns = function() {
         if (window.itemCooldowns[type] > 0) {
             window.itemCooldowns[type]--;
             if (window.itemCooldowns[type] === 0) {
-                const typeNames = { potion: 'зелья', elixir: 'эликсиры', food: 'еду', scroll: 'свитки' };
+                const typeNames = { potion: 'зелья здоровья', mana_potion: 'зелья маны', elixir: 'эликсиры', food: 'еду', scroll: 'свитки' };
                 if (typeof addBattleLog !== 'undefined') addBattleLog(`⏳ ${typeNames[type]} снова доступны!`, 'info');
             }
         }

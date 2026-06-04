@@ -101,8 +101,17 @@ function attemptDodge() {
     renderBattle();
 }
 
+function closeBattleAbilitiesMenu() {
+    if (!window._battleAbilitiesMenuOpen) return false;
+    window._battleAbilitiesMenuOpen = false;
+    if (typeof renderBattle === 'function') renderBattle();
+    return true;
+}
+
 function showBattleAbilities() {
-    let html = '<h3>✨ Способности</h3><div class="ability-grid">';
+    if (!currentMonster) return;
+    window._battleAbilitiesMenuOpen = true;
+    let html = '<h3>✨ Способности</h3><p class="battle-abilities-hint">Esc — назад к бою</p><div class="ability-grid">';
     player.abilities.forEach((a, i) => {
         const onCd = a.currentCooldown > 0;
         const noMana = player.class === 'Маг' && a.mana && player.mana < a.mana;
@@ -127,7 +136,7 @@ function showBattleAbilities() {
         
         html += '<div class="ability-card' + (onCd || noMana || !isPlayerTurn || isPassive ? ' on-cooldown' : '') + '" onclick="' + (onCd || noMana || !isPlayerTurn || isPassive ? '' : 'useBattleAbility(' + i + ')') + '"><div class="ability-header"><span class="ability-icon">' + (a.icon || '✨') + '</span><span class="ability-name">' + a.name + cdText + '</span>' + (onCd ? '<span class="cooldown-badge">' + a.currentCooldown + '</span>' : '') + '</div><div class="ability-desc">' + a.desc + '</div>' + (stats ? '<div class="ability-stats">' + stats + '</div>' : '') + (noMana ? '<div style="color:#e74c3c;font-size:9px;">❌ Нет маны</div>' : '') + '</div>';
     });
-    html += '</div><button class="action-btn" onclick="renderBattle()" style="margin-top:10px;width:100%;">↩️ Назад к бою</button>';
+    html += '</div><button type="button" class="action-btn" onclick="closeBattleAbilitiesMenu()" style="margin-top:10px;width:100%;">↩️ Назад к бою (Esc)</button>';
     document.getElementById('dynamicContent').innerHTML = html;
 }
 
@@ -752,5 +761,6 @@ function fleeBattle() {
 window.playerAttack = playerAttack;
 window.attemptDodge = attemptDodge;
 window.showBattleAbilities = showBattleAbilities;
+window.closeBattleAbilitiesMenu = closeBattleAbilitiesMenu;
 window.useBattleAbility = useBattleAbility;
 window.fleeBattle = fleeBattle;

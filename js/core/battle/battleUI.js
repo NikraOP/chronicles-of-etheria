@@ -3,6 +3,7 @@
 function renderBattle(options) {
     options = options || {};
     if (!currentMonster) return;
+    if (!options.vitalsOnly) window._battleAbilitiesMenuOpen = false;
     if (window._strikeAnimActive && !options.force) {
         if (options.vitalsOnly) {
             updateBattleVitality();
@@ -652,7 +653,9 @@ function showItemCooldownsInBattle() {
     if (window.pvpBattleActive) return '';
     if (!player.inventory) return '';
     
+    const manaPotCount = (player.inventory.manaPotions && player.inventory.manaPotions.length) || 0;
     const hasPotions = (player.inventory.potions && player.inventory.potions.length > 0) ||
+                       manaPotCount > 0 ||
                        (player.inventory.foods && player.inventory.foods.length > 0) ||
                        (player.inventory.elixirs && player.inventory.elixirs.length > 0) ||
                        (player.inventory.scrolls && player.inventory.scrolls.length > 0);
@@ -664,7 +667,11 @@ function showItemCooldownsInBattle() {
     
     if (player.inventory.potions && player.inventory.potions.length > 0) {
         const cd = window.getItemCooldown('potion');
-        html += `<button class="action-btn" onclick="showInventoryAndUse('potion')" style="padding: 6px 12px; font-size: 11px; background: ${cd > 0 ? 'rgba(100,100,100,0.3)' : 'rgba(46,204,113,0.2)'};">🧪 Зелья (${player.inventory.potions.length})${cd > 0 ? ` ⏳${cd}` : ''}</button>`;
+        html += `<button class="action-btn" onclick="showInventoryAndUse('potion')" style="padding: 6px 12px; font-size: 11px; background: ${cd > 0 ? 'rgba(100,100,100,0.3)' : 'rgba(46,204,113,0.2)'};">🧪 Здоровье (${player.inventory.potions.length})${cd > 0 ? ` ⏳${cd}` : ''}</button>`;
+    }
+    if (manaPotCount > 0 && player.class === 'Маг') {
+        const cdMana = window.getItemCooldown('mana_potion');
+        html += `<button class="action-btn" onclick="showInventoryAndUse('mana_potion')" style="padding: 6px 12px; font-size: 11px; background: ${cdMana > 0 ? 'rgba(100,100,100,0.3)' : 'rgba(52,152,219,0.25)'};">💎 Мана (${manaPotCount})${cdMana > 0 ? ` ⏳${cdMana}` : ''}</button>`;
     }
     if (player.inventory.foods && player.inventory.foods.length > 0) {
         const cd = window.getItemCooldown('food');

@@ -159,6 +159,7 @@ function finalizeCharacter() {
             pants: [],
             boots: [],
             potions: [],
+            manaPotions: [],
             foods: [],
             elixirs: [],
             scrolls: [],
@@ -303,6 +304,9 @@ function resetBaseStats() {
     if (player.class === 'Маг') {
         const baseMana = 100;
         player.maxMana = Math.floor(baseMana + player.level * 10) + bonusMana;
+        if (player.branch === 'Школа Льда') {
+            player.maxMana = Math.floor(player.maxMana * 1.12) + 12;
+        }
         if (player.mana > player.maxMana) player.mana = player.maxMana;
     }
     

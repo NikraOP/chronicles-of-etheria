@@ -541,6 +541,9 @@ function pushCraftedItemToInventory(recipe, newItem) {
     } else if (itemType === 'necklace') {
         if (!player.inventory.necklaces) player.inventory.necklaces = [];
         player.inventory.necklaces.push(newItem);
+    } else if (itemType === 'mana_potion') {
+        if (!player.inventory.manaPotions) player.inventory.manaPotions = [];
+        player.inventory.manaPotions.push(newItem);
     } else if (itemType === 'potion') {
         if (!player.inventory.potions) player.inventory.potions = [];
         player.inventory.potions.push(newItem);
@@ -575,6 +578,7 @@ function getCraftSuccessMessage(recipe, batchCount) {
     if (itemType === 'ring') return `💍 Создано ${label}колец: ${recipe.name}!`;
     if (itemType === 'necklace') return `📿 Создано ${label}амулетов: ${recipe.name}!`;
     if (itemType === 'potion') return `🧪 Создано ${label}зелий: ${recipe.name}!`;
+    if (itemType === 'mana_potion') return `💎 Создано ${label}зелье маны: ${recipe.name}!`;
     if (itemType === 'food') return `🍖 Создано ${label}еды: ${recipe.name}!`;
     if (itemType === 'gather_scroll') return `📜 Создано ${label}${recipe.name}! Активируйте в меню добычи.`;
     if (itemType === 'scroll' || itemType === 'battle_scroll') return `📜 Создано ${label}свитков: ${recipe.name}!`;
@@ -734,6 +738,7 @@ function showCraftingRecipes(profId) {
             'necklace': '📿 Амулеты',
             'stone': '💎 Камни',
             'potion': '🧪 Зелья',
+            'mana_potion': '💎 Зелья маны',
             'elixir': '💪 Эликсиры',
             'scroll': '📜 Свитки',
             'battle_scroll': '⚔️ Боевые свитки',

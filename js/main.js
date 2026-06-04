@@ -267,6 +267,9 @@ function migrateItemPrices() {
             'Зелье здоровья': 5,
             'Малое зелье здоровья': 3,
             'Большое зелье здоровья': 10,
+            'Малое зелье маны': 3,
+            'Зелье маны': 5,
+            'Большое зелье маны': 10,
             'Эликсир силы': 8,
             'Эликсир защиты': 8,
         };
@@ -293,7 +296,7 @@ function migrateItemPrices() {
         return Math.max(10, Math.min(basePrice + statBonus, 50000));
     }
     
-    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
+    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'manaPotions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
     
     for (let type of itemTypes) {
         if (player.inventory[type] && player.inventory[type].length > 0) {
@@ -316,7 +319,7 @@ function updateAllItemPrices() {
     if (!player || !player.inventory) return;
     
     let updated = 0;
-    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
+    const itemTypes = ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'manaPotions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'];
     
     for (let type of itemTypes) {
         if (player.inventory[type] && player.inventory[type].length > 0) {
@@ -580,12 +583,13 @@ function migrateOldSave(playerData) {
     if (!playerData.inventory) {
         playerData.inventory = {
             weapons: [], helmets: [], chests: [], pants: [], boots: [],
-            potions: [], foods: [], elixirs: [], scrolls: [], stones: [],
+            potions: [], manaPotions: [], foods: [], elixirs: [], scrolls: [], stones: [],
             rings: [], necklaces: []
         };
     }
     if (!Array.isArray(playerData.inventory.rings)) playerData.inventory.rings = [];
     if (!Array.isArray(playerData.inventory.necklaces)) playerData.inventory.necklaces = [];
+    if (!Array.isArray(playerData.inventory.manaPotions)) playerData.inventory.manaPotions = [];
     
     if (!playerData.equipment) {
         playerData.equipment = {

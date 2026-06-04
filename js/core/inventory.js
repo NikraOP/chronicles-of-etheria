@@ -521,6 +521,7 @@ function showInventory() {
     if (!player.inventory.boots) player.inventory.boots = [];
     if (!player.inventory.weapons) player.inventory.weapons = [];
     if (!player.inventory.potions) player.inventory.potions = [];
+    if (!player.inventory.manaPotions) player.inventory.manaPotions = [];
     if (!player.inventory.foods) player.inventory.foods = [];
     if (!player.inventory.elixirs) player.inventory.elixirs = [];
     if (!player.inventory.scrolls) player.inventory.scrolls = [];
@@ -681,9 +682,9 @@ function showInventory() {
         html += '<p style="color:#666; padding: 10px;">Пусто</p>';
     }
     
-    // Зелья
+    // Зелья здоровья
     if (player.inventory.potions.length > 0) {
-        html += `<h3 style="margin-top: 20px; color: #2ecc71;">🧪 Зелья (${player.inventory.potions.length})</h3>`;
+        html += `<h3 style="margin-top: 20px; color: #2ecc71;">🧪 Зелья здоровья (${player.inventory.potions.length})</h3>`;
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (let i = 0; i < player.inventory.potions.length; i++) {
             const item = player.inventory.potions[i];
@@ -693,6 +694,26 @@ function showInventory() {
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 13px; color: #2ecc71;">${item.name}</div>
                     <div style="font-size: 10px; color: var(--text-secondary);">❤️ Восстанавливает ${item.value || 50} HP</div>
+                    <div style="font-size: 9px; color: #aaa;">${item.rarity || 'Обычный'}</div>
+                    ${cd > 0 ? `<div style="font-size: 9px; color: #ffaa00;">⏳ КД: ${cd} хода</div>` : ''}
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    // Зелья маны
+    if (player.inventory.manaPotions.length > 0) {
+        html += `<h3 style="margin-top: 20px; color: #3498db;">💎 Зелья маны (${player.inventory.manaPotions.length})</h3>`;
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
+        for (let i = 0; i < player.inventory.manaPotions.length; i++) {
+            const item = player.inventory.manaPotions[i];
+            const cd = window.getItemCooldown ? window.getItemCooldown('mana_potion') : 0;
+            html += `<div class="item-card" onclick="useConsumable('mana_potion', ${i})" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; display: flex; gap: 10px; ${cd > 0 ? 'opacity:0.5;' : ''}">
+                ${renderItemIconHTML(item, { size: 36, fallback: '💧' })}
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 13px; color: #3498db;">${item.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">💎 Восстанавливает ${item.value || 50} маны</div>
                     <div style="font-size: 9px; color: #aaa;">${item.rarity || 'Обычный'}</div>
                     ${cd > 0 ? `<div style="font-size: 9px; color: #ffaa00;">⏳ КД: ${cd} хода</div>` : ''}
                 </div>
@@ -892,6 +913,7 @@ function useConsumable(type, index) {
     
     let itemsList = [];
     if (type === 'potion') itemsList = player.inventory.potions || [];
+    else if (type === 'mana_potion') itemsList = player.inventory.manaPotions || [];
     else if (type === 'food') itemsList = player.inventory.foods || [];
     else if (type === 'elixir') itemsList = player.inventory.elixirs || [];
     else if (type === 'scroll') itemsList = player.inventory.scrolls || [];
@@ -911,6 +933,17 @@ function useConsumable(type, index) {
         player.health = Math.min(player.maxHealth, player.health + (item.value || 50));
         const healed = player.health - oldHp;
         addBattleLog(`💚 Использовано: ${item.name}! Восстановлено ${healed} HP!`, 'heal');
+        effectApplied = true;
+    }
+    else if (item.effect === 'restoreMana') {
+        if (player.class !== 'Маг') {
+            addBattleLog('❌ Зелья маны доступны только магам!', 'error');
+            return;
+        }
+        const oldMana = player.mana || 0;
+        player.mana = Math.min(player.maxMana, oldMana + (item.value || 50));
+        const restored = player.mana - oldMana;
+        addBattleLog(`💎 Использовано: ${item.name}! Восстановлено ${restored} маны!`, 'heal');
         effectApplied = true;
     }
     else if (item.effect === 'atk') {
@@ -999,8 +1032,16 @@ function showInventoryAndUse(type) {
     
     if (type === 'potion') {
         itemsList = player.inventory.potions || [];
-        title = '🧪 Зелья';
+        title = '🧪 Зелья здоровья';
         color = '#2ecc71';
+    } else if (type === 'mana_potion') {
+        itemsList = player.inventory.manaPotions || [];
+        title = '💎 Зелья маны';
+        color = '#3498db';
+        if (player.class !== 'Маг') {
+            addMessage('❌ Зелья маны доступны только магам!', 'error');
+            return;
+        }
     } else if (type === 'food') {
         itemsList = player.inventory.foods || [];
         title = '🍖 Еда';
@@ -1027,6 +1068,7 @@ function showInventoryAndUse(type) {
         const item = itemsList[i];
         let desc = '';
         if (item.effect === 'heal') desc = `❤️ Восстанавливает ${item.value} HP`;
+        else if (item.effect === 'restoreMana') desc = `💎 Восстанавливает ${item.value} маны`;
         else if (item.effect === 'atk') desc = `⚔️ +${item.value}% атаки на 3 хода`;
         else if (item.effect === 'def') desc = `🛡️ +${item.value}% защиты на 3 хода`;
         else if (item.effect === 'dodge') desc = `💨 +${item.value}% уклонения на 3 хода`;

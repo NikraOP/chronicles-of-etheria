@@ -2020,6 +2020,11 @@ body.gather-screen-flash::after {
 .battle-log .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
 .battle-log .log-entry:last-child { border-bottom: none; }
 
+.battle-abilities-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 6px 0 0;
+}
 .ability-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 16px; }
 .ability-card {
     background: var(--surface-glass);

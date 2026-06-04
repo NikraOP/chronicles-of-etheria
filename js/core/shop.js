@@ -218,7 +218,8 @@ function collectSellableInventoryItems() {
     pushSellInventoryBatch(allItems, player.inventory.rings, 'ring', '💍 Кольца');
     pushSellInventoryBatch(allItems, player.inventory.necklaces, 'necklace', '📿 Амулеты');
     pushSellInventoryBatch(allItems, player.inventory.stones, 'stone', '💎 Камни');
-    pushSellInventoryBatch(allItems, player.inventory.potions, 'potion', '🧪 Зелья');
+    pushSellInventoryBatch(allItems, player.inventory.potions, 'potion', '🧪 Зелья здоровья');
+    pushSellInventoryBatch(allItems, player.inventory.manaPotions, 'mana_potion', '💎 Зелья маны');
     pushSellInventoryBatch(allItems, player.inventory.foods, 'food', '🍖 Еда');
     pushSellInventoryBatch(allItems, player.inventory.elixirs, 'elixir', '💪 Эликсиры');
     pushSellInventoryBatch(allItems, player.inventory.scrolls, 'scroll', '📜 Свитки');
@@ -524,6 +525,7 @@ function sellItemKeepOpen(type, index, price) {
         case 'pants': itemsList = player.inventory.pants; break;
         case 'boots': itemsList = player.inventory.boots; break;
         case 'potion': itemsList = player.inventory.potions; break;
+        case 'mana_potion': itemsList = player.inventory.manaPotions; break;
         case 'food': itemsList = player.inventory.foods; break;
         case 'elixir': itemsList = player.inventory.elixirs; break;
         case 'scroll': itemsList = player.inventory.scrolls; break;

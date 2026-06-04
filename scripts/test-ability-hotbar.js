@@ -86,4 +86,25 @@ const settingsHtml = ctx.buildBattleKeysSettingsHtml();
 assert(settingsHtml.indexOf('data-battle-bind="attack"') !== -1, 'settings attack bind');
 assert(settingsHtml.indexOf('data-battle-bind="abilities"') !== -1, 'settings abilities bind');
 
+ctx.document = {
+    querySelector(sel) {
+        return sel === '.battle-wrapper' ? {} : null;
+    }
+};
+ctx._battleAbilitiesMenuOpen = true;
+let escClosed = false;
+ctx.closeBattleAbilitiesMenu = () => {
+    escClosed = true;
+    ctx._battleAbilitiesMenuOpen = false;
+};
+const escEvent = {
+    code: 'Escape',
+    target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
+    preventDefault() {},
+    repeat: false
+};
+ctx.handleAbilityHotbarKeydown(escEvent);
+assert(escClosed, 'Escape closes battle abilities menu');
+assert(!ctx._battleAbilitiesMenuOpen, 'menu flag cleared');
+
 console.log('test-ability-hotbar: OK');
