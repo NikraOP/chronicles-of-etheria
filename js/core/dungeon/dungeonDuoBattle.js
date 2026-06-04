@@ -36,7 +36,8 @@ function setDungeonDuoAlly(snapshot) {
     dungeonDuoAlly = snapshot ? { ...snapshot } : null;
 }
 
-function applyDungeonDuoLocalPartySnapshot(snapshot) {
+function applyDungeonDuoLocalPartySnapshot(snapshot, opts) {
+    opts = opts || {};
     if (!snapshot || !player) return;
     if (typeof snapshot.maxHealth === 'number' && snapshot.maxHealth > 0) {
         player.maxHealth = Math.max(1, Math.floor(snapshot.maxHealth));
@@ -46,8 +47,14 @@ function applyDungeonDuoLocalPartySnapshot(snapshot) {
         player.health = Math.max(0, Math.min(player.maxHealth || snapshot.maxHealth || 1, Math.floor(snapshot.health)));
     }
     if (player.class === 'Маг') {
-        if (typeof snapshot.maxMana === 'number') player.maxMana = Math.max(0, Math.floor(snapshot.maxMana));
-        if (typeof snapshot.mana === 'number') player.mana = Math.max(0, Math.min(player.maxMana || snapshot.mana, Math.floor(snapshot.mana)));
+        if (typeof snapshot.maxMana === 'number') {
+            player.maxMana = Math.max(0, Math.floor(snapshot.maxMana));
+            player.mana = Math.min(player.maxMana, player.mana || 0);
+        }
+        // Мана своего героя — только локально (реген не затирается снапшотом напарника).
+        if (opts.syncMana && typeof snapshot.mana === 'number') {
+            player.mana = Math.max(0, Math.min(player.maxMana || snapshot.mana, Math.floor(snapshot.mana)));
+        }
     }
     if (Array.isArray(snapshot.temporaryEffects)) {
         player.temporaryEffects = cloneDungeonDuoEffects(snapshot.temporaryEffects);

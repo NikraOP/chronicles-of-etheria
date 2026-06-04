@@ -897,17 +897,31 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.manaToShield) {
-        const shieldUnit = supportTgt.unit;
-        if (shieldUnit.class === 'Маг') {
-            const manaUsed = Math.floor((shieldUnit.mana || 0) * a.manaToShield / 100);
-            const shieldValue = manaUsed * 2;
-            shieldUnit.mana = Math.max(0, (shieldUnit.mana || 0) - manaUsed);
-            const fxList = ensureUnitTemporaryEffects(shieldUnit);
-            const existingShield = fxList.find(e => e.shield);
-            if (existingShield) shieldUnit.temporaryEffects = fxList.filter(e => e !== existingShield);
-            ensureUnitTemporaryEffects(shieldUnit).push({ shield: shieldValue, dur: a.dur || 3 });
-            addBattleLog(`💎 ${supportTgt.label}: ${manaUsed} маны → щит ${shieldValue} HP!`, 'heal');
-            syncDuoAfterRemoteSupport(targetKind);
+        if (player.class !== 'Маг') {
+            addBattleLog('❌ Нужен класс Маг для этой способности.', 'error');
+        } else {
+            const shieldUnit = supportTgt.unit;
+            const manaUsed = Math.floor((player.mana || 0) * a.manaToShield / 100);
+            if (manaUsed <= 0) {
+                addBattleLog('❌ Недостаточно маны для щита.', 'error');
+            } else {
+                const shieldValue = manaUsed * 2;
+                player.mana = Math.max(0, (player.mana || 0) - manaUsed);
+                const fxList = ensureUnitTemporaryEffects(shieldUnit);
+                const existingShield = fxList.find(e => e.shield);
+                if (existingShield) shieldUnit.temporaryEffects = fxList.filter(e => e !== existingShield);
+                ensureUnitTemporaryEffects(shieldUnit).push({ shield: shieldValue, dur: a.dur || 3 });
+                if (targetKind === 'ally') {
+                    addBattleLog(
+                        '💎 ' + manaUsed + ' вашей маны (' + a.manaToShield + '%) → щит ' +
+                        supportTgt.label + ': ' + shieldValue + ' HP!',
+                        'heal'
+                    );
+                } else {
+                    addBattleLog('💎 ' + manaUsed + ' маны → щит ' + shieldValue + ' HP!', 'heal');
+                }
+                syncDuoAfterRemoteSupport(targetKind);
+            }
         }
     }
     
