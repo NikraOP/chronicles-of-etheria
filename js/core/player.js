@@ -177,6 +177,7 @@ function finalizeCharacter() {
             necklace: null
         },
         abilities: [],
+        abilityQuickSlots: [null, null, null, null, null],
         unlockedSkins: [],
         currentSkin: null,
         ...baseStats
@@ -231,6 +232,7 @@ function updateAllAbilities() {
         ...a, currentCooldown: 0
     }));
     console.log(`Загружено способностей: ${player.abilities.length}`);
+    if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
     applyPassiveAbilityBonuses();
 }
 

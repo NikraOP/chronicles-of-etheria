@@ -607,6 +607,11 @@ function migrateOldSave(playerData) {
         }
     }
     if (playerData.temporaryEffects === undefined) playerData.temporaryEffects = [];
+    if (typeof ensureAbilityQuickSlots === 'function') {
+        ensureAbilityQuickSlots(playerData);
+    } else if (!Array.isArray(playerData.abilityQuickSlots)) {
+        playerData.abilityQuickSlots = [null, null, null, null, null];
+    }
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];

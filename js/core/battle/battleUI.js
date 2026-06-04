@@ -115,7 +115,8 @@ function renderBattle(options) {
                 '<div class="combatant-status-slot" data-side="player">' + playerStatusHTML + debuffedStatsHTML + '</div>' +
             '</div>' +
         '</div>' +
-        '</div><div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
+        '</div>' + (typeof buildBattleAbilityHotbarHtml === 'function' ? buildBattleAbilityHotbarHtml() : '') +
+        '<div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
         showItemCooldownsInBattle() +
         logHTML + '</div>';
     document.getElementById('dynamicContent').innerHTML = html;

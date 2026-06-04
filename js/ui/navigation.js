@@ -116,11 +116,20 @@ function learnProfession(profId) {
 
 function showAbilities() {
     stopGathering();
-    let html = '<h2>✨ Способности</h2><p>Школа: <strong>' + player.branch + '</strong></p><div class="ability-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 15px;">';
+    if (typeof ensureAbilityQuickSlots === 'function') ensureAbilityQuickSlots(player);
+    if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
+    let html = '<h2>✨ Способности</h2><p>Школа: <strong>' + player.branch + '</strong></p>';
+    if (typeof buildAbilityHotbarEditorHtml === 'function') {
+        html += buildAbilityHotbarEditorHtml();
+    }
+    html += '<div class="ability-grid ability-grid--picker" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 15px;">';
     const abilities = ABILITIES_DB[player.class]?.[player.branch]?.abilities || [];
     abilities.forEach(a => {
         const unlocked = player.level >= a.lvl;
-        html += '<div class="ability-card' + (unlocked ? ' unlocked' : ' on-cooldown') + '" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;">' +
+        const assignable = unlocked && !a.passive;
+        const dragClass = assignable ? ' ability-hotbar-source' : '';
+        const dragAttr = assignable ? ' data-ability-name="' + String(a.name).replace(/"/g, '&quot;') + '"' : '';
+        html += '<div class="ability-card' + (unlocked ? ' unlocked' : ' on-cooldown') + dragClass + '"' + dragAttr + ' style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;">' +
             '<div style="display: flex; align-items: center; gap: 10px;">' +
                 '<span style="font-size: 28px;">' + (a.icon || '✨') + '</span>' +
                 '<div class="ability-name" style="font-weight: 700; font-size: 15px; color: var(--gold);">' + a.name + '</div>' +
@@ -134,6 +143,7 @@ function showAbilities() {
     });
     html += '</div>';
     document.getElementById('dynamicContent').innerHTML = html;
+    if (typeof initAbilityHotbarEditor === 'function') initAbilityHotbarEditor();
 }
 
 // Функция создания нового персонажа

@@ -1647,6 +1647,187 @@ body.gather-screen-flash::after {
     transform: translateY(-2px);
 }
 
+/* ── Ability quickbar (5 slots) ── */
+.ability-hotbar-panel--sidebar {
+    margin: 4px 0 8px;
+    padding: 10px 10px 8px;
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.ability-hotbar-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.ability-hotbar-panel__title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold-light);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.ability-hotbar-panel__hint {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.ability-hotbar-panel__link {
+    border: none;
+    background: transparent;
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.ability-hotbar-panel__link:hover {
+    color: var(--gold-light);
+}
+.ability-hotbar {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+}
+.ability-hotbar__slot,
+.ability-hotbar__btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: var(--radius-md);
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    min-width: 0;
+}
+.ability-hotbar__btn {
+    font: inherit;
+    width: 100%;
+}
+.ability-hotbar__slot--filled,
+.ability-hotbar__btn--filled {
+    border-style: solid;
+    border-color: rgba(var(--accent-rgb), 0.45);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--text-primary);
+}
+.ability-hotbar__slot.drag-over,
+.ability-hotbar-source.drag-over {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
+}
+.ability-hotbar-source.dragging {
+    opacity: 0.55;
+}
+.ability-hotbar-source--picked {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+.ability-hotbar__icon {
+    font-size: 22px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+.ability-hotbar--sidebar .ability-hotbar__icon {
+    font-size: 18px;
+}
+.ability-hotbar__label {
+    font-size: 8px;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+.ability-hotbar__empty {
+    font-size: 11px;
+    opacity: 0.45;
+    font-weight: 600;
+}
+.ability-hotbar__cd {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--red), #991b1b);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(232, 85, 69, 0.45);
+}
+.ability-hotbar__btn--blocked {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.35);
+}
+.ability-hotbar__btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.ability-hotbar__clear {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+.ability-hotbar__clear:hover {
+    color: var(--red);
+    background: rgba(232, 85, 69, 0.25);
+}
+.ability-hotbar-editor {
+    margin: 12px 0 18px;
+    padding: 14px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+.ability-hotbar-editor__help {
+    margin: 10px 0 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.ability-hotbar--battle {
+    margin-bottom: 10px;
+}
+.ability-hotbar--battle .ability-hotbar__btn {
+    min-height: var(--touch-min);
+}
+.ability-hotbar-source[draggable="true"] {
+    cursor: grab;
+}
+.ability-hotbar-source[draggable="true"]:active {
+    cursor: grabbing;
+}
+
 .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 
 .battle-log {
@@ -2191,6 +2372,16 @@ h3 { font-size: 18px; }
         padding: 4px 10px;
         font-size: 9px;
     }
+    .ability-hotbar { gap: 5px; }
+    .ability-hotbar__slot,
+    .ability-hotbar__btn {
+        min-height: 48px;
+        padding: 5px 3px;
+    }
+    .ability-hotbar__label { font-size: 7px; }
+    .ability-hotbar--battle .ability-hotbar__label { display: none; }
+    .ability-hotbar--battle .ability-hotbar__icon { font-size: 24px; }
+    .ability-hotbar-editor { padding: 12px; }
     
     .stats-container {
         display: grid;
