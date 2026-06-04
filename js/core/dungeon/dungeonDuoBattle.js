@@ -7,6 +7,16 @@ let dungeonDuoAlly = null;
 let dungeonDuoRoundActs = { host: false, guest: false };
 /** true = поочерёдные ходы игроков; false = фаза монстров */
 let dungeonDuoCoopPlayerPhase = true;
+let _dungeonDuoMonsterPhaseLock = false;
+
+function cloneDungeonDuoEffects(effects) {
+    if (!Array.isArray(effects)) return [];
+    try {
+        return JSON.parse(JSON.stringify(effects)).slice(0, 32);
+    } catch (_) {
+        return [];
+    }
+}
 
 function isDungeonDuoBattleActive() {
     return !!window.dungeonDuoBattleActive;
@@ -39,6 +49,9 @@ function applyDungeonDuoLocalPartySnapshot(snapshot) {
         if (typeof snapshot.maxMana === 'number') player.maxMana = Math.max(0, Math.floor(snapshot.maxMana));
         if (typeof snapshot.mana === 'number') player.mana = Math.max(0, Math.min(player.maxMana || snapshot.mana, Math.floor(snapshot.mana)));
     }
+    if (Array.isArray(snapshot.temporaryEffects)) {
+        player.temporaryEffects = cloneDungeonDuoEffects(snapshot.temporaryEffects);
+    }
 }
 
 function buildDungeonDuoPartySnapshot() {
@@ -68,7 +81,8 @@ function buildDungeonDuoPartySnapshot() {
         criticalChance: player.criticalChance || 0,
         criticalDamage: player.criticalDamage || 0,
         dodgeChance: player.dodgeChance || 0,
-        level: player.level
+        level: player.level,
+        temporaryEffects: cloneDungeonDuoEffects(player.temporaryEffects)
     };
 }
 
@@ -83,7 +97,8 @@ function buildDungeonRoomSnapshot() {
                 index: i,
                 name: e.name,
                 health: e.health,
-                maxHealth: e.maxHealth
+                maxHealth: e.maxHealth,
+                effects: cloneDungeonDuoEffects(e.effects)
             };
         }),
         party: {
@@ -125,14 +140,23 @@ function playRemoteDungeonDuoVisual(visual) {
     if (!duo || !duo.role || visual.actorSlot === duo.role) return;
     const attackerSide = visual.actorSlot === duo.role ? 'player' : 'ally';
     const targetIndex = typeof visual.targetIndex === 'number' ? visual.targetIndex : 0;
-    if (typeof setBattleFocusIndex === 'function') setBattleFocusIndex(targetIndex);
+    if (typeof setFocusedEnemyIndex === 'function') setFocusedEnemyIndex(targetIndex);
     const damage = Math.max(0, Math.floor(visual.damage || 0));
     const crit = !!visual.crit;
     const onImpact = function () {
-        if (damage > 0 && typeof floatDamage === 'function') floatDamage('enemy', damage, crit);
+        if (damage <= 0) return;
+        if (visual.aoe && Array.isArray(visual.hits) && visual.hits.length &&
+            typeof floatDamageOnEnemyIndex === 'function') {
+            visual.hits.forEach(function (hit) {
+                if (hit.damage > 0) floatDamageOnEnemyIndex(hit.index, hit.damage, !!hit.crit);
+            });
+            return;
+        }
+        if (typeof floatDamage === 'function') floatDamage('enemy', damage, crit);
     };
     const afterAnim = function () {
-        if (typeof renderBattle === 'function') renderBattle({ force: true });
+        if (typeof updateBattlePackVitality === 'function') updateBattlePackVitality();
+        if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
     };
     if (typeof playStrikeAnimation === 'function') {
         playStrikeAnimation(attackerSide, afterAnim, {
@@ -189,12 +213,20 @@ function applyDungeonDuoRoomSnapshot(payload) {
         payload.enemies.forEach(function (row) {
             if (!list[row.index]) return;
             list[row.index].health = Math.max(0, Math.min(list[row.index].maxHealth, row.health));
+            if (Array.isArray(row.effects)) {
+                list[row.index].effects = cloneDungeonDuoEffects(row.effects);
+            }
         });
         if (typeof syncCurrentMonsterFromFocus === 'function') syncCurrentMonsterFromFocus();
     }
 
     if (payload.isPlayerPhase === false) dungeonDuoCoopPlayerPhase = false;
-    else if (payload.isPlayerPhase === true) dungeonDuoCoopPlayerPhase = true;
+    else if (payload.isPlayerPhase === true) {
+        dungeonDuoCoopPlayerPhase = true;
+        if (duo && duo.role === 'guest' && payload.activeSlot === 'host') {
+            resetDungeonDuoRoundActs();
+        }
+    }
 
     const canAct = dungeonDuoLocalCanAct();
     isPlayerTurn = canAct;
@@ -315,7 +347,14 @@ function applyRemoteDuoDungeonBattleActionImpl(payload) {
     if (duo.role !== 'host') return;
 
     if (payload.type === 'request_enter_battle') {
-        if (typeof enterCurrentRoomBattle === 'function') enterCurrentRoomBattle();
+        const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+        if (session && session.state === 'battle' &&
+            typeof resendHostDuoEnterBattle === 'function' && resendHostDuoEnterBattle()) {
+            return;
+        }
+        if (session && session.state === 'in_room' && typeof enterCurrentRoomBattle === 'function') {
+            enterCurrentRoomBattle();
+        }
         return;
     }
     if (payload.type === 'request_room_advance') {

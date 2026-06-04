@@ -381,54 +381,75 @@ function setCombatantShieldDisplay(wrapper, shieldValue, maxHp, remainingTurns) 
     shieldLabel.textContent = labelText;
 }
 
-/** Обновляет HP/щиты/ману без пересборки спрайтов (во время анимации удара). */
-function updateBattleVitality() {
-    if (!currentMonster) return;
-
-    const playerWrapper = document.getElementById('playerWrapper');
-    const enemyWrapper = document.getElementById('enemyWrapper');
-    if (!playerWrapper || !enemyWrapper) return;
-
-    const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
-    const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
-
-    const playerHpFill = playerWrapper.querySelector('.health-fill.player-hp');
-    if (playerHpFill) playerHpFill.style.width = pHp + '%';
-
-    const enemyHpFill = enemyWrapper.querySelector('.health-fill.enemy-hp');
+function updateOneEnemyVitality(monster, wrapper) {
+    if (!monster || !wrapper) return;
+    const mHp = monster.maxHealth > 0 ? (monster.health / monster.maxHealth * 100) : 0;
+    const enemyHpFill = wrapper.querySelector('.health-fill.enemy-hp');
     if (enemyHpFill) enemyHpFill.style.width = mHp + '%';
-
-    const playerHealthText = playerWrapper.querySelector('.health-text');
-    if (playerHealthText) {
-        playerHealthText.textContent = player.health + '/' + player.maxHealth +
-            (player.class === 'Маг' ? ' | 💎' + player.mana : '');
-    }
-
-    const enemyHealthText = enemyWrapper.querySelector('.health-text');
-    if (enemyHealthText) {
-        enemyHealthText.textContent = currentMonster.health + '/' + currentMonster.maxHealth;
-    }
-
-    const playerShieldFx = player.temporaryEffects.find(e => e.shield !== undefined && e.shield > 0);
-    setCombatantShieldDisplay(
-        playerWrapper,
-        playerShieldFx ? playerShieldFx.shield : 0,
-        player.maxHealth,
-        null
-    );
-
+    const enemyHealthText = wrapper.querySelector('.health-text');
+    if (enemyHealthText) enemyHealthText.textContent = monster.health + '/' + monster.maxHealth;
     let monsterShieldValue = 0;
     let monsterShieldRemaining = null;
-    if (currentMonster.activeBuffs && currentMonster.activeBuffs.shield) {
-        monsterShieldValue = currentMonster.activeBuffs.shield.value;
-        monsterShieldRemaining = currentMonster.activeBuffs.shield.remainingTurns;
+    if (monster.activeBuffs && monster.activeBuffs.shield) {
+        monsterShieldValue = monster.activeBuffs.shield.value;
+        monsterShieldRemaining = monster.activeBuffs.shield.remainingTurns;
     }
-    setCombatantShieldDisplay(
-        enemyWrapper,
-        monsterShieldValue,
-        currentMonster.maxHealth,
-        monsterShieldRemaining
-    );
+    setCombatantShieldDisplay(wrapper, monsterShieldValue, monster.maxHealth, monsterShieldRemaining);
+}
+
+/** Обновляет HP/щиты/ману без пересборки спрайтов (во время анимации удара). */
+function updateBattleVitality() {
+    if (!player) return;
+
+    const playerWrapper = document.getElementById('playerWrapper');
+    if (playerWrapper) {
+        const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
+        const playerHpFill = playerWrapper.querySelector('.health-fill.player-hp');
+        if (playerHpFill) playerHpFill.style.width = pHp + '%';
+        const playerHealthText = playerWrapper.querySelector('.health-text');
+        if (playerHealthText) {
+            playerHealthText.textContent = player.health + '/' + player.maxHealth +
+                (player.class === 'Маг' ? ' | 💎' + player.mana : '');
+        }
+        const playerShieldFx = player.temporaryEffects.find(e => e.shield !== undefined && e.shield > 0);
+        setCombatantShieldDisplay(
+            playerWrapper,
+            playerShieldFx ? playerShieldFx.shield : 0,
+            player.maxHealth,
+            null
+        );
+    }
+
+    const roster = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
+    const pack = document.getElementById('enemyPack');
+    if (pack && roster.length > 1) {
+        pack.querySelectorAll('.combatant-wrapper[data-enemy-index]').forEach(function (wrap) {
+            const idx = parseInt(wrap.getAttribute('data-enemy-index'), 10);
+            if (!isNaN(idx) && roster[idx]) updateOneEnemyVitality(roster[idx], wrap);
+        });
+    } else if (currentMonster) {
+        const enemyWrapper = document.getElementById('enemyWrapper');
+        if (enemyWrapper) updateOneEnemyVitality(currentMonster, enemyWrapper);
+    }
+
+    if (window.dungeonDuoBattleActive && typeof getDungeonDuoAlly === 'function') {
+        const ally = getDungeonDuoAlly();
+        const allyWrap = document.getElementById('allyWrapper');
+        if (ally && allyWrap) {
+            const aHp = ally.maxHealth > 0 ? (ally.health / ally.maxHealth * 100) : 0;
+            const fill = allyWrap.querySelector('.health-fill.player-hp');
+            if (fill) fill.style.width = aHp + '%';
+            const text = allyWrap.querySelector('.health-text');
+            if (text) {
+                text.textContent = (ally.health || 0) + '/' + (ally.maxHealth || 0) +
+                    (ally.class === 'Маг' && ally.maxMana > 0 ? ' | 💎' + (ally.mana || 0) + '/' + ally.maxMana : '');
+            }
+        }
+    }
+}
+
+function updateBattlePackVitality() {
+    updateBattleVitality();
 }
 
 // Анимации боя (синхрон с CSS ~0.78s)
@@ -487,7 +508,8 @@ function safeRenderBattle() {
 
 /** Лёгкое обновление после анимации — без пересборки спрайтов (нет «телепорта»). */
 function syncBattleDisplayAfterAnim() {
-    updateBattleVitality();
+    if (typeof updateBattlePackVitality === 'function') updateBattlePackVitality();
+    else updateBattleVitality();
     updateBattleStatusPanels();
     updateBattleButtons();
 }
@@ -734,6 +756,24 @@ function animateEnemyAttack(callback, options) {
         options.duration = options.heavy ? STRIKE_HEAVY_MS : ENEMY_STRIKE_MS;
     }
     playStrikeAnimation('enemy', callback, options);
+}
+
+function floatDamageOnEnemyIndex(index, amount, isCrit) {
+    const pack = document.getElementById('enemyPack');
+    let wrapper = null;
+    if (pack) {
+        wrapper = pack.querySelector('.combatant-wrapper[data-enemy-index="' + index + '"]');
+    }
+    if (!wrapper && index === 0) wrapper = document.getElementById('enemyWrapper');
+    if (!wrapper) return;
+    const el = document.createElement('div');
+    el.className = 'damage-float' + (isCrit ? ' damage-float--crit' : '');
+    el.textContent = (isCrit ? '💥 ' : '') + '-' + amount;
+    if (!isCrit) el.style.color = '#ffcc44';
+    el.style.top = '8px';
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(el);
+    setTimeout(() => el.remove(), isCrit ? 1200 : 1050);
 }
 
 function floatDamage(target, amount, isCrit) {
@@ -1195,4 +1235,6 @@ window.consumeStrikeImpact = consumeStrikeImpact;
 window.safeRenderBattle = safeRenderBattle;
 window.syncBattleDisplayAfterAnim = syncBattleDisplayAfterAnim;
 window.updateBattleVitality = updateBattleVitality;
+window.updateBattlePackVitality = updateBattlePackVitality;
+window.floatDamageOnEnemyIndex = floatDamageOnEnemyIndex;
 window.updateBattleStatusPanels = updateBattleStatusPanels;

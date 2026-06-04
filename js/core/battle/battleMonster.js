@@ -584,7 +584,13 @@ function monsterTurn() {
             // ЗАМОРОЗКА АТАКУЮЩЕГО
             const freezeOnHit = player.temporaryEffects.find(e => e.freezeOnHit);
             if (freezeOnHit && dmg > 0) {
-                currentMonster.effects.push({ type: 'Заморозка', dur: 1 });
+                if (typeof upsertMonsterStatusEffect === 'function') {
+                    upsertMonsterStatusEffect(currentMonster, { type: 'Заморозка', dur: 1 });
+                } else if (currentMonster.effects) {
+                    const existing = currentMonster.effects.find(function (e) { return e.type === 'Заморозка'; });
+                    if (existing) existing.dur = Math.max(existing.dur || 0, 1);
+                    else currentMonster.effects.push({ type: 'Заморозка', dur: 1 });
+                }
                 addBattleLog(`❄️ Монстр заморожен!`, 'info');
             }
             

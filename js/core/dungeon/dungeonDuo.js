@@ -302,11 +302,14 @@ function handleDungeonDuoError(err) {
         handleDungeonDuoLobbyError(err);
         return;
     }
-    duoDungeonState.status = 'idle';
-    duoDungeonState.error = err && err.message ? err.message : String(err || 'Ошибка транспорта данжа');
-    duoDungeonLog(duoDungeonState.error, 'error');
-    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
-    if (typeof abandonDungeonRun === 'function') abandonDungeonRun(false);
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    const msg = err && err.message ? err.message : String(err || 'Ошибка транспорта данжа');
+    duoDungeonLog('Связь: ' + msg + (session ? ' (забег сохранён)' : ''), 'warning');
+    if (!session) {
+        duoDungeonState.status = 'idle';
+        duoDungeonState.error = msg;
+        if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    }
 }
 
 function shouldFallbackDungeonDuoFromCloud(err) {
@@ -420,6 +423,7 @@ function applyRemoteDuoDungeonRunSeed(payload) {
             if (typeof saveActiveDungeonRun === 'function') saveActiveDungeonRun();
         }
     }
+    if (typeof flushPendingDuoEnterBattle === 'function') flushPendingDuoEnterBattle();
     if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
 }
 

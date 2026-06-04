@@ -24,6 +24,24 @@ function applyLessonHealMult(amount) {
     return amount;
 }
 
+const MONSTER_CC_EFFECT_TYPES = ['Заморозка', 'Оглушение'];
+
+function upsertMonsterStatusEffect(monster, effectEntry) {
+    if (!monster || !effectEntry || !effectEntry.type) return;
+    if (!monster.effects) monster.effects = [];
+    if (MONSTER_CC_EFFECT_TYPES.indexOf(effectEntry.type) >= 0) {
+        const existing = monster.effects.find(function (e) { return e.type === effectEntry.type; });
+        if (existing) {
+            existing.dur = Math.max(existing.dur || 0, effectEntry.dur || 1);
+            if (effectEntry.val != null) existing.val = effectEntry.val;
+            if (effectEntry.spread != null) existing.spread = effectEntry.spread;
+            if (effectEntry.manaRegen != null) existing.manaRegen = effectEntry.manaRegen;
+            return;
+        }
+    }
+    monster.effects.push(effectEntry);
+}
+
 function applyAoeMonsterSideEffects(m, a, doubleThisCast) {
     if (!m || m.health <= 0) return;
     if (a.effect) {
@@ -39,8 +57,7 @@ function applyAoeMonsterSideEffects(m, a, doubleThisCast) {
         if (a.effect.type === 'Смертельный яд') {
             m.damageAmp = 2;
         } else {
-            if (!m.effects) m.effects = [];
-            m.effects.push({
+            upsertMonsterStatusEffect(m, {
                 type: a.effect.type,
                 dur: effectDur,
                 val: effectVal,
@@ -102,14 +119,18 @@ function resolveHitDamageForFocusedMonster(baseDmg, a) {
 function applyAbilityDamageAtTargets(a, baseDmg, ignoreShields) {
     if (a.aoe && typeof forEachLivingBattleEnemy === 'function' && getBattleEnemySlotCount() > 0) {
         let totalApplied = 0;
-        forEachLivingBattleEnemy(function () {
+        const aoeHits = [];
+        forEachLivingBattleEnemy(function (m, idx) {
             const hitDmg = resolveHitDamageForFocusedMonster(baseDmg, a);
             const applied = applyDamageToMonster(hitDmg, ignoreShields);
             totalApplied += applied;
             applyMonsterReflectDamage(applied);
+            if (applied > 0) aoeHits.push({ index: idx, damage: applied, crit: false });
         });
+        window._lastAoeVisualHits = aoeHits;
         return totalApplied;
     }
+    window._lastAoeVisualHits = null;
     const hitDmg = resolveHitDamageForFocusedMonster(baseDmg, a);
     const applied = applyDamageToMonster(hitDmg, ignoreShields);
     applyMonsterReflectDamage(applied);
@@ -677,8 +698,13 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
             currentMonster.damageAmp = 2;
             addBattleLog(`☠️ Следующий удар по цели удвоит урон!`, 'info');
         } else {
-            if (!currentMonster.effects) currentMonster.effects = [];
-            currentMonster.effects.push({ type: a.effect.type, dur: effectDur, val: effectVal, spread: a.effect.spread, manaRegen: a.effect.manaRegen });
+            upsertMonsterStatusEffect(currentMonster, {
+                type: a.effect.type,
+                dur: effectDur,
+                val: effectVal,
+                spread: a.effect.spread,
+                manaRegen: a.effect.manaRegen
+            });
             addBattleLog(`🌀 Наложен эффект «${a.effect.type}» на ${effectDur} хода!`, 'info');
             if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
                 window.syncPvPRemoteFromMonster();
@@ -699,6 +725,11 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
 
     spreadAoeMonsterEffects(a, doubleThisCast);
+
+    if (window.dungeonDuoBattleActive && (a.effect || a.enemyDebuff || a.aoe) &&
+        typeof requestDungeonDuoStateSync === 'function') {
+        requestDungeonDuoStateSync();
+    }
     
     if (a.partyBuff) {
         const pbDur = a.partyBuff.dur || 3;
@@ -943,7 +974,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         }
         if (a.stunChance && Math.random() * 100 <= a.stunChance) {
             if (!currentMonster.effects) currentMonster.effects = [];
-            currentMonster.effects.push({ type: 'Оглушение', dur: 1, val: 0 });
+            upsertMonsterStatusEffect(currentMonster, { type: 'Оглушение', dur: 1, val: 0 });
             addBattleLog(`😵 Оглушение сработало!`, 'info');
             if (window.pvpBattleActive && typeof window.syncPvPRemoteFromMonster === 'function') {
                 window.syncPvPRemoteFromMonster();
@@ -983,19 +1014,25 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         addBattleLog(`⚡ Способность использована без перезарядки!`, 'info');
     }
 
-    updateBattleVitality();
+    if (typeof updateBattlePackVitality === 'function') updateBattlePackVitality();
+    else updateBattleVitality();
     if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
 
     if (window.dungeonDuoBattleActive && typeof pushDungeonDuoBattleVisual === 'function') {
-        const focusIdx = typeof getBattleFocusIndex === 'function' ? getBattleFocusIndex() : 0;
-        pushDungeonDuoBattleVisual({
+        const focusIdx = typeof getBattleEnemyFocusIndex === 'function' ? getBattleEnemyFocusIndex() : 0;
+        const visualPayload = {
             action: 'ability',
             abilityName: a.name || '',
             damage: appliedDamage,
             crit: crit,
             targetIndex: focusIdx,
+            aoe: !!a.aoe,
             heavy: !!crit || appliedDamage >= Math.floor((typeof getPlayerEffectiveAttack === 'function' ? getPlayerEffectiveAttack() : 0) * 1.2)
-        });
+        };
+        if (a.aoe && window._lastAoeVisualHits && window._lastAoeVisualHits.length) {
+            visualPayload.hits = window._lastAoeVisualHits.slice();
+        }
+        pushDungeonDuoBattleVisual(visualPayload);
     }
 
     const afterAbilityResolve = () => {
@@ -1022,7 +1059,16 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
 
     animatePlayerAbility(afterAbilityResolve, a, appliedDamage, crit, {
         onImpact: () => {
-            if (appliedDamage > 0) floatDamage('enemy', appliedDamage, crit);
+            if (a.aoe && window._lastAoeVisualHits && window._lastAoeVisualHits.length) {
+                window._lastAoeVisualHits.forEach(function (hit) {
+                    if (hit.damage > 0 && typeof floatDamageOnEnemyIndex === 'function') {
+                        floatDamageOnEnemyIndex(hit.index, hit.damage, hit.crit);
+                    }
+                });
+                window._lastAoeVisualHits = null;
+            } else if (appliedDamage > 0) {
+                floatDamage('enemy', appliedDamage, crit);
+            }
         },
         onAnimEnd: () => syncBattleDisplayAfterAnim()
     });
@@ -1087,3 +1133,4 @@ window.showBattleAbilities = showBattleAbilities;
 window.closeBattleAbilitiesMenu = closeBattleAbilitiesMenu;
 window.useBattleAbility = useBattleAbility;
 window.fleeBattle = fleeBattle;
+window.upsertMonsterStatusEffect = upsertMonsterStatusEffect;

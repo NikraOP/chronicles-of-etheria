@@ -1,6 +1,8 @@
 // dungeonSession.js — соло/дуо забег, комнаты, бой, прогресс
 
 let dungeonRunSession = null;
+let pendingDuoEnterBattlePayload = null;
+let lastHostDuoEnterBattlePayload = null;
 
 const DUNGEON_SOLO_RETURN_TO = '__dungeon_solo__';
 
@@ -292,6 +294,7 @@ function applyDungeonRoomAdvanceFromHost(payload) {
     if (dungeonRunSession.committed && typeof saveActiveDungeonRun === 'function') saveActiveDungeonRun();
     if (typeof saveGame === 'function') saveGame();
     if (typeof openDungeonDetail === 'function') openDungeonDetail(dungeonRunSession.dungeonId);
+    flushPendingDuoEnterBattle();
 }
 
 function applyDungeonDuoVictoryAck(payload) {
@@ -339,25 +342,96 @@ function applyDungeonDuoVictoryAck(payload) {
     }
 }
 
+function duoEnterBattleMatchesSession(payload) {
+    if (!payload || !dungeonRunSession) return false;
+    if (typeof payload.floorIndex === 'number' && payload.floorIndex !== dungeonRunSession.floorIndex) return false;
+    if (typeof payload.roomIndex === 'number' && payload.roomIndex !== dungeonRunSession.roomIndex) return false;
+    return true;
+}
+
+function teardownDuoBattleZone() {
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    window._strikeAnimActive = false;
+    currentMonster = null;
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
+    if (dungeonRunSession) dungeonRunSession._awaitingVictory = false;
+}
+
+function flushPendingDuoEnterBattle() {
+    if (!pendingDuoEnterBattlePayload) return;
+    const pending = pendingDuoEnterBattlePayload;
+    pendingDuoEnterBattlePayload = null;
+    applyRemoteDuoDungeonEnterBattle(pending);
+}
+
+function buildHostDuoEnterBattleMessage(payloads, battleOpts) {
+    let battleSnapshot = null;
+    if (typeof buildDungeonRoomSnapshot === 'function') {
+        battleSnapshot = buildDungeonRoomSnapshot();
+        if (typeof fillPartyInSnapshot === 'function') fillPartyInSnapshot(battleSnapshot);
+    }
+    return {
+        kind: 'enter_battle',
+        floorIndex: dungeonRunSession.floorIndex,
+        roomIndex: dungeonRunSession.roomIndex,
+        enemyPayloads: payloads,
+        battleOpts: battleOpts,
+        battleSnapshot: battleSnapshot
+    };
+}
+
+function sendHostDuoEnterBattle(payloads, battleOpts) {
+    if (!isDungeonDuoHost() || typeof sendDuoDungeonRoomState !== 'function') return;
+    const msg = buildHostDuoEnterBattleMessage(payloads, battleOpts);
+    lastHostDuoEnterBattlePayload = msg;
+    sendDuoDungeonRoomState(msg);
+}
+
+function resendHostDuoEnterBattle() {
+    if (!lastHostDuoEnterBattlePayload || typeof sendDuoDungeonRoomState !== 'function') return false;
+    sendDuoDungeonRoomState(lastHostDuoEnterBattlePayload);
+    return true;
+}
+
 function applyRemoteDuoDungeonEnterBattle(payload) {
-    if (!payload || !dungeonRunSession) return;
-    if (dungeonRunSession.state === 'battle' && window.dungeonDuoBattleActive) return;
+    if (!payload) return false;
+    if (!dungeonRunSession) {
+        pendingDuoEnterBattlePayload = payload;
+        if (typeof duoDungeonLog === 'function') duoDungeonLog('Ожидание забега — бой в очереди…', 'info');
+        return false;
+    }
+    if (!duoEnterBattleMatchesSession(payload)) {
+        pendingDuoEnterBattlePayload = payload;
+        return false;
+    }
+    pendingDuoEnterBattlePayload = null;
+
+    teardownDuoBattleZone();
 
     if (typeof payload.floorIndex === 'number') dungeonRunSession.floorIndex = payload.floorIndex;
     if (typeof payload.roomIndex === 'number') dungeonRunSession.roomIndex = payload.roomIndex;
 
-    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof stopGathering === 'function') stopGathering();
 
     const leader = payload.enemyPayloads && payload.enemyPayloads[0];
     const battleOpts = payload.battleOpts || {};
-    if (!leader) return;
+    if (!leader) return false;
 
     dungeonRunSession.state = 'battle';
     dungeonRunSession._awaitingVictory = true;
 
     if (typeof startDungeonDuoBattleMode === 'function') startDungeonDuoBattleMode();
     if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('battle');
+
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (duo && duo.role === 'guest' && typeof setDungeonDuoAlly === 'function') {
+        setDungeonDuoAlly(duo.remoteSnapshot || {
+            name: 'Союзник',
+            health: player.maxHealth,
+            maxHealth: player.maxHealth,
+            class: '?'
+        });
+    }
 
     if (typeof enterBattleZoneWithMonster === 'function') {
         enterBattleZoneWithMonster(leader, battleOpts);
@@ -368,11 +442,14 @@ function applyRemoteDuoDungeonEnterBattle(payload) {
         commitBattleStart();
     }
 
-    setTimeout(function () {
-        if (typeof applyDungeonDuoRoomSnapshot === 'function' && payload.battleSnapshot) {
-            applyDungeonDuoRoomSnapshot(payload.battleSnapshot);
-        }
-    }, 500);
+    if (typeof applyDungeonDuoRoomSnapshot === 'function' && payload.battleSnapshot) {
+        applyDungeonDuoRoomSnapshot(payload.battleSnapshot);
+    }
+    if (typeof updateBattlePackVitality === 'function') updateBattlePackVitality();
+    else if (typeof updateBattleVitality === 'function') updateBattleVitality();
+    if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+    if (typeof addMessage === 'function') addMessage('⚔️ Партнёр начал бой — вы в бою.', 'success');
+    return true;
 }
 
 function enterShrineRoom(opts) {
@@ -579,22 +656,8 @@ function enterCurrentRoomBattle() {
 
     if (isDuo) {
         if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('battle');
-        if (isDungeonDuoHost() && typeof sendDuoDungeonRoomState === 'function') {
-            let battleSnapshot = null;
-            if (typeof buildDungeonRoomSnapshot === 'function') {
-                battleSnapshot = buildDungeonRoomSnapshot();
-                if (typeof fillPartyInSnapshot === 'function') fillPartyInSnapshot(battleSnapshot);
-            }
-            setTimeout(function () {
-                sendDuoDungeonRoomState({
-                    kind: 'enter_battle',
-                    floorIndex: dungeonRunSession.floorIndex,
-                    roomIndex: dungeonRunSession.roomIndex,
-                    enemyPayloads: payloads,
-                    battleOpts: battleOpts,
-                    battleSnapshot: battleSnapshot
-                });
-            }, 400);
+        if (isDungeonDuoHost()) {
+            sendHostDuoEnterBattle(payloads, battleOpts);
         }
     }
 
@@ -653,3 +716,5 @@ window.hostBroadcastRoomAdvance = hostBroadcastRoomAdvance;
 window.applyDungeonRoomAdvanceFromHost = applyDungeonRoomAdvanceFromHost;
 window.applyDungeonDuoVictoryAck = applyDungeonDuoVictoryAck;
 window.applyRemoteDuoDungeonEnterBattle = applyRemoteDuoDungeonEnterBattle;
+window.flushPendingDuoEnterBattle = flushPendingDuoEnterBattle;
+window.resendHostDuoEnterBattle = resendHostDuoEnterBattle;
