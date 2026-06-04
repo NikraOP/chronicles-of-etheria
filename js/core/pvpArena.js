@@ -221,14 +221,113 @@ function clampPvPNumber(value, min, max, fallback) {
     return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
+const PVP_ARENA_SLOT_META = [
+    { key: 'weapon', label: 'Оружие', fallback: '⚔️' },
+    { key: 'helmet', label: 'Шлем', fallback: '⛑️' },
+    { key: 'chest', label: 'Нагрудник', fallback: '🛡️' },
+    { key: 'pants', label: 'Поножи', fallback: '👖' },
+    { key: 'boots', label: 'Сапоги', fallback: '👢' },
+    { key: 'ring', label: 'Кольцо', fallback: '💍' },
+    { key: 'necklace', label: 'Амулет', fallback: '📿' }
+];
+
+function pvpFindSkinDefInDb(className, gender, branch, skinId) {
+    if (!skinId || typeof SKINS_DB === 'undefined') return null;
+    const classSkins = SKINS_DB[className];
+    if (!classSkins) return null;
+    const genderSkins = classSkins[gender || 'male'] || classSkins.male;
+    if (!genderSkins) return null;
+    const schoolSkins = genderSkins[branch];
+    if (!Array.isArray(schoolSkins)) return null;
+    return schoolSkins.find(s => s && s.id === skinId) || null;
+}
+
+function pvpFindDefaultSkinDefInDb(className, gender, branch) {
+    if (typeof SKINS_DB === 'undefined') return null;
+    const classSkins = SKINS_DB[className];
+    if (!classSkins) return null;
+    const genderSkins = classSkins[gender || 'male'] || classSkins.male;
+    if (!genderSkins) return null;
+    const schoolSkins = genderSkins[branch];
+    if (!Array.isArray(schoolSkins)) return null;
+    return schoolSkins.find(s => s && s.price === 0) || schoolSkins[0] || null;
+}
+
+function resolvePvPSnapshotPortrait(snapshot) {
+    if (!snapshot) return { img: '', skinName: '', skinIcon: '', fallbackClass: '' };
+    const className = snapshot.class || '';
+    const gender = snapshot.gender || 'male';
+    const branch = snapshot.branch || '';
+    let skinDef = null;
+    if (snapshot.currentSkin) {
+        skinDef = pvpFindSkinDefInDb(className, gender, branch, snapshot.currentSkin);
+    }
+    if (!skinDef) skinDef = pvpFindDefaultSkinDefInDb(className, gender, branch);
+    let img = String(snapshot.avatar || snapshot.schoolImg || '').trim();
+    let skinName = String(snapshot.skinName || '').trim();
+    let skinIcon = String(snapshot.skinIcon || '').trim();
+    if (skinDef) {
+        if (skinDef.img) img = skinDef.img;
+        if (!skinName && skinDef.name) skinName = skinDef.name;
+        if (!skinIcon && skinDef.icon) skinIcon = skinDef.icon;
+    }
+    if (!img && typeof ABILITIES_DB !== 'undefined' && ABILITIES_DB[className] && ABILITIES_DB[className][branch]) {
+        img = ABILITIES_DB[className][branch].img || '';
+    }
+    return { img: img, skinName: skinName, skinIcon: skinIcon, fallbackClass: className };
+}
+
+function sanitizePvPEquipmentItem(item) {
+    if (!item || typeof item !== 'object') return null;
+    const raw = typeof snapshotEquipmentItem === 'function'
+        ? snapshotEquipmentItem(item)
+        : item;
+    if (!raw || !raw.name) return null;
+    return {
+        name: String(raw.name).slice(0, 36),
+        rarity: String(raw.rarity || 'Обычный').slice(0, 20),
+        icon: String(raw.icon || '📦').slice(0, 8),
+        img: safePvPAvatarSrc(raw.img || ''),
+        dmg: clampPvPNumber(raw.dmg, 0, 9999, 0),
+        def: clampPvPNumber(raw.def, 0, 9999, 0),
+        hp: clampPvPNumber(raw.hp, 0, 9999, 0),
+        crit: clampPvPNumber(raw.crit, 0, 100, 0),
+        critDmg: clampPvPNumber(raw.critDmg, 0, 500, 0),
+        dodge: clampPvPNumber(raw.dodge, 0, 100, 0),
+        mana: clampPvPNumber(raw.mana, 0, 9999, 0)
+    };
+}
+
+function sanitizePvPEquipmentMap(equipment) {
+    const out = {};
+    PVP_ARENA_SLOT_META.forEach(meta => {
+        out[meta.key] = sanitizePvPEquipmentItem(equipment && equipment[meta.key]);
+    });
+    return out;
+}
+
+function serializePvPEquipmentFromPlayer() {
+    const out = {};
+    PVP_ARENA_SLOT_META.forEach(meta => {
+        out[meta.key] = sanitizePvPEquipmentItem(
+            player && player.equipment ? player.equipment[meta.key] : null
+        );
+    });
+    return out;
+}
+
 function sanitizePvPSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return null;
     return {
         name: String(snapshot.name || 'Игрок').slice(0, 24),
         class: String(snapshot.class || 'Герой').slice(0, 20),
         branch: String(snapshot.branch || '').slice(0, 32),
+        gender: String(snapshot.gender || 'male').slice(0, 8),
         level: clampPvPNumber(snapshot.level, 1, 999, 1),
         avatar: safePvPAvatarSrc(snapshot.avatar),
+        currentSkin: snapshot.currentSkin ? String(snapshot.currentSkin).slice(0, 64) : '',
+        skinName: String(snapshot.skinName || '').slice(0, 40),
+        skinIcon: String(snapshot.skinIcon || '').slice(0, 8),
         maxHealth: clampPvPNumber(snapshot.maxHealth, 1, 999999, 1),
         health: clampPvPNumber(snapshot.health || snapshot.maxHealth, 1, 999999, 1),
         attack: clampPvPNumber(snapshot.attack, 1, 99999, 1),
@@ -238,6 +337,7 @@ function sanitizePvPSnapshot(snapshot) {
         dodgeChance: clampPvPNumber(snapshot.dodgeChance, 0, 100, 0),
         mana: clampPvPNumber(snapshot.mana, 0, 99999, 0),
         maxMana: clampPvPNumber(snapshot.maxMana, 0, 99999, 0),
+        equipment: sanitizePvPEquipmentMap(snapshot.equipment),
         abilities: Array.isArray(snapshot.abilities)
             ? snapshot.abilities.map(sanitizePvPAbility).filter(Boolean)
             : [],
@@ -270,12 +370,28 @@ function getPvPAvatar() {
 }
 
 function getPvPPlayerSnapshot() {
+    if (!player) return null;
+    if (typeof ensureEquipmentScreenVisuals === 'function') ensureEquipmentScreenVisuals();
+    if (typeof resetBaseStats === 'function') resetBaseStats();
+    const portrait = resolvePvPSnapshotPortrait({
+        class: player.class,
+        branch: player.branch,
+        gender: player.gender,
+        currentSkin: player.currentSkin,
+        schoolImg: player.schoolImg,
+        avatar: getPvPAvatar()
+    });
+    const avatarSrc = portrait.img ? safePvPAvatarSrc(portrait.img) : getPvPAvatar();
     return sanitizePvPSnapshot({
         name: player.name,
         class: player.class,
         branch: player.branch,
+        gender: player.gender || 'male',
         level: player.level,
-        avatar: getPvPAvatar(),
+        currentSkin: player.currentSkin,
+        skinName: portrait.skinName || '',
+        skinIcon: portrait.skinIcon || '',
+        avatar: avatarSrc,
         maxHealth: Math.max(1, player.maxHealth || 1),
         health: Math.max(1, player.maxHealth || player.health || 1),
         attack: Math.max(1, player.attack || 1),
@@ -285,6 +401,7 @@ function getPvPPlayerSnapshot() {
         dodgeChance: Math.max(0, player.dodgeChance || 0),
         mana: player.class === 'Маг' ? Math.max(0, player.mana || 0) : 0,
         maxMana: player.class === 'Маг' ? Math.max(0, player.maxMana || 0) : 0,
+        equipment: serializePvPEquipmentFromPlayer(),
         abilities: serializePvPAbilitiesFromPlayer()
     });
 }
@@ -1295,9 +1412,13 @@ function renderPvPArena() {
                 <button class="action-btn danger" onclick="leavePvPArena()">Отключиться</button>
             </div>
 
-            <div class="pvp-grid">
-                ${renderPvPPlayerCard('Ты', pvpState.local || getPvPPlayerSnapshot(), pvpState.localReady)}
-                ${renderPvPPlayerCard('Соперник', pvpState.remote, pvpState.remoteReady)}
+            <div class="pvp-fighters-board">
+                <h3 class="pvp-fighters-board__title">Участники</h3>
+                <p class="pvp-fighters-board__hint">Скин, боевые статы и экипировка видны до старта матча. Обновите «Готов», если сменили предметы.</p>
+                <div class="pvp-fighters-grid">
+                    ${renderPvPPlayerCard('Ты', pvpState.local || getPvPPlayerSnapshot(), pvpState.localReady, true)}
+                    ${renderPvPPlayerCard('Соперник', pvpState.remote, pvpState.remoteReady, false)}
+                </div>
             </div>
 
             <div class="pvp-actions-row">
@@ -1310,39 +1431,125 @@ function renderPvPArena() {
     `;
 }
 
-function renderPvPPlayerCard(title, snapshot, ready) {
+function renderPvPStatChip(icon, value, mod) {
+    const modClass = mod ? ' friend-stat-chip--' + mod : '';
+    return '<span class="friend-stat-chip' + modClass + '">' +
+        '<span class="friend-stat-chip__icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="friend-stat-chip__value">' + value + '</span></span>';
+}
+
+function renderPvPStatChips(snapshot) {
+    let html = '<div class="friend-card__stats pvp-fighter-card__stats">';
+    html += renderPvPStatChip('❤️', snapshot.maxHealth, 'hp');
+    html += renderPvPStatChip('⚔️', String(snapshot.attack), 'atk');
+    html += renderPvPStatChip('🛡️', String(snapshot.defense), 'def');
+    html += renderPvPStatChip('💥', snapshot.criticalChance + '% / ' + snapshot.criticalDamage + '%', 'crit');
+    html += renderPvPStatChip('💨', snapshot.dodgeChance + '%', 'dodge');
+    if (snapshot.class === 'Маг' && snapshot.maxMana > 0) {
+        html += renderPvPStatChip('🔷', snapshot.mana + '/' + snapshot.maxMana, 'mana');
+    }
+    html += '</div>';
+    return html;
+}
+
+function renderPvPPortraitBlock(snapshot) {
+    const snap = sanitizePvPSnapshot(snapshot);
+    if (!snap) return '<div class="friend-portrait pvp-fighter-portrait friend-portrait--empty">?</div>';
+    const portrait = resolvePvPSnapshotPortrait(snap);
+    const fb = portrait.skinIcon || pvpClassIcon(snap.class);
+    const imgRel = portrait.img || snap.avatar;
+    const display = imgRel ? pvpAvatarDisplayUrl(safePvPAvatarSrc(imgRel)) : '';
+    let inner = '';
+    if (display) {
+        inner = '<img class="friend-portrait__img" src="' + escapePvPAttr(display) + '" alt="" ' +
+            'onerror="this.onerror=null;this.classList.add(\'friend-portrait__img--hidden\');' +
+            'var f=this.parentElement.querySelector(\'.friend-portrait__fallback\');if(f)f.classList.add(\'friend-portrait__fallback--show\');">';
+    }
+    inner += '<div class="friend-portrait__fallback' + (display ? '' : ' friend-portrait__fallback--show') + '" aria-hidden="true">' +
+        escapePvPText(fb) + '</div>';
+    let skinTag = '';
+    if (portrait.skinName) {
+        skinTag = '<div class="friend-portrait__skin-tag" title="Скин">' +
+            (portrait.skinIcon ? '<span class="friend-portrait__skin-tag-icon">' + escapePvPText(portrait.skinIcon) + '</span>' : '') +
+            '<span class="friend-portrait__skin-tag-name">' + escapePvPText(portrait.skinName) + '</span></div>';
+    }
+    return '<div class="friend-portrait pvp-fighter-portrait">' + inner + skinTag + '</div>';
+}
+
+function renderPvPEquipmentGrid(equipment) {
+    let html = '<div class="friend-card__equipment-wrap pvp-fighter-card__equipment">';
+    html += '<div class="friend-card__equipment-title">🎒 Экипировка</div>';
+    html += '<div class="friend-card__equipment">';
+    PVP_ARENA_SLOT_META.forEach(meta => {
+        const item = equipment && equipment[meta.key];
+        const equipped = item && item.name;
+        const iconHtml = equipped && typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(item, { size: 36, fallback: meta.fallback, className: 'item-icon friend-slot__icon' })
+            : '<div class="item-icon item-icon--emoji friend-slot__icon friend-slot__icon--empty">' + meta.fallback + '</div>';
+        const rarityColor = (typeof RARITY_COLORS !== 'undefined' && RARITY_COLORS[item && item.rarity])
+            ? RARITY_COLORS[item.rarity]
+            : '#ccc';
+        const nameHtml = equipped
+            ? '<div class="friend-slot__name" style="color:' + rarityColor + '">' + escapePvPText(item.name) + '</div>'
+            : '<div class="friend-slot__empty">—</div>';
+        const statsHtml = equipped && typeof formatItemBonusLine === 'function'
+            ? '<div class="friend-slot__stats">' + formatItemBonusLine(item) + '</div>'
+            : '';
+        html += '<div class="friend-slot' + (equipped ? ' friend-slot--filled' : ' friend-slot--empty') + '">' +
+            '<div class="friend-slot__icon-wrap">' + iconHtml + '</div>' +
+            '<div class="friend-slot__label">' + meta.label + '</div>' +
+            nameHtml + statsHtml + '</div>';
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function renderPvPPlayerCard(title, snapshot, ready, isLocal) {
     if (!snapshot) {
-        return `<div class="pvp-card pvp-player-card"><h3>${escapePvPText(title)}</h3><p>Ожидание...</p></div>`;
+        return '<article class="pvp-fighter-card pvp-fighter-card--waiting">' +
+            '<header class="pvp-fighter-card__head">' +
+            '<span class="pvp-fighter-card__role">' + escapePvPText(title) + '</span>' +
+            '<h3 class="pvp-fighter-card__title">Ожидание…</h3>' +
+            '</header>' +
+            '<p class="pvp-fighter-card__waiting">Подключите соперника по коду комнаты.</p>' +
+            '</article>';
     }
-    const safeSnapshot = sanitizePvPSnapshot(snapshot);
-    if (!safeSnapshot) return `<div class="pvp-card pvp-player-card"><h3>${escapePvPText(title)}</h3><p>Некорректные данные игрока</p></div>`;
-    let avatar = '';
-    if (title === 'Ты' && typeof getAvatar === 'function') {
-        const spriteInner = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
-        avatar = `<div class="pvp-avatar-live">${spriteInner}</div>`;
-    } else {
-        const remoteRel = title !== 'Ты' && typeof getPvPRemoteAvatarSrc === 'function'
-            ? getPvPRemoteAvatarSrc()
-            : safeSnapshot.avatar;
-        const remoteDisplay = pvpAvatarDisplayUrl(remoteRel);
-        const fbIcon = pvpClassIcon(safeSnapshot.class);
-        avatar = remoteDisplay
-            ? `<img src="${escapePvPAttr(remoteDisplay)}" alt="" onerror="pvpAvatarImgError(this)"><span class="sprite-fallback pvp-avatar-fallback-inline" style="display:none">${fbIcon}</span>`
-            : `<div class="pvp-avatar-fallback">${fbIcon}</div>`;
+    let safeSnapshot = isLocal && typeof getPvPPlayerSnapshot === 'function'
+        ? getPvPPlayerSnapshot()
+        : sanitizePvPSnapshot(snapshot);
+    if (!safeSnapshot) {
+        return '<article class="pvp-fighter-card pvp-fighter-card--error">' +
+            '<h3>' + escapePvPText(title) + '</h3><p>Некорректные данные</p></article>';
     }
-    return `
-        <div class="pvp-card pvp-player-card">
-            <div class="pvp-player-row">
-                <div class="pvp-avatar">${avatar}</div>
-                <div>
-                    <h3>${escapePvPText(title)}: ${escapePvPText(safeSnapshot.name)}</h3>
-                    <p>${escapePvPText(safeSnapshot.class)} · ${escapePvPText(safeSnapshot.branch)} · ур. ${safeSnapshot.level}</p>
-                    <p>❤️ ${safeSnapshot.maxHealth} · ⚔️ ${safeSnapshot.attack} · 🛡️ ${safeSnapshot.defense} · 💨 ${safeSnapshot.dodgeChance}%</p>
-                    <span class="pvp-ready ${ready ? 'ready' : ''}">${ready ? 'Готов' : 'Не готов'}</span>
-                </div>
-            </div>
-        </div>
-    `;
+    const roleLabel = title === 'Ты' ? 'Вы' : 'Соперник';
+    const readyBadge = '<span class="pvp-ready pvp-fighter-card__ready ' + (ready ? 'ready' : '') + '">' +
+        (ready ? '✓ Готов' : 'Не готов') + '</span>';
+    if (!isLocal && typeof getPvPRemoteAvatarSrc === 'function') {
+        const remoteAv = getPvPRemoteAvatarSrc();
+        if (remoteAv) safeSnapshot = sanitizePvPSnapshot(Object.assign({}, safeSnapshot, { avatar: remoteAv }));
+    }
+    const skinHint = safeSnapshot.skinName
+        ? '<span class="pvp-fighter-card__skin-line">' +
+            (safeSnapshot.skinIcon ? escapePvPText(safeSnapshot.skinIcon) + ' ' : '') +
+            escapePvPText(safeSnapshot.skinName) + '</span>'
+        : '';
+    return '<article class="pvp-fighter-card friend-card' + (ready ? ' pvp-fighter-card--ready' : '') + '">' +
+        '<div class="pvp-fighter-card__top">' +
+        '<span class="pvp-fighter-card__role">' + escapePvPText(roleLabel) + '</span>' +
+        readyBadge +
+        '</div>' +
+        '<div class="friend-card__hero pvp-fighter-card__hero">' +
+        '<div class="friend-card__portrait-wrap">' + renderPvPPortraitBlock(safeSnapshot) + '</div>' +
+        '<div class="friend-card__body">' +
+        '<header class="friend-card__header">' +
+        '<div class="friend-card__title">' + escapePvPText(safeSnapshot.name) + '</div>' +
+        '<div class="friend-card__meta">' + escapePvPText(safeSnapshot.class) + ' · ' + escapePvPText(safeSnapshot.branch) + ' · ур. ' + safeSnapshot.level + '</div>' +
+        (skinHint ? '<div class="pvp-fighter-card__skin-row">' + skinHint + '</div>' : '') +
+        '</header>' +
+        renderPvPStatChips(safeSnapshot) +
+        '</div></div>' +
+        renderPvPEquipmentGrid(safeSnapshot.equipment) +
+        '</article>';
 }
 
 function getPvPStatusLabel() {

@@ -36,6 +36,9 @@ assert(arenaSrc.includes('pvpAvatarDisplayUrl'), 'pvp avatar display URL helper'
 assert(battleUiSrc.includes('resolveGameAssetUrl'), 'battleUI resolves monster img');
 assert(arenaSrc.includes('pvpAvatarImgError'), 'pvp avatar img error fallback');
 assert(arenaSrc.includes('function renderPvPArena') && arenaSrc.includes("pvpState.status === 'ended'"), 'renderPvPArena resets after match');
+assert(arenaSrc.includes('equipment: sanitizePvPEquipmentMap'), 'snapshot carries equipment');
+assert(arenaSrc.includes('renderPvPEquipmentGrid'), 'arena equipment grid renderer');
+assert(arenaSrc.includes('pvp-fighters-board'), 'fighters board layout');
 
 if (failed) process.exit(1);
 console.log('\nPvP match-end checks passed.');
