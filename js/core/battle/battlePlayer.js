@@ -1,5 +1,29 @@
 // js/core/battle/battlePlayer.js
 
+function getScaledAbilityManaCost(rawCost) {
+    let c = rawCost || 0;
+    if (c > 0 && typeof getGlobalManaCostMult === 'function') {
+        c = Math.max(0, Math.ceil(c * getGlobalManaCostMult(player)));
+    }
+    return c;
+}
+
+function applyLessonAbilityDmgMult(dmg) {
+    if (!dmg) return 0;
+    if (typeof getGlobalAbilityDmgMult === 'function') {
+        return Math.floor(dmg * getGlobalAbilityDmgMult(player));
+    }
+    return dmg;
+}
+
+function applyLessonHealMult(amount) {
+    if (!amount) return 0;
+    if (typeof getHealPotencyMult === 'function') {
+        return Math.floor(amount * getHealPotencyMult(player));
+    }
+    return amount;
+}
+
 function requireBattleEngaged() {
     if (typeof isBattleEngaged === 'function' && !isBattleEngaged()) {
         if (typeof addMessage === 'function') addMessage('⚔️ Сначала нажмите «В бой» на поле сражения.', 'error');
@@ -203,7 +227,7 @@ function useBattleAbility(index) {
         return;
     }
     
-    let manaCost = a.mana || 0;
+    let manaCost = getScaledAbilityManaCost(a.mana || 0);
     if (nextFreeMana) {
         manaCost = 0;
         nextFreeMana = false;
@@ -265,7 +289,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         return;
     }
 
-    let manaCost = a.mana || 0;
+    let manaCost = getScaledAbilityManaCost(a.mana || 0);
     if (nextFreeMana) {
         manaCost = 0;
         nextFreeMana = false;
@@ -320,6 +344,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     let dmg = (a.noDamage || !a.dmg) ? 0 : Math.floor(getPlayerEffectiveAttack() * a.dmg / 100);
+    dmg = applyLessonAbilityDmgMult(dmg);
     ignoreShieldsThisHit = !!a.ignoreShields;
     
     if (a.rampUp && rageStack > 0) {
@@ -342,12 +367,12 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
             abilityComboStep++;
             if (abilityComboStep >= a.combo.length) { abilityComboStep = 0; comboAbilityId = null; }
             const currentStep = Math.min(abilityComboStep, a.combo.length - 1);
-            dmg = Math.floor(getPlayerEffectiveAttack() * a.combo[currentStep] / 100);
+            dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.combo[currentStep] / 100));
             addBattleLog(`🔁 Комбо-удар ${abilityComboStep + 1}/${a.combo.length}!`, 'info');
         } else {
             comboAbilityId = a.name;
             abilityComboStep = 0;
-            dmg = Math.floor(getPlayerEffectiveAttack() * a.combo[0] / 100);
+            dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.combo[0] / 100));
             addBattleLog(`🌀 Начало комбо!`, 'info');
         }
     }
@@ -523,6 +548,9 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     if (a.effect) {
         let effectDur = a.effect.dur;
         let effectVal = a.effect.val ?? a.effect.value;
+        if (effectVal != null && typeof getLessonEffectMultiplier === 'function') {
+            effectVal = Math.floor(effectVal * getLessonEffectMultiplier(player, a.effect.type));
+        }
         if (doubleThisCast) {
             effectDur = Math.floor(effectDur * 1.5);
             effectVal = Math.floor(effectVal * 1.5);
@@ -599,6 +627,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     
     if (a.heal) {
         let healAmount = Math.floor(player.maxHealth * a.heal / 100);
+        healAmount = applyLessonHealMult(healAmount);
         if (player.temporaryEffects.some(e => e.healBonus)) {
             const healBonus = player.temporaryEffects.find(e => e.healBonus).healBonus;
             healAmount = Math.floor(healAmount * (1 + healBonus / 100));
@@ -763,14 +792,14 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.doubleHit) {
-        dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * 2;
+        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * 2;
         addBattleLog(`🏹 Двойной выстрел!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 2);
         }
     }
     if (a.tripleHit) {
-        dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * 3;
+        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * 3;
         addBattleLog(`🏹 Тройной выстрел!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 3);
@@ -778,7 +807,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     if (a.quadHit) {
         const hits = a.hitCount || 4;
-        dmg = Math.floor(getPlayerEffectiveAttack() * a.dmg / 100) * hits;
+        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * hits;
         addBattleLog(`🏹 ${hits} выстрела!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * hits);
@@ -796,7 +825,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         let totalDmg = 0;
         for (let h = 0; h < a.multiHit.hits; h++) {
             const step = a.multiHit.ramp ?? a.multiHit.increment ?? 0;
-            let hitDmg = Math.floor(getPlayerEffectiveAttack() * (a.multiHit.baseDmg + h * step) / 100);
+            let hitDmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * (a.multiHit.baseDmg + h * step) / 100));
             if (a.multiHit.critRamp) {
                 if (Math.random() * 100 <= (player.criticalChance + h * a.multiHit.critRamp)) {
                     hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));

@@ -180,6 +180,8 @@ function finalizeCharacter() {
         abilities: [],
         abilityQuickSlots: [null, null, null, null, null],
         abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
+        abilityUpgrades: {},
+        schoolLessons: [],
         battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' },
         uiKeys: { back: 'Backspace' },
         unlockedSkins: [],
@@ -244,9 +246,13 @@ function updateAllAbilities() {
         console.error('Школа не найдена:', player.class, player.branch);
         return;
     }
-    player.abilities = school.abilities.filter(a => player.level >= a.lvl).map(a => ({
-        ...a, currentCooldown: 0
-    }));
+    if (typeof buildPlayerAbilitiesFromSchool === 'function') {
+        player.abilities = buildPlayerAbilitiesFromSchool(player);
+    } else {
+        player.abilities = school.abilities.filter(a => player.level >= a.lvl).map(a => ({
+            ...a, currentCooldown: 0
+        }));
+    }
     console.log(`Загружено способностей: ${player.abilities.length}`);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
     if (typeof sanitizeAbilityQuickKeys === 'function') sanitizeAbilityQuickKeys();
@@ -257,10 +263,12 @@ function updateAllAbilities() {
 /** Пассивные способности школы (permAtk, контратака и т.д.) */
 function applyPassiveAbilityBonuses() {
     if (!player || !player.abilities) return;
-    player._passiveWeakspot = 0;
+    if (typeof applySchoolLessonBonusesToPlayer === 'function') applySchoolLessonBonusesToPlayer(player);
+    const L = player._lessonBonuses || {};
+    player._passiveWeakspot = L.weakspotBonus || 0;
     player._passiveCounterChance = 0;
     player._passiveCounterDmg = 80;
-    let permAtk = 0, permCrit = 0, permCritDmg = 0;
+    let permAtk = L.permAtk || 0, permCrit = L.permCrit || 0, permCritDmg = L.permCritDmg || 0;
     for (const ab of player.abilities) {
         if (!ab.passive) continue;
         permAtk += ab.permAtk || 0;
@@ -271,6 +279,9 @@ function applyPassiveAbilityBonuses() {
             player._passiveCounterChance = Math.max(player._passiveCounterChance, ab.counterChance);
             player._passiveCounterDmg = ab.counterDmg || player._passiveCounterDmg;
         }
+    }
+    if (L.counterChance) {
+        player._passiveCounterChance = Math.max(player._passiveCounterChance, L.counterChance);
     }
     player._passiveAtkPercent = permAtk;
     player._passiveCritFlat = permCrit;
@@ -311,18 +322,29 @@ function resetBaseStats() {
         }
     }
     
+    if (typeof applySchoolLessonBonusesToPlayer === 'function') applySchoolLessonBonusesToPlayer(player);
+
     const baseHealth = 80;
     player.maxHealth = Math.floor(baseHealth + player.level * 10) + bonusHp;
+    if (player._lessonBonuses && player._lessonBonuses.maxHealthPct) {
+        player.maxHealth = Math.floor(player.maxHealth * (1 + player._lessonBonuses.maxHealthPct / 100));
+    }
     
     if (player.class === 'Маг') {
         const baseMana = 100;
         player.maxMana = Math.floor(baseMana + player.level * 10) + bonusMana;
+        if (player._lessonBonuses && player._lessonBonuses.maxManaPct) {
+            player.maxMana = Math.floor(player.maxMana * (1 + player._lessonBonuses.maxManaPct / 100));
+        }
         if (player.branch === 'Школа Льда') {
             player.maxMana = Math.floor(player.maxMana * 1.12) + 12;
         }
         if (player.mana > player.maxMana) player.mana = player.maxMana;
     }
     
+    if (player._lessonBonuses && player._lessonBonuses.dodgeFlat) {
+        player.dodgeChance = Math.min(70, player.dodgeChance + player._lessonBonuses.dodgeFlat);
+    }
     player.criticalChance = Math.min(50, player.criticalChance);
     player.criticalDamage = Math.min(250, player.criticalDamage);
     player.dodgeChance = Math.min(70, player.dodgeChance);

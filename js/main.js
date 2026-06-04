@@ -676,6 +676,8 @@ function migrateOldSave(playerData) {
         playerData.dungeonProgress.activeRun = null;
     }
 
+    if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
+
     return playerData;
 }
 

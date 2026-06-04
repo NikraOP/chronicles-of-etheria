@@ -125,29 +125,42 @@ function showAbilities() {
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
+    if (typeof updateAllAbilities === 'function') updateAllAbilities();
     if (typeof ensureAbilityQuickSlots === 'function') ensureAbilityQuickSlots(player);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
     if (typeof sanitizeAbilityQuickKeys === 'function') sanitizeAbilityQuickKeys();
     let html = '<h2>✨ Способности</h2><p>Школа: <strong>' + player.branch + '</strong></p>';
+    if (typeof buildAbilityProgressionPanelHtml === 'function') {
+        html += buildAbilityProgressionPanelHtml();
+    }
     if (typeof buildAbilityHotbarEditorHtml === 'function') {
         html += buildAbilityHotbarEditorHtml();
     }
     html += '<div class="ability-grid ability-grid--picker" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 15px;">';
-    const abilities = ABILITIES_DB[player.class]?.[player.branch]?.abilities || [];
-    abilities.forEach(a => {
+    const abilities = player.abilities && player.abilities.length
+        ? player.abilities
+        : (ABILITIES_DB[player.class]?.[player.branch]?.abilities || []);
+    const allSchool = ABILITIES_DB[player.class]?.[player.branch]?.abilities || [];
+    allSchool.forEach(a => {
         const unlocked = player.level >= a.lvl;
+        const live = unlocked ? abilities.find(function (x) { return x.name === a.name; }) : null;
+        const card = live || a;
+        const upRank = unlocked && typeof getAbilityUpgradeRank === 'function'
+            ? getAbilityUpgradeRank(player, a.name) : 0;
         const assignable = unlocked && !a.passive;
         const dragClass = assignable ? ' ability-hotbar-source' : '';
         const dragAttr = assignable ? ' data-ability-name="' + String(a.name).replace(/"/g, '&quot;') + '"' : '';
         html += '<div class="ability-card' + (unlocked ? ' unlocked' : ' on-cooldown') + dragClass + '"' + dragAttr + ' style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.3s;">' +
             '<div style="display: flex; align-items: center; gap: 10px;">' +
-                '<span style="font-size: 28px;">' + (a.icon || '✨') + '</span>' +
-                '<div class="ability-name" style="font-weight: 700; font-size: 15px; color: var(--gold);">' + a.name + '</div>' +
+                '<span style="font-size: 28px;">' + (card.icon || '✨') + '</span>' +
+                '<div class="ability-name" style="font-weight: 700; font-size: 15px; color: var(--gold);">' + a.name +
+                    (upRank ? ' <span class="ability-rank-badge">' + '★'.repeat(upRank) + '</span>' : '') +
+                '</div>' +
             '</div>' +
-            '<div class="ability-desc" style="font-size: 11px; color: var(--text-secondary); margin: 8px 0;">' + a.desc + '</div>' +
+            '<div class="ability-desc" style="font-size: 11px; color: var(--text-secondary); margin: 8px 0;">' + (card.desc || a.desc) + '</div>' +
             '<div class="level-req" style="font-size: 10px; color: var(--gold);">🔓 Открывается на ' + a.lvl + ' уровне</div>' +
-            (a.mana ? '<div style="font-size: 10px; color: var(--blue); margin-top: 4px;">💎 Стоимость: ' + a.mana + ' маны</div>' : '') +
-            (a.cd ? '<div style="font-size: 10px; color: var(--orange);">⏱️ Перезарядка: ' + a.cd + ' хода</div>' : '') +
+            (card.mana ? '<div style="font-size: 10px; color: var(--blue); margin-top: 4px;">💎 Стоимость: ' + card.mana + ' маны</div>' : '') +
+            (card.cd ? '<div style="font-size: 10px; color: var(--orange);">⏱️ Перезарядка: ' + card.cd + ' хода</div>' : '') +
             (!unlocked ? '<div style="font-size: 10px; color: #e74c3c; margin-top: 4px;">🔒 Закрыто</div>' : '<div style="font-size: 10px; color: #2ecc71; margin-top: 4px;">✅ Доступно</div>') +
         '</div>';
     });

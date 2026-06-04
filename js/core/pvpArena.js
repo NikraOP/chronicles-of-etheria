@@ -211,8 +211,14 @@ function sanitizePvPAbility(ability) {
 }
 
 function serializePvPAbilitiesFromPlayer() {
-    if (!player || !Array.isArray(player.abilities)) return [];
-    return player.abilities.map(a => sanitizePvPAbility(JSON.parse(JSON.stringify(a)))).filter(Boolean);
+    if (!player) return [];
+    let list = player.abilities;
+    if (typeof getPlayerAbilitiesForBattle === 'function' &&
+        typeof PROGRESSION_BALANCE !== 'undefined' && !PROGRESSION_BALANCE.applyInPvp) {
+        list = getPlayerAbilitiesForBattle(player, { pvp: true });
+    }
+    if (!Array.isArray(list)) return [];
+    return list.map(a => sanitizePvPAbility(JSON.parse(JSON.stringify(a)))).filter(Boolean);
 }
 
 function clampPvPNumber(value, min, max, fallback) {
