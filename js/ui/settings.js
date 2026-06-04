@@ -16,6 +16,7 @@ function buildSettingsTabsHtml(activeTab) {
 function showSettings(activeTab) {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof cancelAllKeyBindModes === 'function') cancelAllKeyBindModes();
     if (typeof stopGathering === 'function') stopGathering();
     const el = document.getElementById('dynamicContent');
     if (!el) return;
@@ -57,10 +58,9 @@ function showSettings(activeTab) {
             '<button type="button" class="action-btn" onclick="closeSettings();showSaveLoadPanel()">💾 Сохранения</button>' +
             '<button type="button" class="action-btn theme-btn-ghost" onclick="if(window.createNewCharacter) window.createNewCharacter()">🔄 Новый персонаж</button>' +
             '</div></section>';
+        if (typeof sanitizeAllPlayerKeybinds === 'function') sanitizeAllPlayerKeybinds();
         if (typeof initUiKeysSettings === 'function') initUiKeysSettings();
         if (typeof initBattleKeysSettings === 'function') initBattleKeysSettings();
-        if (typeof sanitizeUiKeys === 'function') sanitizeUiKeys();
-        if (typeof sanitizeBattleKeys === 'function') sanitizeBattleKeys();
     }
 
     const gear = document.querySelector('.settings-gear-btn');

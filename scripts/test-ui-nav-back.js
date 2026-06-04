@@ -45,4 +45,20 @@ const html = ctx.buildUiKeysSettingsHtml();
 assert(html.indexOf('data-ui-bind="back"') !== -1, 'settings back bind');
 assert(html.indexOf('Навигация') !== -1, 'nav settings section');
 
+assert(ctx.setUiKey('back', 'KeyA') === true, 'bind back to KeyA');
+ctx.sanitizeAllPlayerKeybinds();
+assert(ctx.player.uiKeys.back === 'KeyA', 'ui back kept after sanitize');
+assert(ctx.player.battleKeys.attack !== 'KeyA', 'attack moved from KeyA');
+
+ctx.startUiKeyBind('back');
+const bindEvent = {
+    code: 'KeyG',
+    target: { tagName: 'BUTTON', isContentEditable: false, closest: (sel) => (sel && sel.indexOf('settingsUiKeys') >= 0 ? {} : null) },
+    preventDefault() {},
+    stopPropagation() {},
+    repeat: false
+};
+ctx.handleAbilityHotbarKeydown(bindEvent);
+assert(ctx.player.uiKeys.back === 'KeyG', 'bind mode assigns KeyG');
+
 console.log('test-ui-nav-back: OK');

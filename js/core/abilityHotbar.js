@@ -78,13 +78,36 @@ function isAbilityHotbarBindableKey(code, options) {
     return true;
 }
 
+function isKeyBindListening() {
+    return _uiBindAction !== null || _battleBindAction !== null || _hotbarBindSlotIndex !== null;
+}
+
 function isAbilityHotbarTypingTarget(el) {
+    if (isKeyBindListening()) return false;
     if (!el) return false;
     const tag = (el.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
     if (el.isContentEditable) return true;
-    if (el.closest && el.closest('.modal-overlay, #modalOverlay, #nameInput, .settings-panel')) return true;
+    if (el.closest && el.closest('.modal-overlay, #modalOverlay, #nameInput')) return true;
+    if (el.closest && el.closest('.settings-panel') && !el.closest('#settingsUiKeys, #settingsBattleKeys')) return true;
     return false;
+}
+
+function findFreeBindableKey(usedSet, options) {
+    options = options || {};
+    const candidates = [];
+    for (let i = 0; i < 26; i++) {
+        candidates.push('Key' + String.fromCharCode(65 + i));
+    }
+    for (let d = 0; d <= 9; d++) candidates.push('Digit' + d);
+    candidates.push('Space', 'Backspace', 'KeyQ', 'KeyR', 'KeyF', 'KeyZ', 'KeyX', 'KeyC', 'KeyV');
+    for (let i = 0; i < candidates.length; i++) {
+        const c = candidates[i];
+        if (usedSet.has(c)) continue;
+        if (!isAbilityHotbarBindableKey(c, options)) continue;
+        return c;
+    }
+    return null;
 }
 
 function isBattleScreenActive() {
@@ -123,7 +146,7 @@ function getUiKey(action) {
 
 function setUiKey(action, code) {
     if (!player || UI_KEY_ACTIONS.indexOf(action) < 0) return false;
-    if (!isAbilityHotbarBindableKey(code)) {
+    if (!isAbilityHotbarBindableKey(code, { allowEscape: action === 'back' })) {
         if (typeof addMessage === 'function') addMessage('Эту клавишу нельзя назначить.', 'error');
         return false;
     }
@@ -134,32 +157,52 @@ function setUiKey(action, code) {
     return true;
 }
 
-function sanitizeUiKeys() {
+function sanitizeAllPlayerKeybinds() {
     if (!player) return;
-    ensureUiKeys(player);
-    ensureBattleKeys(player);
     ensureAbilityQuickKeys(player);
-    const used = new Map();
-    BATTLE_KEY_ACTIONS.forEach(action => {
-        const code = player.battleKeys[action];
-        if (code) used.set(code, 'battle-' + action);
-    });
-    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
-        const code = player.abilityQuickKeys[i];
-        if (code) used.set(code, 'quick-' + i);
-    }
+    ensureBattleKeys(player);
+    ensureUiKeys(player);
+    const used = new Set();
+
     UI_KEY_ACTIONS.forEach(action => {
         let code = player.uiKeys[action];
-        if (!code || !isAbilityHotbarBindableKey(code)) {
+        const uiOpts = { allowEscape: action === 'back' };
+        if (!code || !isAbilityHotbarBindableKey(code, uiOpts)) {
             code = DEFAULT_UI_KEYS[action];
-            player.uiKeys[action] = code;
+        }
+        player.uiKeys[action] = code;
+        used.add(code);
+    });
+
+    BATTLE_KEY_ACTIONS.forEach(action => {
+        let code = player.battleKeys[action];
+        const battleOpts = { allowEscape: action === 'continue' };
+        if (!code || !isAbilityHotbarBindableKey(code, battleOpts)) {
+            code = DEFAULT_BATTLE_KEYS[action];
         }
         if (used.has(code)) {
-            player.uiKeys[action] = DEFAULT_UI_KEYS[action];
-            code = player.uiKeys[action];
+            const fallback = findFreeBindableKey(used, battleOpts);
+            code = fallback || DEFAULT_BATTLE_KEYS[action];
         }
-        used.set(code, 'ui-' + action);
+        player.battleKeys[action] = code;
+        used.add(code);
     });
+
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        let code = player.abilityQuickKeys[i];
+        if (!code || !isAbilityHotbarBindableKey(code)) {
+            code = DEFAULT_ABILITY_QUICK_KEYS[i];
+        }
+        if (used.has(code)) {
+            code = findFreeBindableKey(used) || DEFAULT_ABILITY_QUICK_KEYS[i];
+        }
+        player.abilityQuickKeys[i] = code;
+        used.add(code);
+    }
+}
+
+function sanitizeUiKeys() {
+    sanitizeAllPlayerKeybinds();
 }
 
 function getBattleKey(action) {
@@ -179,10 +222,22 @@ function releaseKeyFromAllBinds(code, except) {
             player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
         }
     }
+    const reserved = new Set([code]);
+    UI_KEY_ACTIONS.forEach(action => {
+        if (except && except.type === 'ui' && except.action === action) return;
+        if (player.uiKeys[action]) reserved.add(player.uiKeys[action]);
+    });
     BATTLE_KEY_ACTIONS.forEach(action => {
         if (except && except.type === 'battle' && except.action === action) return;
         if (player.battleKeys[action] === code) {
-            player.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
+            let fallback = DEFAULT_BATTLE_KEYS[action];
+            if (reserved.has(fallback)) {
+                fallback = findFreeBindableKey(reserved, { allowEscape: action === 'continue' }) || fallback;
+            }
+            player.battleKeys[action] = fallback;
+            reserved.add(fallback);
+        } else if (player.battleKeys[action]) {
+            reserved.add(player.battleKeys[action]);
         }
     });
     UI_KEY_ACTIONS.forEach(action => {
@@ -207,29 +262,7 @@ function setBattleKey(action, code) {
 }
 
 function sanitizeBattleKeys() {
-    if (!player) return;
-    ensureBattleKeys(player);
-    const used = new Map();
-    BATTLE_KEY_ACTIONS.forEach(action => {
-        let code = player.battleKeys[action];
-        if (!code || !isAbilityHotbarBindableKey(code, { allowEscape: action === 'continue' })) {
-            code = DEFAULT_BATTLE_KEYS[action];
-            player.battleKeys[action] = code;
-        }
-        if (used.has(code)) {
-            player.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
-            code = player.battleKeys[action];
-        }
-        used.set(code, action);
-    });
-    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
-        const code = player.abilityQuickKeys[i];
-        if (code && used.has(code)) {
-            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
-        } else if (code) {
-            used.set(code, 'quick-' + i);
-        }
-    }
+    sanitizeAllPlayerKeybinds();
 }
 
 function cancelAllKeyBindModes() {
@@ -751,15 +784,27 @@ function handleAbilityHotbarKeydown(e) {
     if (!player) return;
 
     if (_uiBindAction !== null) {
+        if (e.code === 'Escape' && _uiBindAction === 'back') {
+            e.preventDefault();
+            e.stopPropagation();
+            const action = _uiBindAction;
+            setUiKey(action, 'Escape');
+            _uiBindAction = null;
+            refreshSettingsUiKeysUi();
+            if (typeof addMessage === 'function') {
+                addMessage('«' + getUiKeyActionLabels()[action] + '»: клавиша «Esc».', 'success');
+            }
+            return;
+        }
         if (e.code === 'Escape') {
             e.preventDefault();
             cancelAllKeyBindModes();
             if (typeof addMessage === 'function') addMessage('Назначение клавиши отменено.', 'info');
             return;
         }
-        if (!isAbilityHotbarBindableKey(e.code)) return;
         e.preventDefault();
         e.stopPropagation();
+        if (!isAbilityHotbarBindableKey(e.code, { allowEscape: _uiBindAction === 'back' })) return;
         const action = _uiBindAction;
         setUiKey(action, e.code);
         _uiBindAction = null;
@@ -1041,6 +1086,7 @@ window.ensureUiKeys = ensureUiKeys;
 window.getUiKey = getUiKey;
 window.setUiKey = setUiKey;
 window.sanitizeUiKeys = sanitizeUiKeys;
+window.sanitizeAllPlayerKeybinds = sanitizeAllPlayerKeybinds;
 window.buildUiKeysSettingsHtml = buildUiKeysSettingsHtml;
 window.initUiKeysSettings = initUiKeysSettings;
 window.refreshSettingsUiKeysUi = refreshSettingsUiKeysUi;
