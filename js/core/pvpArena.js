@@ -1,11 +1,12 @@
-// PvP Arena: MQTT/Nostr signaling + WebRTC TURN (быстрый join, без блокирующих probe).
+// PvP Arena: MQTT data channel (без WebRTC/TURN) + резерв Nostr/Trystero.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 2;
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v4';
 const PVP_WS_MODULE_URL = '../vendor/trystero-ws.bundle.mjs?v=1';
 const PVP_WS_RELAY_LS_KEY = 'etheria_pvp_ws_relay_url';
 const PVP_WS_PROBE_MS = 2500;
-const PVP_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=12';
+const PVP_MQTT_MODULE_URL = '../vendor/pvp-mqtt-direct.bundle.mjs?v=1';
+const PVP_TRYSTERO_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=12';
 const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=13';
 const PVP_MQTT_PROBE_MS = 2000;
 /** MQTT; redundancy 1 — два брокера параллельно часто дают connack timeout у гостя. */
@@ -1284,7 +1285,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP: MQTT-сигналинг + TURN (резерв Nostr). Ctrl+Shift+R у обоих. Ключ Metered опционален для разных сетей. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">openrelay</a></p>
+            <p class="pvp-hint">PvP: данные через MQTT (WebRTC/TURN не нужны). Ctrl+Shift+R у обоих. Один код комнаты — хост и гость.</p>
             <div class="pvp-metered-key-row">
                 <label class="pvp-room-label" for="pvpMeteredApiKey">Credential API Key (не Secret Key sk_…)</label>
                 <input id="pvpMeteredApiKey" class="hero-input pvp-code-input" type="password" autocomplete="off" placeholder="Show API Key у TURN credential в Metered">
@@ -1400,7 +1401,9 @@ function loadPvPTransport(backend) {
     const kind = backend || pvpSignalingBackend;
     const moduleUrl = kind === 'ws'
         ? PVP_WS_MODULE_URL
-        : (kind === 'nostr' ? PVP_NOSTR_MODULE_URL : PVP_MQTT_MODULE_URL);
+        : (kind === 'nostr'
+            ? PVP_NOSTR_MODULE_URL
+            : (kind === 'trystero-mqtt' ? PVP_TRYSTERO_MQTT_MODULE_URL : PVP_MQTT_MODULE_URL));
     if (!pvpTrysteroModuleCache[kind]) {
         pvpTrysteroModuleCache[kind] = import(moduleUrl).catch(err => {
             delete pvpTrysteroModuleCache[kind];
@@ -1408,6 +1411,13 @@ function loadPvPTransport(backend) {
         });
     }
     return pvpTrysteroModuleCache[kind];
+}
+
+function getPvPMqttDirectConfig() {
+    return {
+        appId: PVP_TRYSTERO_APP_ID,
+        relayConfig: getPvPSignalingRelayConfig()
+    };
 }
 
 function getPvPTransportConfig(iceServers, joinOpts) {
@@ -1680,15 +1690,26 @@ function ensurePvPRelayProbe(iceServers, sessionId) {
 
 function setupPvPTransportRoom(mod, iceServers, code, sessionId, joinOpts) {
     const opts = joinOpts || {};
-    const sigLabel = pvpSignalingBackend === 'ws'
-        ? 'WebSocket relay'
-        : (pvpSignalingBackend === 'nostr' ? 'Nostr' : 'MQTT');
-    const room = mod.joinRoom(getPvPTransportConfig(iceServers, opts), pvpRoomId(code), {
+    const mqttDirect = !!opts.mqttDirect || pvpSignalingBackend === 'mqtt';
+    const sigLabel = mqttDirect
+        ? 'MQTT (без WebRTC)'
+        : (pvpSignalingBackend === 'ws'
+            ? 'WebSocket relay'
+            : (pvpSignalingBackend === 'nostr' ? 'Nostr' : 'MQTT'));
+    const transportConfig = mqttDirect
+        ? getPvPMqttDirectConfig()
+        : getPvPTransportConfig(iceServers, opts);
+    const room = mod.joinRoom(transportConfig, pvpRoomId(code), {
         handshakeTimeoutMs: PVP_HANDSHAKE_TIMEOUT_MS,
         onJoinError(details) {
             if (sessionId !== pvpSessionId) return;
             if (details && details.error) {
                 pvpLog(`Технически: ${String(details.error).slice(0, 220)}`, 'error');
+            }
+            if (mqttDirect) {
+                pvpLog('MQTT: не удалось подключиться к брокеру. Ctrl+Shift+R, новая комната.', 'error');
+                renderPvPArena();
+                return;
             }
             const signalingFail = isPvPSignalingError(details);
             if (signalingFail && !opts.triedNostr && pvpSignalingBackend === 'mqtt') {
@@ -1771,18 +1792,27 @@ function joinPvPTransportRoom(code, sessionId) {
         .then(() => resolvePvPSignalingBackend())
         .then(backend => {
             if (sessionId !== pvpSessionId) return;
-            return Promise.all([loadPvPTransport(backend), loadPvPIceServersForJoin()]);
+            return loadPvPTransport(backend);
         })
-        .then(result => {
-            if (!result || sessionId !== pvpSessionId) return;
-            const [mod, iceServers] = result;
-            pvpLog('ICE: подключение через TURN relay (разные сети).', 'info');
-            setupPvPTransportRoom(mod, iceServers, code, sessionId, {
-                iceTransportPolicy: PVP_DEFAULT_ICE_TRANSPORT,
-                triedMqtt: true,
-                triedNostr: false
+        .then(mod => {
+            if (!mod || sessionId !== pvpSessionId) return;
+            if (pvpSignalingBackend === 'mqtt') {
+                setupPvPTransportRoom(mod, null, code, sessionId, {
+                    mqttDirect: true,
+                    triedMqtt: true,
+                    triedNostr: false
+                });
+                return;
+            }
+            return loadPvPIceServersForJoin().then(iceServers => {
+                if (sessionId !== pvpSessionId) return;
+                setupPvPTransportRoom(mod, iceServers, code, sessionId, {
+                    iceTransportPolicy: PVP_DEFAULT_ICE_TRANSPORT,
+                    triedMqtt: false,
+                    triedNostr: pvpSignalingBackend === 'nostr'
+                });
+                runPvPRelayProbeBackground(iceServers, sessionId);
             });
-            runPvPRelayProbeBackground(iceServers, sessionId);
         })
         .catch(err => handlePvPError(err));
 }
