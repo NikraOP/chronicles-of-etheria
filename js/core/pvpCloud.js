@@ -2,7 +2,8 @@
  * PvP через облако (тот же API, что и друзья): комнаты, опрос, авто-синхронизация ходов.
  */
 const PVP_CLOUD_LS_KEY = 'etheria_pvp_cloud_v1';
-const PVP_CLOUD_POLL_MS = 1300;
+const PVP_CLOUD_POLL_WAIT_SEC = 22;
+const PVP_CLOUD_POLL_GAP_MS = 120;
 const PVP_MSG_VERSION = 2;
 
 let pvpCloudPollTimer = null;
@@ -83,26 +84,42 @@ function setPvPCloudSyncPending(pending) {
 
 function stopPvPCloudPolling() {
     if (pvpCloudPollTimer) {
-        clearInterval(pvpCloudPollTimer);
+        clearTimeout(pvpCloudPollTimer);
         pvpCloudPollTimer = null;
     }
 }
 
 function startPvPCloudPolling() {
     stopPvPCloudPolling();
-    pvpCloudPollTick();
-    pvpCloudPollTimer = setInterval(pvpCloudPollTick, PVP_CLOUD_POLL_MS);
+    pvpCloudPollLoop();
+}
+
+function schedulePvPCloudPoll(delayMs) {
+    if (pvpCloudPollTimer) clearTimeout(pvpCloudPollTimer);
+    pvpCloudPollTimer = setTimeout(pvpCloudPollLoop, delayMs);
+}
+
+async function pvpCloudPollLoop() {
+    if (!pvpState || pvpState.transport !== 'cloud' || !pvpState.roomCode || !pvpState.cloudSessionId) {
+        stopPvPCloudPolling();
+        return;
+    }
+    const hadEvents = await pvpCloudPollTick();
+    if (!pvpState || pvpState.transport !== 'cloud') return;
+    schedulePvPCloudPoll(hadEvents ? 40 : PVP_CLOUD_POLL_GAP_MS);
 }
 
 async function pvpCloudPollTick() {
-    if (!pvpState || pvpState.transport !== 'cloud' || !pvpState.roomCode || !pvpState.cloudSessionId) return;
-    if (pvpCloudPollInFlight) return;
+    if (!pvpState || pvpState.transport !== 'cloud' || !pvpState.roomCode || !pvpState.cloudSessionId) return false;
+    if (pvpCloudPollInFlight) return false;
     pvpCloudPollInFlight = true;
+    let hadEvents = false;
     try {
         const data = await pvpCloudFetch(
             '/api/v1/pvp/room/' + encodeURIComponent(pvpState.roomCode) +
             '/poll?sessionId=' + encodeURIComponent(pvpState.cloudSessionId) +
-            '&since=' + encodeURIComponent(String(pvpCloudLastSeq || 0))
+            '&since=' + encodeURIComponent(String(pvpCloudLastSeq || 0)) +
+            '&wait=' + encodeURIComponent(String(PVP_CLOUD_POLL_WAIT_SEC))
         );
         if (data.room && data.room.hasGuest) {
             if (!pvpRemotePeerId) pvpRemotePeerId = 'cloud-peer';
@@ -125,6 +142,7 @@ async function pvpCloudPollTick() {
             }
         }
         const events = data.events || [];
+        hadEvents = events.length > 0;
         for (let i = 0; i < events.length; i++) {
             const ev = events[i];
             if (!ev || ev.seq <= pvpCloudLastSeq) continue;
@@ -145,6 +163,7 @@ async function pvpCloudPollTick() {
     } finally {
         pvpCloudPollInFlight = false;
     }
+    return hadEvents;
 }
 
 async function pvpCloudCreateRoom(roomCode, snapshot) {
