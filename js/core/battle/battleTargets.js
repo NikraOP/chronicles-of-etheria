@@ -81,6 +81,26 @@ function clearBattleTargetHover() {
     }
 }
 
+function clearBattleTargetReticles() {
+    const arena = document.getElementById('battleArena');
+    if (!arena) return;
+    arena.querySelectorAll('.battle-target-reticle').forEach(el => el.remove());
+}
+
+function refreshBattleTargetReticles() {
+    clearBattleTargetReticles();
+    if (!_targetingMode) return;
+    const arena = document.getElementById('battleArena');
+    if (!arena) return;
+    arena.querySelectorAll('.combatant-wrapper--targetable').forEach(function (wrapper) {
+        const reticle = document.createElement('span');
+        reticle.className = 'battle-target-reticle';
+        reticle.setAttribute('aria-hidden', 'true');
+        reticle.textContent = '🎯';
+        wrapper.appendChild(reticle);
+    });
+}
+
 function refreshBattleTargetableHighlights(validKinds) {
     const arena = document.getElementById('battleArena');
     if (!arena) return;
@@ -103,6 +123,12 @@ function refreshBattleTargetableHighlights(validKinds) {
         const aw = document.getElementById('allyWrapper');
         if (aw) aw.classList.add('combatant-wrapper--targetable');
     }
+}
+
+function refreshBattleTargetingUi() {
+    if (!_targetingMode || !_pendingAction) return;
+    refreshBattleTargetableHighlights(_pendingAction.validKinds);
+    refreshBattleTargetReticles();
 }
 
 function parseTargetFromWrapper(wrapper) {
@@ -134,6 +160,7 @@ function cancelBattleTargeting() {
         arena.querySelectorAll('.combatant-wrapper--targetable').forEach(el => {
             el.classList.remove('combatant-wrapper--targetable');
         });
+        clearBattleTargetReticles();
         const hint = arena.querySelector('.battle-targeting-hint');
         if (hint) hint.remove();
     }
@@ -193,11 +220,11 @@ function beginBattleTargeting(opts) {
         hint = document.createElement('div');
         hint.className = 'battle-targeting-hint';
         hint.setAttribute('role', 'status');
-        arena.appendChild(hint);
+        arena.insertBefore(hint, arena.firstChild);
     }
     hint.textContent = opts.hint || 'Выберите цель (Esc — отмена)';
 
-    refreshBattleTargetableHighlights(validKinds);
+    refreshBattleTargetingUi();
     if (typeof updateBattleButtons === 'function') updateBattleButtons();
     return true;
 }
@@ -276,10 +303,12 @@ function restoreBattleTargetingUi() {
         hint = document.createElement('div');
         hint.className = 'battle-targeting-hint';
         hint.setAttribute('role', 'status');
-        arena.appendChild(hint);
+        arena.insertBefore(hint, arena.firstChild);
     }
     hint.textContent = 'Выберите цель (Esc — отмена)';
-    refreshBattleTargetableHighlights(_pendingAction.validKinds);
+    refreshBattleTargetingUi();
 }
 
 window.restoreBattleTargetingUi = restoreBattleTargetingUi;
+window.refreshBattleTargetingUi = refreshBattleTargetingUi;
+window.refreshBattleTargetReticles = refreshBattleTargetReticles;

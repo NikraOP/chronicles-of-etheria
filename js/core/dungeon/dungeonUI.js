@@ -25,6 +25,35 @@ function isDungeonDuoReady() {
     return typeof createDuoDungeonLobby === 'function' && typeof joinDuoDungeonLobby === 'function';
 }
 
+/**
+ * @param {object} dungeon
+ * @param {'card'|'detail'} variant
+ * @returns {{ style: string, className: string }}
+ */
+function buildDungeonThemeStyle(dungeon, variant) {
+    const theme = dungeon && dungeon.theme;
+    if (!theme) return { style: '', className: '' };
+    variant = variant || 'detail';
+    const parts = [];
+    let className = '';
+    if (theme.bgColor) parts.push('background:' + theme.bgColor);
+    if (theme.backgroundImage) {
+        const url = escapeDungeonText(theme.backgroundImage);
+        const overlay = variant === 'card'
+            ? 'linear-gradient(180deg, rgba(8,6,12,0.55) 0%, rgba(8,6,12,0.88) 100%)'
+            : 'linear-gradient(165deg, rgba(8,6,12,0.5) 0%, rgba(8,6,12,0.88) 100%)';
+        parts.push('background-image:' + overlay + ', url(' + url + ')');
+        parts.push('background-size:cover');
+        parts.push('background-position:center');
+        className = variant === 'card' ? 'dungeon-card--themed' : 'dungeon-detail--themed';
+    }
+    if (!parts.length) return { style: '', className: '' };
+    return {
+        style: ' style="' + parts.join(';') + ';"',
+        className: className
+    };
+}
+
 function buildDungeonDescription(dungeon) {
     if (!dungeon) return '';
     const floors = dungeon.floors || {};
@@ -53,6 +82,10 @@ function renderDungeonLevelLine(dungeon, unlocked) {
 }
 
 function showDungeonsHub() {
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (session && !session.committed && typeof abandonDungeonRun === 'function') {
+        abandonDungeonRun(false);
+    }
     if (!dungeonUiPrepareScreen('renderGame', [])) return;
     const el = document.getElementById('dynamicContent');
     if (!el) return;
@@ -64,7 +97,10 @@ function showDungeonsHub() {
         const unlocked = isDungeonUnlocked(dungeon);
         const id = escapeDungeonText(dungeon.id);
         const click = unlocked ? 'openDungeonDetail(\'' + String(dungeon.id).replace(/'/g, "\\'") + '\')' : '';
-        cards += '<div class="dungeon-card' + (unlocked ? '' : ' locked') + '"' +
+        const themeUi = buildDungeonThemeStyle(dungeon, 'card');
+        cards += '<div class="dungeon-card' + (unlocked ? '' : ' locked') +
+            (themeUi.className ? ' ' + themeUi.className : '') + '"' +
+            themeUi.style +
             (click ? ' onclick="' + click + '"' : '') +
             ' role="button" tabindex="' + (unlocked ? '0' : '-1') + '"' +
             (unlocked ? '' : ' aria-disabled="true"') + '>' +
@@ -95,6 +131,11 @@ function openDungeonDetail(dungeonId) {
     const el = document.getElementById('dynamicContent');
     if (!el) return;
 
+    const hasSession = typeof getDungeonRunSession === 'function' && getDungeonRunSession();
+    if (!hasSession && typeof tryResumeActiveDungeonRun === 'function') {
+        tryResumeActiveDungeonRun(dungeonId);
+    }
+
     const dungeon = typeof getDungeonById === 'function'
         ? getDungeonById(dungeonId)
         : (typeof DUNGEONS_DB !== 'undefined' ? DUNGEONS_DB.find(function (d) { return d.id === dungeonId; }) : null);
@@ -110,9 +151,7 @@ function openDungeonDetail(dungeonId) {
     const desc = buildDungeonDescription(dungeon);
     const duoReady = isDungeonDuoReady();
     const isDuo = dungeon.mode === 'duo';
-    const themeStyle = dungeon.theme && dungeon.theme.bgColor
-        ? ' style="background:' + escapeDungeonText(dungeon.theme.bgColor) + ';"'
-        : '';
+    const themeUi = buildDungeonThemeStyle(dungeon, 'detail');
 
     let actions = '<button type="button" class="action-btn dungeon-detail__back" onclick="showDungeonsHub()">← К списку</button>';
 
@@ -122,6 +161,9 @@ function openDungeonDetail(dungeonId) {
     if (unlocked) {
         if (soloActive) {
             actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartRoomBattle()">⚔️ В бой</button>';
+            if (soloSession.committed) {
+                actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="abandonDungeonRun(true);showDungeonsHub()">Покинуть забег</button>';
+            }
         }
         if (isDuo) {
             const duoClickCreate = duoReady
@@ -133,7 +175,7 @@ function openDungeonDetail(dungeonId) {
             actions +=
                 '<button type="button" class="action-btn" onclick="' + duoClickCreate + '">Создать комнату</button>' +
                 '<button type="button" class="action-btn" onclick="' + duoClickJoin + '">Присоединиться</button>';
-        } else {
+        } else if (!soloActive) {
             actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiEnterSolo(\'' + idSafe + '\')">Войти</button>';
         }
     } else {
@@ -144,7 +186,7 @@ function openDungeonDetail(dungeonId) {
 
     el.innerHTML =
         '<section class="dungeon-hub dungeon-hub--detail">' +
-        '<div class="dungeon-detail"' + themeStyle + '>' +
+        '<div class="dungeon-detail' + (themeUi.className ? ' ' + themeUi.className : '') + '"' + themeUi.style + '>' +
         '<div class="dungeon-detail__hero">' +
         '<span class="dungeon-detail__icon">' + escapeDungeonText(dungeon.icon || '🏰') + '</span>' +
         '<div class="dungeon-detail__titles">' +
@@ -168,6 +210,7 @@ function dungeonUiEnterSolo(dungeonId) {
     if (typeof startSoloDungeon === 'function') {
         const session = startSoloDungeon(dungeonId);
         if (!session) return;
+        if (typeof commitDungeonRun === 'function') commitDungeonRun();
         openDungeonDetail(dungeonId);
         return;
     }
@@ -264,13 +307,22 @@ function getActiveDungeonSession() {
     const raw = typeof getDungeonRunSession === 'function' ? getDungeonRunSession()
         : (typeof getDungeonSession === 'function' ? getDungeonSession() : null);
     if (!raw || !raw.run) return null;
+    const fi = raw.floorIndex || 0;
+    if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(raw.run, fi);
     const dungeon = typeof getDungeonById === 'function' ? getDungeonById(raw.dungeonId) : null;
+    const totalFloors = typeof getRunFloorCount === 'function' ? getRunFloorCount(raw.run) : 0;
+    const floorsArr = [];
+    for (let i = 0; i < totalFloors; i++) {
+        const f = typeof getFloorFromRun === 'function' ? getFloorFromRun(raw.run, i) : raw.run.floors[i];
+        if (f) floorsArr.push(f);
+    }
     return {
         dungeonId: raw.dungeonId,
         dungeonName: dungeon ? dungeon.name : '',
-        floorIndex: raw.floorIndex,
+        floorIndex: fi,
         roomIndex: raw.roomIndex,
-        floors: raw.run.floors
+        totalFloors: totalFloors,
+        floors: floorsArr
     };
 }
 
@@ -291,7 +343,7 @@ function resolveRoomArchetypeIcon(room) {
  */
 function renderDungeonFloorMap() {
     const session = getActiveDungeonSession();
-    if (!session || !Array.isArray(session.floors)) return '';
+    if (!session || !session.floors || !session.floors.length) return '';
 
     const floorIndex = typeof session.floorIndex === 'number' ? session.floorIndex : 0;
     const roomIndex = typeof session.roomIndex === 'number' ? session.roomIndex : 0;
@@ -299,7 +351,8 @@ function renderDungeonFloorMap() {
     if (!floor || !Array.isArray(floor.rooms) || floor.rooms.length === 0) return '';
 
     const floorNum = floorIndex + 1;
-    const totalFloors = session.floors.length;
+    const totalFloors = session.totalFloors || session.floors.length;
+    const roomTotal = floor.rooms.length;
     let nodes = '';
 
     floor.rooms.forEach(function (room, i) {
@@ -328,7 +381,10 @@ function renderDungeonFloorMap() {
     return '<div class="dungeon-floor-map" role="navigation" aria-label="Карта этажа">' +
         '<div class="dungeon-floor-map__head">' +
         '<span class="dungeon-floor-map__title">' + escapeDungeonText(dungeonName) + '</span>' +
+        '<span class="dungeon-floor-map__meta">' +
         '<span class="dungeon-floor-map__floor">Этаж ' + floorNum + ' / ' + totalFloors + '</span>' +
+        '<span class="dungeon-floor-map__room">Комната ' + (roomIndex + 1) + ' / ' + roomTotal + '</span>' +
+        '</span>' +
         '</div>' +
         '<div class="dungeon-floor-map__track">' + nodes + '</div>' +
         '</div>';

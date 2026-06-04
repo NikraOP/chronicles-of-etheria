@@ -29,7 +29,7 @@ const ctx = {
         return ctx.DUNGEONS_DB.find(d => d.id === id);
     },
     pickDungeonMonsterPool(dungeon, floorIndex, rng) {
-        return dungeon.monsterPool[0];
+        return dungeon.monsterPool.slice();
     }
 };
 vm.createContext(ctx);
@@ -40,7 +40,9 @@ function load(rel) {
 
 ctx.window = ctx;
 load('js/data/locations.js');
+load('js/data/dungeonMonsters.js');
 load('js/data/dungeons.js');
+load('js/core/dungeon/dungeonRunState.js');
 load('js/core/dungeon/dungeonGenerator.js');
 
 const run = ctx.generateDungeonRun('twilight_den', 42);
@@ -53,4 +55,9 @@ if (run2.seed !== run.seed) throw new Error('seed mismatch');
 if (JSON.stringify(run2) !== JSON.stringify(run)) throw new Error('not deterministic');
 const run3 = ctx.generateDungeonRun('twilight_den', 99);
 if (JSON.stringify(run3) === JSON.stringify(run)) throw new Error('seed should change layout');
-console.log('ok', run.floors.length, 'floors', room.enemies.length, 'enemies in room 1');
+const infernal = ctx.generateDungeonRun('infernal_pit', 777);
+const infernalFight = infernal.floors.some(f => (f.rooms || []).some(r => r.enemies && r.enemies.length > 0));
+if (!infernalFight) throw new Error('infernal_pit: no enemies');
+const named = infernal.floors.flatMap(f => f.rooms).flatMap(r => r.enemies || []).find(e => e.name === 'Пламенный пес');
+if (!named) throw new Error('infernal_pit: dungeon monster not resolved');
+console.log('ok', run.floors.length, 'floors', room.enemies.length, 'enemies in room 1', '| infernal:', named.name);

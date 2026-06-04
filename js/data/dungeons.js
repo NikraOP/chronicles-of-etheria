@@ -68,6 +68,30 @@ const ROOM_ARCHETYPES = {
     }
 };
 
+const DUNGEON_BACKGROUNDS = {
+    infernal: { image: './backgrounds/dungeon/bg-crypt.png', bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)' },
+    crystal_cavern: { image: './backgrounds/dungeon/bg-crystal.png', bgColor: 'linear-gradient(135deg, #2a1a4a, #12082a)' },
+    fungal_depths: { image: './backgrounds/dungeon/bg-cave-brown.png', bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)' },
+    frozen_abyss: { image: './backgrounds/dungeon/bg-crystal.png', bgColor: 'linear-gradient(135deg, #1a2a3a, #0a1520)' },
+    void_prison: { image: './backgrounds/dungeon/bg-prison.png', bgColor: 'linear-gradient(135deg, #12081a, #050208)' },
+    sky_ruins: { image: './backgrounds/dungeon/bg-cave-brown.png', bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)' },
+    default: { image: './backgrounds/dungeon/bg-crypt.png', bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a12)' }
+};
+
+function getDungeonBackground(dungeonOrId) {
+    const dungeon = typeof dungeonOrId === 'string' ? getDungeonById(dungeonOrId) : dungeonOrId;
+    if (!dungeon) return DUNGEON_BACKGROUNDS.default;
+    const key = dungeon.backgroundId || 'default';
+    return DUNGEON_BACKGROUNDS[key] || DUNGEON_BACKGROUNDS.default;
+}
+
+function getDungeonBattleArenaStyle(dungeonOrId) {
+    const bg = getDungeonBackground(dungeonOrId);
+    const img = bg.image ? "url('" + bg.image + "')" : 'none';
+    return 'background:' + (bg.bgColor || '#111') + ';background-image:' + img +
+        ';background-size:cover;background-position:center;';
+}
+
 const DUNGEONS_DB = [
     {
         id: 'twilight_den',
@@ -153,6 +177,120 @@ const DUNGEONS_DB = [
         theme: {
             bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)'
         }
+    },
+    {
+        id: 'infernal_pit',
+        name: 'Инфернальная яма',
+        icon: '🔥',
+        mode: 'solo',
+        minLevel: 15,
+        maxLevel: 22,
+        recommendedLevel: 18,
+        backgroundId: 'infernal',
+        finalBossId: 'ash_lord',
+        monsterPool: ['infernal_cinder', 'infernal_hound', 'ash_lord'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 13,
+        expMult: 1.22,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)'
+        }
+    },
+    {
+        id: 'crystal_cavern',
+        name: 'Кристальная пещера',
+        icon: '💠',
+        mode: 'solo',
+        minLevel: 20,
+        maxLevel: 28,
+        recommendedLevel: 24,
+        backgroundId: 'crystal_cavern',
+        finalBossId: 'crystal_sentinel',
+        monsterPool: ['crystal_wisp', 'neon_dragon', 'crystal_sentinel'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 14,
+        expMult: 1.25,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #2a1a4a, #12082a)'
+        }
+    },
+    {
+        id: 'fungal_depths',
+        name: 'Грибные глубины',
+        icon: '🍄',
+        mode: 'solo',
+        minLevel: 18,
+        maxLevel: 26,
+        recommendedLevel: 22,
+        backgroundId: 'fungal_depths',
+        finalBossId: 'fungal_matriarch',
+        monsterPool: ['spore_cap', 'mushroom_golem', 'fungal_matriarch'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 13,
+        expMult: 1.23,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)'
+        }
+    },
+    {
+        id: 'frozen_abyss',
+        name: 'Ледяная бездна',
+        icon: '🧊',
+        mode: 'duo',
+        minLevel: 24,
+        maxLevel: 32,
+        recommendedLevel: 28,
+        backgroundId: 'frozen_abyss',
+        finalBossId: 'glacier_heart',
+        monsterPool: ['frost_lurker', 'ice_colossus', 'glacier_heart'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 6, max: 8 },
+        goldMult: 15,
+        expMult: 1.28,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #1a2a3a, #0a1520)'
+        }
+    },
+    {
+        id: 'void_prison',
+        name: 'Тюрьма пустоты',
+        icon: '🌀',
+        mode: 'duo',
+        minLevel: 30,
+        maxLevel: 40,
+        recommendedLevel: 35,
+        backgroundId: 'void_prison',
+        finalBossId: 'distorted_warden',
+        monsterPool: ['void_shade', 'cyber_dragon', 'distorted_warden'],
+        floors: { min: 4, max: 5 },
+        roomsPerFloor: { min: 6, max: 8 },
+        goldMult: 16,
+        expMult: 1.32,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #12081a, #050208)'
+        }
+    },
+    {
+        id: 'sky_ruins',
+        name: 'Руины небес',
+        icon: '☁️',
+        mode: 'duo',
+        minLevel: 38,
+        maxLevel: 50,
+        recommendedLevel: 44,
+        backgroundId: 'sky_ruins',
+        finalBossId: 'three_headed_hydra',
+        monsterPool: ['sky_drone', 'cloud_stalker', 'neon_dragon', 'three_headed_hydra'],
+        floors: { min: 4, max: 5 },
+        roomsPerFloor: { min: 6, max: 9 },
+        goldMult: 18,
+        expMult: 1.38,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)'
+        }
     }
 ];
 
@@ -165,15 +303,15 @@ function getDungeonById(id) {
  * @param {object} dungeon — запись из DUNGEONS_DB
  * @param {number} floorIndex — 0-based индекс этажа
  * @param {() => number} rng — функция случайного числа [0, 1)
- * @returns {string[]} имена монстров для комнат этажа
+ * @returns {string[]} id или имена монстров для комнат этажа (см. findDungeonMonsterById)
  */
-function pickDungeonMonsterPool(dungeon, floorIndex, rng) {
+function pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors) {
     if (!dungeon || !Array.isArray(dungeon.monsterPool) || dungeon.monsterPool.length === 0) {
         return [];
     }
 
     const pool = dungeon.monsterPool;
-    const floorCount = dungeon.floors?.max || DUNGEON_BALANCE.floorCountMax;
+    const floorCount = totalFloors || dungeon.floors?.max || DUNGEON_BALANCE.floorCountMax;
     const progress = floorCount <= 1 ? 1 : floorIndex / (floorCount - 1);
 
     const tierSize = Math.max(1, Math.ceil(pool.length / floorCount));
@@ -196,4 +334,15 @@ function pickDungeonMonsterPool(dungeon, floorIndex, rng) {
     }
 
     return picked;
+}
+
+if (typeof window !== 'undefined') {
+    window.DUNGEON_BALANCE = DUNGEON_BALANCE;
+    window.ROOM_ARCHETYPES = ROOM_ARCHETYPES;
+    window.DUNGEONS_DB = DUNGEONS_DB;
+    window.getDungeonById = getDungeonById;
+    window.pickDungeonMonsterPool = pickDungeonMonsterPool;
+    window.DUNGEON_BACKGROUNDS = DUNGEON_BACKGROUNDS;
+    window.getDungeonBackground = getDungeonBackground;
+    window.getDungeonBattleArenaStyle = getDungeonBattleArenaStyle;
 }

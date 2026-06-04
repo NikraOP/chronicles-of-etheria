@@ -22,7 +22,12 @@ function dungeonClamp(n, min, max) {
 }
 
 function findMonsterTemplateByName(name) {
-    if (!name || typeof LOCATIONS === 'undefined') return null;
+    if (!name) return null;
+    if (typeof findDungeonMonsterTemplate === 'function') {
+        const dungeonMob = findDungeonMonsterTemplate(name);
+        if (dungeonMob) return dungeonMob;
+    }
+    if (typeof LOCATIONS === 'undefined') return null;
     for (let i = 0; i < LOCATIONS.length; i++) {
         const monsters = LOCATIONS[i].monsters || [];
         for (let j = 0; j < monsters.length; j++) {
@@ -32,9 +37,12 @@ function findMonsterTemplateByName(name) {
     return null;
 }
 
-function weightedPickArchetype(rng) {
+function weightedPickArchetype(rng, excludeIds) {
+    const skip = excludeIds || [];
     const entries = Object.keys(ROOM_ARCHETYPES).map(function (key) {
         return ROOM_ARCHETYPES[key];
+    }).filter(function (a) {
+        return skip.indexOf(a.id) < 0;
     });
     let total = 0;
     for (let i = 0; i < entries.length; i++) {
@@ -131,65 +139,138 @@ function floorStatMults(floorIndex, enemyCount, mode) {
     };
 }
 
+function floorRng(seed, floorIndex) {
+    return mulberry32((seed >>> 0) ^ ((floorIndex + 1) * 7919));
+}
+
+function buildFinalBossEnemy(dungeon, floorIndex, mults, runMode) {
+    const bossId = dungeon.finalBossId;
+    if (!bossId) return null;
+    const template = findMonsterTemplateByName(bossId);
+    if (!template) return null;
+    const bossMults = {
+        hp: mults.hp * 1.4,
+        atk: mults.atk * 1.12,
+        def: mults.def * 1.18,
+        exp: mults.exp * 1.65
+    };
+    return buildScaledEnemy(template, bossMults, dungeon);
+}
+
 /**
+ * Генерирует один этаж (ленивая генерация забега).
  * @param {string} dungeonId
- * @param {number} [seed]
- * @returns {{ dungeonId: string, seed: number, floors: Array }}
+ * @param {number} floorIndex
+ * @param {number} totalFloors
+ * @param {number} seed
+ * @param {string} [mode]
+ * @returns {{ index: number, rooms: Array }}
  */
-function generateDungeonRun(dungeonId, seed) {
+function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
     const dungeon = typeof getDungeonById === 'function' ? getDungeonById(dungeonId) : null;
-    if (!dungeon) {
-        return { dungeonId: dungeonId, seed: 0, floors: [] };
-    }
+    if (!dungeon) return { index: floorIndex, rooms: [] };
 
-    const resolvedSeed = seed != null ? (seed >>> 0) : ((Date.now() ^ (dungeonId.length * 2654435761)) >>> 0);
-    const rng = mulberry32(resolvedSeed);
-    const floorCount = rollFloorCount(rng, dungeon);
-    const floors = [];
+    const rng = floorRng(seed, floorIndex);
+    const runMode = mode || (dungeon.mode === 'duo' ? 'duo' : 'solo');
+    const isLastFloor = floorIndex >= totalFloors - 1;
+    const bossId = dungeon.finalBossId || null;
 
-    for (let f = 0; f < floorCount; f++) {
-        const namePool = typeof pickDungeonMonsterPool === 'function'
-            ? pickDungeonMonsterPool(dungeon, f, rng)
-            : (dungeon.monsterPool || []).slice();
-        const roomCount = rollRoomCount(rng, dungeon);
-        const rooms = [];
+    const namePool = typeof pickDungeonMonsterPool === 'function'
+        ? pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors)
+        : (dungeon.monsterPool || []).slice();
+    const combatPool = bossId
+        ? namePool.filter(function (n) { return n !== bossId; })
+        : namePool.slice();
+    const poolForRooms = combatPool.length ? combatPool : namePool;
 
-        const runMode = dungeon.mode === 'duo' ? 'duo' : 'solo';
+    const roomCount = rollRoomCount(rng, dungeon);
+    const rooms = [];
 
-        for (let r = 0; r < roomCount; r++) {
-            const archetype = weightedPickArchetype(rng);
-            if (archetype.id === 'shrine') {
+    for (let r = 0; r < roomCount; r++) {
+        const isFinalRoom = isLastFloor && r === roomCount - 1 && bossId;
+
+        if (isFinalRoom) {
+            const mults = floorStatMults(floorIndex, 1, runMode);
+            const bossEnemy = buildFinalBossEnemy(dungeon, floorIndex, mults, runMode);
+            if (bossEnemy) {
                 rooms.push({
-                    archetype: 'shrine',
-                    enemies: [],
-                    isBoss: false,
-                    isShrine: true
+                    archetype: 'boss',
+                    enemies: [bossEnemy],
+                    isBoss: true,
+                    isFinalBoss: true,
+                    isShrine: false
                 });
                 continue;
             }
-            const isBoss = archetype.id === 'boss' || (r === roomCount - 1 && f === floorCount - 1 && rng() < 0.35);
-            const enemyCount = rollEnemyCount(rng, archetype, f, isBoss);
-            const mults = floorStatMults(f, enemyCount, runMode);
-            const enemies = resolveEnemiesForRoom(namePool, enemyCount, rng, mults, dungeon);
+        }
 
-            if (!enemies.length && namePool.length) {
-                const fallback = findMonsterTemplateByName(namePool[0]);
-                if (fallback) enemies.push(buildScaledEnemy(fallback, mults, dungeon));
-            }
-
+        const archetype = weightedPickArchetype(rng, isLastFloor ? ['shrine'] : null);
+        if (archetype.id === 'shrine') {
             rooms.push({
-                archetype: archetype.id,
-                enemies: enemies,
-                isBoss: isBoss,
+                archetype: 'shrine',
+                enemies: [],
+                isBoss: false,
+                isShrine: true
+            });
+            continue;
+        }
+
+        const isBoss = archetype.id === 'boss' || (isLastFloor && r === roomCount - 1 && rng() < 0.28);
+        const enemyCount = rollEnemyCount(rng, archetype, floorIndex, isBoss);
+        const mults = floorStatMults(floorIndex, enemyCount, runMode);
+        const enemies = resolveEnemiesForRoom(poolForRooms, enemyCount, rng, mults, dungeon);
+
+        if (!enemies.length && poolForRooms.length) {
+            const fallback = findMonsterTemplateByName(poolForRooms[0]);
+            if (fallback) enemies.push(buildScaledEnemy(fallback, mults, dungeon));
+        }
+
+        rooms.push({
+            archetype: archetype.id,
+            enemies: enemies,
+            isBoss: isBoss,
+            isShrine: false
+        });
+    }
+
+    if (!rooms.length) {
+        const mults = floorStatMults(floorIndex, 1, runMode);
+        const fallback = findMonsterTemplateByName(poolForRooms[0] || namePool[0]);
+        if (fallback) {
+            rooms.push({
+                archetype: 'chamber',
+                enemies: [buildScaledEnemy(fallback, mults, dungeon)],
+                isBoss: false,
                 isShrine: false
             });
         }
-
-        floors.push({ index: f, rooms: rooms });
     }
 
-    return { dungeonId: dungeonId, seed: resolvedSeed, floors: floors };
+    return { index: floorIndex, rooms: rooms };
+}
+
+/**
+ * Полный забег (для тестов и дуо-синхронизации): все этажи сразу.
+ */
+function generateDungeonRun(dungeonId, seed) {
+    const lazy = typeof createLazyDungeonRun === 'function'
+        ? createLazyDungeonRun(dungeonId, seed)
+        : null;
+    if (!lazy || !lazy.totalFloors) {
+        return { dungeonId: dungeonId, seed: 0, floors: [] };
+    }
+    const floors = [];
+    for (let f = 0; f < lazy.totalFloors; f++) {
+        floors.push(generateDungeonFloor(dungeonId, f, lazy.totalFloors, lazy.seed));
+    }
+    return {
+        dungeonId: lazy.dungeonId,
+        seed: lazy.seed,
+        totalFloors: lazy.totalFloors,
+        floors: floors
+    };
 }
 
 window.mulberry32 = mulberry32;
+window.generateDungeonFloor = generateDungeonFloor;
 window.generateDungeonRun = generateDungeonRun;

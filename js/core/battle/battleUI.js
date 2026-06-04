@@ -1,5 +1,16 @@
 // js/core/battle/battleUI.js
 
+function getBattleArenaBgStyle() {
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (session && session.dungeonId && typeof getDungeonBattleArenaStyle === 'function') {
+        return getDungeonBattleArenaStyle(session.dungeonId);
+    }
+    const loc = typeof LOCATIONS !== 'undefined' && player
+        ? (LOCATIONS.find(function (l) { return l.name === player.location; }) || LOCATIONS[0])
+        : null;
+    return loc && loc.bgColor ? loc.bgColor : 'linear-gradient(135deg, #1a1a2a, #0a0a12)';
+}
+
 function buildStagingRosterPortraitHtml(m) {
     const icon = m.icon || '👹';
     const fallback = escapeBattleHtml(icon);
@@ -52,7 +63,7 @@ function renderBattleStaging() {
     const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
     const candidates = typeof getStagingMonsterCandidates === 'function' ? getStagingMonsterCandidates() : [];
     const isFixed = !!(window._stagedFixedMonster && window._stagedFixedMonster.monsterData);
-    const bgStyle = loc.bgColor;
+    const bgStyle = getBattleArenaBgStyle();
     const playerSpriteHtml = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
     const rosterHtml = buildStagingMonsterRosterHtml(candidates, isFixed);
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 100;
@@ -185,7 +196,7 @@ function renderBattle(options) {
     const playerSpriteHtml = typeof getCombatantSpriteHtml === 'function' ? getCombatantSpriteHtml() : getAvatar();
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
     const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
-    const bgStyle = loc.bgColor;
+    const bgStyle = getBattleArenaBgStyle();
     const multiEnemyRow = buildBattleEnemiesRowHtml();
     const monsterImg = buildEnemySpriteInnerHtml(currentMonster);
 

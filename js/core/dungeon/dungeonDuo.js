@@ -172,6 +172,11 @@ function generateDuoRunSeed() {
 }
 
 function buildDuoDungeonRun(dungeonId, seed) {
+    if (typeof createLazyDungeonRun === 'function') {
+        const run = createLazyDungeonRun(dungeonId, seed);
+        if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(run, 0);
+        return run;
+    }
     if (typeof generateDungeonRun === 'function') {
         return generateDungeonRun(dungeonId, seed);
     }

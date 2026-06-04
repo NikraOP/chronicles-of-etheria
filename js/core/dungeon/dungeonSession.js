@@ -12,14 +12,86 @@ function getSoloDungeonSession() {
     return dungeonRunSession && dungeonRunSession.mode === 'solo' ? dungeonRunSession : null;
 }
 
+function saveActiveDungeonRun() {
+    if (!player || !dungeonRunSession || !dungeonRunSession.committed) return;
+    if (!player.dungeonProgress || typeof player.dungeonProgress !== 'object') {
+        player.dungeonProgress = { clears: {}, lastRun: null, activeRun: null };
+    }
+    player.dungeonProgress.activeRun = {
+        dungeonId: dungeonRunSession.dungeonId,
+        mode: dungeonRunSession.mode,
+        seed: dungeonRunSession.run.seed,
+        totalFloors: dungeonRunSession.run.totalFloors || (typeof getRunFloorCount === 'function'
+            ? getRunFloorCount(dungeonRunSession.run) : 0),
+        floorIndex: dungeonRunSession.floorIndex,
+        roomIndex: dungeonRunSession.roomIndex,
+        state: dungeonRunSession.state,
+        committed: true,
+        at: Date.now()
+    };
+    if (typeof saveGame === 'function') saveGame();
+}
+
+function clearActiveDungeonRun() {
+    if (!player) return;
+    if (!player.dungeonProgress || typeof player.dungeonProgress !== 'object') {
+        player.dungeonProgress = { clears: {}, lastRun: null, activeRun: null };
+    }
+    player.dungeonProgress.activeRun = null;
+    if (typeof saveGame === 'function') saveGame();
+}
+
+function commitDungeonRun() {
+    if (!dungeonRunSession) return;
+    dungeonRunSession.committed = true;
+    saveActiveDungeonRun();
+}
+
+function tryResumeActiveDungeonRun(dungeonId) {
+    if (!player || !player.dungeonProgress || !player.dungeonProgress.activeRun) return null;
+    const ar = player.dungeonProgress.activeRun;
+    if (!ar.committed || ar.dungeonId !== dungeonId) return null;
+
+    let run = null;
+    if (typeof createLazyDungeonRun === 'function') {
+        run = createLazyDungeonRun(ar.dungeonId, ar.seed);
+        if (ar.totalFloors) run.totalFloors = ar.totalFloors;
+        const maxFloor = Math.min(ar.floorIndex, run.totalFloors - 1);
+        for (let f = 0; f <= maxFloor; f++) {
+            if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(run, f);
+        }
+    }
+
+    if (!run) return null;
+
+    installDungeonVictoryModalHook();
+    dungeonRunSession = {
+        state: ar.state === 'battle' ? 'in_room' : (ar.state || 'in_room'),
+        mode: ar.mode || 'solo',
+        dungeonId: ar.dungeonId,
+        run: run,
+        floorIndex: ar.floorIndex || 0,
+        roomIndex: ar.roomIndex || 0,
+        committed: true,
+        _awaitingVictory: false
+    };
+
+    if (typeof addMessage === 'function') {
+        addMessage('🔄 Продолжение забега: этаж ' + (dungeonRunSession.floorIndex + 1) +
+            ', комната ' + (dungeonRunSession.roomIndex + 1), 'info');
+    }
+    return dungeonRunSession;
+}
+
 function recordDungeonProgress(dungeonId, completed) {
     if (!player) return;
     if (!player.dungeonProgress || typeof player.dungeonProgress !== 'object') {
-        player.dungeonProgress = { clears: {}, lastRun: null };
+        player.dungeonProgress = { clears: {}, lastRun: null, activeRun: null };
     }
     if (!player.dungeonProgress.clears) player.dungeonProgress.clears = {};
     if (completed) {
         player.dungeonProgress.clears[dungeonId] = (player.dungeonProgress.clears[dungeonId] || 0) + 1;
+        clearActiveDungeonRun();
     }
     player.dungeonProgress.lastRun = {
         dungeonId: dungeonId,
@@ -45,7 +117,9 @@ function installDungeonVictoryModalHook() {
             wrapped = function () {
                 if (typeof callback === 'function') callback();
                 const wasDuo = dungeonRunSession && dungeonRunSession.mode === 'duo';
+                const hadCommit = dungeonRunSession && dungeonRunSession.committed;
                 dungeonRunSession = null;
+                if (hadCommit) clearActiveDungeonRun();
                 if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
                 if (wasDuo && typeof leaveDuoDungeonLobby === 'function') leaveDuoDungeonLobby();
                 if (typeof addMessage === 'function') {
@@ -75,6 +149,24 @@ function buildBattleMonsterPayload(enemy, dungeon, room, returnTo) {
     };
 }
 
+function createDungeonRunForStart(dungeonId, mode, externalRun) {
+    if (externalRun) {
+        if (externalRun.lazy && typeof ensureFloorGenerated === 'function') {
+            ensureFloorGenerated(externalRun, 0);
+        }
+        return externalRun;
+    }
+    if (typeof createLazyDungeonRun === 'function') {
+        const run = createLazyDungeonRun(dungeonId);
+        if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(run, 0);
+        return run;
+    }
+    if (typeof generateDungeonRun === 'function') {
+        return generateDungeonRun(dungeonId);
+    }
+    return { dungeonId: dungeonId, seed: 0, floors: [], totalFloors: 0 };
+}
+
 function startDungeonRun(dungeonId, mode, externalRun) {
     if (!player) {
         if (typeof addMessage === 'function') addMessage('❌ Нет активного персонажа.', 'error');
@@ -92,16 +184,16 @@ function startDungeonRun(dungeonId, mode, externalRun) {
         return null;
     }
 
-    const run = externalRun || (typeof generateDungeonRun === 'function'
-        ? generateDungeonRun(dungeonId)
-        : { dungeonId: dungeonId, seed: 0, floors: [] });
-
-    if (!run.floors.length) {
+    const run = createDungeonRunForStart(dungeonId, mode, externalRun);
+    const floor0 = typeof getFloorFromRun === 'function' ? getFloorFromRun(run, 0) : (run.floors && run.floors[0]);
+    if (!floor0 || !floor0.rooms || !floor0.rooms.length) {
         if (typeof addMessage === 'function') addMessage('❌ Не удалось сгенерировать забег.', 'error');
         return null;
     }
 
     installDungeonVictoryModalHook();
+    const totalFloors = typeof getRunFloorCount === 'function' ? getRunFloorCount(run) : (run.floors ? run.floors.length : 0);
+
     dungeonRunSession = {
         state: 'in_room',
         mode: mode || dungeon.mode || 'solo',
@@ -109,15 +201,14 @@ function startDungeonRun(dungeonId, mode, externalRun) {
         run: run,
         floorIndex: 0,
         roomIndex: 0,
+        committed: false,
         _awaitingVictory: false
     };
-
-    recordDungeonProgress(dungeonId, false);
 
     if (typeof addMessage === 'function') {
         addMessage(
             dungeon.icon + ' Забег: «' + dungeon.name + '» · ' + (mode === 'duo' ? 'дуо' : 'соло') +
-            ' · этажей ' + run.floors.length + ' · seed ' + run.seed,
+            ' · этажей ' + totalFloors + ' · seed ' + run.seed,
             'success'
         );
     }
@@ -125,6 +216,8 @@ function startDungeonRun(dungeonId, mode, externalRun) {
 }
 
 function startSoloDungeon(dungeonId) {
+    const resumed = tryResumeActiveDungeonRun(dungeonId);
+    if (resumed) return resumed;
     return startDungeonRun(dungeonId, 'solo');
 }
 
@@ -134,12 +227,20 @@ function startDuoDungeonFromLobby() {
         if (typeof addMessage === 'function') addMessage('❌ Дуо-забег ещё не синхронизирован.', 'error');
         return null;
     }
-    return startDungeonRun(duo.dungeonId, 'duo', duo.run);
+    const session = startDungeonRun(duo.dungeonId, 'duo', duo.run);
+    if (session) {
+        session.committed = true;
+        saveActiveDungeonRun();
+    }
+    return session;
 }
 
 function getCurrentRoom() {
     if (!dungeonRunSession || !dungeonRunSession.run) return null;
-    const floor = dungeonRunSession.run.floors[dungeonRunSession.floorIndex];
+    const run = dungeonRunSession.run;
+    const fi = dungeonRunSession.floorIndex;
+    if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(run, fi);
+    const floor = typeof getFloorFromRun === 'function' ? getFloorFromRun(run, fi) : run.floors[fi];
     if (!floor || !floor.rooms) return null;
     return floor.rooms[dungeonRunSession.roomIndex] || null;
 }
@@ -162,11 +263,16 @@ function onRoomCleared() {
     const session = dungeonRunSession;
     if (session.state !== 'battle' && session.state !== 'loot' && session.state !== 'in_room') return;
 
+    const prevFloor = session.floorIndex;
     session.state = 'loot';
-    const floor = session.run.floors[session.floorIndex];
+
+    const floor = typeof getFloorFromRun === 'function'
+        ? getFloorFromRun(session.run, session.floorIndex)
+        : session.run.floors[session.floorIndex];
     if (!floor) {
         session.state = 'complete';
         recordDungeonProgress(session.dungeonId, true);
+        dungeonRunSession = null;
         return;
     }
 
@@ -174,33 +280,58 @@ function onRoomCleared() {
     if (session.roomIndex >= floor.rooms.length) {
         session.floorIndex += 1;
         session.roomIndex = 0;
+        if (typeof ensureFloorGenerated === 'function') {
+            ensureFloorGenerated(session.run, session.floorIndex);
+        }
     }
 
-    if (session.floorIndex >= session.run.floors.length) {
+    const totalFloors = typeof getRunFloorCount === 'function'
+        ? getRunFloorCount(session.run)
+        : (session.run.floors ? session.run.floors.length : 0);
+
+    if (session.floorIndex >= totalFloors) {
+        const doneId = session.dungeonId;
+        const doneMode = session.mode;
         session.state = 'complete';
-        recordDungeonProgress(session.dungeonId, true);
+        recordDungeonProgress(doneId, true);
+        dungeonRunSession = null;
         if (typeof addMessage === 'function') {
             addMessage('🏆 Подземелье пройдено! Забег завершён.', 'success');
         }
-        if (session.mode === 'duo' && typeof sendDuoDungeonRoomState === 'function' &&
+        if (doneMode === 'duo' && typeof sendDuoDungeonRoomState === 'function' &&
             typeof getDuoDungeonState === 'function' && getDuoDungeonState().role === 'host') {
             sendDuoDungeonRoomState({ completed: true, floorIndex: session.floorIndex, roomIndex: session.roomIndex });
+        }
+        if (typeof showDungeonsHub === 'function') {
+            showDungeonsHub();
+        } else if (typeof openDungeonDetail === 'function') {
+            openDungeonDetail(doneId);
         }
         return;
     }
 
     session.state = 'in_room';
+    if (session.committed) saveActiveDungeonRun();
+
     const room = getCurrentRoom();
+    const advancedFloor = session.floorIndex > prevFloor;
+
     if (typeof addMessage === 'function' && room) {
         const arch = ROOM_ARCHETYPES[room.archetype];
         const label = room.isShrine ? '✨ Святыня' : (arch ? arch.icon + ' ' + arch.name : room.archetype);
+        const prefix = advancedFloor ? '🏔️ Новый этаж ' + (session.floorIndex + 1) + '! ' : '➡️ ';
         addMessage(
-            '➡️ Этаж ' + (session.floorIndex + 1) + ', комната ' + (session.roomIndex + 1) + ': ' + label,
-            'info'
+            prefix + 'Комната ' + (session.roomIndex + 1) + ': ' + label,
+            advancedFloor ? 'success' : 'info'
         );
     }
+
     if (session.mode === 'duo' && typeof broadcastDungeonRunMeta === 'function') {
         broadcastDungeonRunMeta();
+    }
+
+    if (typeof openDungeonDetail === 'function') {
+        openDungeonDetail(session.dungeonId);
     }
 }
 
@@ -280,7 +411,7 @@ function enterCurrentRoomBattle() {
     const arch = ROOM_ARCHETYPES[room.archetype];
     if (typeof addMessage === 'function') {
         addMessage(
-            (room.isBoss ? '💀 Босс-комната: ' : '⚔️ Бой: ') +
+            (room.isFinalBoss ? '👑 Финальный босс: ' : room.isBoss ? '💀 Босс-комната: ' : '⚔️ Бой: ') +
             (arch ? arch.name : room.archetype) +
             ' · врагов ' + room.enemies.length,
             'warning'
@@ -293,11 +424,19 @@ function debugStartSoloDungeon(dungeonId) {
     const id = dungeonId || 'twilight_den';
     const session = startSoloDungeon(id);
     if (!session) return session;
+    commitDungeonRun();
     const entered = enterCurrentRoomBattle();
     if (entered && typeof isBattleZoneStaging === 'function' && isBattleZoneStaging()) {
         if (typeof commitBattleStart === 'function') commitBattleStart();
     }
     return session;
+}
+
+function abandonDungeonRun(clearSaved) {
+    const shouldClear = clearSaved === true || (dungeonRunSession && dungeonRunSession.committed);
+    dungeonRunSession = null;
+    if (shouldClear) clearActiveDungeonRun();
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
 }
 
 window.getDungeonRunSession = getDungeonRunSession;
@@ -314,10 +453,8 @@ window.enterShrineRoom = enterShrineRoom;
 window.debugStartSoloDungeon = debugStartSoloDungeon;
 window.recordDungeonProgress = recordDungeonProgress;
 window.broadcastDungeonRunMeta = broadcastDungeonRunMeta;
-
-function abandonDungeonRun() {
-    dungeonRunSession = null;
-    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
-}
-
+window.commitDungeonRun = commitDungeonRun;
+window.saveActiveDungeonRun = saveActiveDungeonRun;
+window.clearActiveDungeonRun = clearActiveDungeonRun;
+window.tryResumeActiveDungeonRun = tryResumeActiveDungeonRun;
 window.abandonDungeonRun = abandonDungeonRun;

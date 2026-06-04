@@ -667,10 +667,13 @@ function migrateOldSave(playerData) {
     if (!Array.isArray(playerData.friends.cached)) playerData.friends.cached = [];
 
     if (!playerData.dungeonProgress || typeof playerData.dungeonProgress !== 'object') {
-        playerData.dungeonProgress = { clears: {}, lastRun: null };
+        playerData.dungeonProgress = { clears: {}, lastRun: null, activeRun: null };
     }
     if (!playerData.dungeonProgress.clears || typeof playerData.dungeonProgress.clears !== 'object') {
         playerData.dungeonProgress.clears = {};
+    }
+    if (playerData.dungeonProgress.activeRun === undefined) {
+        playerData.dungeonProgress.activeRun = null;
     }
 
     return playerData;

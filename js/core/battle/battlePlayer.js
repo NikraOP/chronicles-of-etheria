@@ -184,7 +184,6 @@ function showBattleAbilities() {
 function useBattleAbility(index) {
     if (!requireBattleEngaged()) return;
     if (typeof isBattleTargetingActive === 'function' && isBattleTargetingActive()) return;
-    if (!beginPlayerAction()) return;
     const a = player.abilities[index];
     
     if (a.passive) {
@@ -224,25 +223,55 @@ function useBattleAbility(index) {
             executeUseBattleAbilityAtTarget(index, kind, idx);
         };
         if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
-        beginBattleTargeting({
-            type: 'ability',
-            abilityId: index,
-            targeting: targeting,
-            validKinds: validKinds,
-            hint: hints[targeting] || hints.enemy,
-            handler: runAbility
-        });
+
+        const launchTargeting = function () {
+            if (!beginPlayerAction()) return;
+            beginBattleTargeting({
+                type: 'ability',
+                abilityId: index,
+                targeting: targeting,
+                validKinds: validKinds,
+                hint: hints[targeting] || hints.enemy,
+                handler: runAbility
+            });
+        };
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(launchTargeting);
+        } else {
+            launchTargeting();
+        }
         return;
     }
 
+    if (!beginPlayerAction()) return;
     executeUseBattleAbilityAtTarget(index, 'enemy', 0);
 }
 
 function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
+    if (!beginPlayerAction()) return;
     if (targetKind === 'enemy' && typeof focusBattleEnemyAtIndex === 'function') {
         focusBattleEnemyAtIndex(targetIndex);
     }
     const a = player.abilities[index];
+    if (!a) {
+        if (typeof addBattleLog === 'function') addBattleLog('❌ Способность не найдена.', 'error');
+        isPlayerTurn = true;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        return;
+    }
+
+    let manaCost = a.mana || 0;
+    if (nextFreeMana) {
+        manaCost = 0;
+        nextFreeMana = false;
+        addBattleLog('✨ Бесплатная способность!', 'success');
+    }
+    if (player.class === 'Маг' && manaCost > 0 && player.mana < manaCost) {
+        addBattleLog('❌ Не хватает маны! (нужно ' + manaCost + ')', 'error');
+        isPlayerTurn = true;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        return;
+    }
 
     isPlayerTurn = false;
     updateBattleButtons();
@@ -260,7 +289,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         renderBattle({ force: true });
         return;
     }
-    if (monsterDodgesPlayerHit() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
+    if (currentMonster && monsterDodgesPlayerHit() && (a.dmg || a.doubleHit || a.tripleHit || a.quadHit || a.multiHit)) {
         addBattleLog(`💨 ${currentMonster.name} уклонился!`, 'info');
         if (!nextNoCd) a.currentCooldown = a.cd;
         isPlayerTurn = false;
@@ -270,6 +299,15 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
 
     if (manaCost > 0) player.mana -= manaCost;
+
+    if (!currentMonster && !(a.heal || a.maxHpShield || a.immune || a.buff || a.restoreMana)) {
+        addBattleLog('❌ Нет цели для способности.', 'error');
+        isPlayerTurn = true;
+        if (typeof updateBattleButtons === 'function') updateBattleButtons();
+        renderBattle({ force: true });
+        return;
+    }
+
     const doubleThisCast = nextDoubleEffect;
     if (doubleThisCast) {
         addBattleLog(`🔁 Удвоенный эффект!`, 'crit');
