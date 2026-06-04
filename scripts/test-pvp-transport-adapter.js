@@ -71,27 +71,28 @@ function testLegacyFunctionRoomHandlers() {
 }
 
 function testTransportConfigRelays() {
-    context.setPvPSignalingBackend('mqtt');
+    context.setPvPSignalingBackend('nostr');
     const configA = context.getPvPTransportConfig();
     const configB = context.getPvPTransportConfig();
     const configJson = JSON.stringify(configA);
     const urls = configA.relayConfig.urls;
 
     assert(configA.appId === 'chronicles-of-etheria-pvp-v4', 'transport appId mismatch');
-    assert(urls[0] === 'wss://broker.hivemq.com:8884/mqtt', 'HiveMQ must be first MQTT broker');
-    assert(urls.includes('wss://mqtt.eclipseprojects.io:443/mqtt'), 'Eclipse MQTT broker missing');
-    assert(!urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX must be excluded');
-    assert(configA.relayConfig.redundancy === 2, 'MQTT redundancy must be 2');
-    assert(!configJson.includes('yabu.me'), 'unstable nostr relay yabu.me must not be in mqtt config');
-    assert(configA.rtcConfig.iceTransportPolicy === 'relay', 'default rtc must use relay transport');
-    assert(configA.trickleIce === true, 'trickleIce must be enabled for TURN gathering');
+    assert(urls[0] === 'wss://nos.lol', 'nos.lol must be first Nostr relay');
+    assert(urls.includes('wss://relay.primal.net'), 'primal relay missing');
+    assert(!configJson.includes('eclipseprojects'), 'eclipse MQTT must not be configured');
+    assert(!urls.includes('wss://yabu.me/v2'), 'yabu.me must be excluded');
+    assert(configA.relayConfig.redundancy === 3, 'Nostr redundancy must be 3');
+    assert(!configA.rtcConfig.iceTransportPolicy || configA.rtcConfig.iceTransportPolicy === undefined
+        || configA.rtcConfig.iceTransportPolicy === 'all', 'default rtc should allow all ICE paths');
+    assert(configA.trickleIce === true, 'trickleIce must be enabled');
 
-    context.setPvPSignalingBackend('nostr');
-    const nostrCfg = context.getPvPTransportConfig();
-    assert(nostrCfg.relayConfig.urls.includes('wss://relay.damus.io'), 'nostr fallback needs damus');
-    assert(!nostrCfg.relayConfig.urls.includes('wss://yabu.me/v2'), 'yabu.me must be excluded from nostr list');
-    assert(!nostrCfg.relayConfig.urls.includes('wss://purplerelay.com/'), 'purplerelay must be excluded');
     context.setPvPSignalingBackend('mqtt');
+    const mqttCfg = context.getPvPTransportConfig();
+    assert(mqttCfg.relayConfig.urls.length === 1, 'MQTT backup is HiveMQ only');
+    assert(mqttCfg.relayConfig.urls[0] === 'wss://broker.hivemq.com:8884/mqtt', 'HiveMQ broker');
+    assert(mqttCfg.relayConfig.redundancy === 1, 'MQTT redundancy must be 1');
+    context.setPvPSignalingBackend('nostr');
 
     const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
     assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
