@@ -2945,6 +2945,94 @@ body.gather-screen-flash::after {
     opacity: 0.42;
     filter: grayscale(0.65);
 }
+
+/* Pack fight (dungeon 2–3 enemies): compact top stage, player aligned with pack */
+.battle-wrapper:has(#enemyPack) {
+    gap: 8px;
+}
+.battle-arena:has(#enemyPack) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    align-content: flex-start !important;
+    min-height: 0 !important;
+    height: auto;
+    padding: 8px 12px !important;
+    gap: 6px !important;
+}
+.battle-arena:has(#enemyPack) #enemyPack {
+    margin: 0 !important;
+    align-self: flex-start !important;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: min(52%, 280px);
+    padding: 6px 8px 8px;
+    gap: 6px;
+}
+.battle-arena:has(#enemyPack) .battle-party-row {
+    margin: 0 0 0 auto !important;
+    align-self: flex-start !important;
+    flex-shrink: 0;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: flex-start;
+}
+.battle-arena:has(#enemyPack) #playerWrapper,
+.battle-arena:has(#enemyPack) #allyWrapper {
+    margin: 0 !important;
+    align-self: flex-start !important;
+}
+.battle-arena:has(#enemyPack) .vs-badge {
+    position: absolute !important;
+    top: max(6px, env(safe-area-inset-top, 0px));
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    margin: 0 !important;
+    font-size: 11px;
+    padding: 4px 10px;
+    z-index: 4;
+    pointer-events: none;
+}
+.battle-arena:has(#enemyPack) .combatant-sprite {
+    width: 80px;
+    height: 96px;
+}
+.battle-arena:has(#enemyPack) .combatant-info {
+    margin-top: 6px;
+    padding: 6px 8px;
+    min-width: 0;
+}
+.battle-arena:has(#enemyPack) .combatant-status-slot {
+    margin-top: 4px;
+    gap: 4px;
+}
+.battle-arena:has(#enemyPack) .combatant-name {
+    font-size: 11px;
+}
+.battle-arena:has(#enemyPack) .health-text {
+    font-size: 9px;
+}
+.battle-wrapper:has(#enemyPack) .battle-log {
+    max-height: 64px;
+    padding: 6px 10px;
+    font-size: 10px;
+}
+.battle-arena:has(#enemyPack) .battle-enemies-pack .combatant-wrapper {
+    width: 120px !important;
+}
+.battle-arena:has(#enemyPack) .battle-enemies-pack .monster-abilities {
+    max-width: 120px;
+}
+.battle-arena:has(#enemyPack) .battle-enemies-pack--count-3 {
+    gap: 5px;
+}
+body.battle-engaged .battle-wrapper:has(#enemyPack) {
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+}
+
 .battle-targeting-hint {
     position: absolute;
     top: 14px;
@@ -5742,6 +5830,60 @@ body.settings-open .main-header .settings-gear-btn {
     }
     .combatant-sprite .sprite-fallback {
         font-size: 48px;
+    }
+}
+
+/* Pack fight: override mobile column + landscape floor-pin (must follow globals) */
+@media (max-width: 768px) {
+    .battle-arena:has(#enemyPack) {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        min-height: 0 !important;
+        padding: 8px 10px !important;
+        gap: 6px !important;
+    }
+    .battle-arena:has(#enemyPack) .combatant-wrapper {
+        width: auto !important;
+        max-width: none !important;
+    }
+    .battle-arena:has(#enemyPack) .combatant-sprite {
+        width: 64px;
+        height: 78px;
+    }
+    .battle-arena:has(#enemyPack) .battle-enemies-pack .combatant-wrapper {
+        width: 108px !important;
+    }
+    .battle-arena:has(#enemyPack) .battle-enemies-pack .monster-abilities {
+        max-width: 108px;
+    }
+    .battle-arena:has(#enemyPack) .vs-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+    .battle-arena:has(#enemyPack) #enemyPack {
+        max-width: min(48%, 260px);
+    }
+}
+@media (max-width: 599px) and (orientation: landscape) {
+    .battle-arena:has(#enemyPack) {
+        align-items: flex-start !important;
+        min-height: 0 !important;
+        padding: 6px 10px !important;
+    }
+    .battle-arena:has(#enemyPack) .combatant-sprite {
+        width: 56px;
+        height: 68px;
+    }
+    .battle-arena:has(#enemyPack) .battle-enemies-pack .combatant-wrapper {
+        width: 88px !important;
+    }
+    .battle-arena:has(#enemyPack) .battle-enemies-pack .monster-abilities {
+        max-width: 88px;
+    }
+    .battle-arena:has(#enemyPack) .vs-badge {
+        top: max(4px, env(safe-area-inset-top, 0px)) !important;
+        transform: translateX(-50%) !important;
     }
 }
 
