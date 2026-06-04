@@ -116,6 +116,15 @@ function onPlayerTurnStart() {
     if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
         return window.pvpOnTurnStart(false);
     }
+    if (window.dungeonDuoBattleActive && typeof resetDungeonDuoRoundActs === 'function') {
+        resetDungeonDuoRoundActs();
+        const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+        if (duo && duo.role === 'host') {
+            if (typeof broadcastDungeonDuoRoomState === 'function') broadcastDungeonDuoRoomState();
+        } else if (duo && duo.role === 'guest') {
+            isPlayerTurn = false;
+        }
+    }
     if (playerFrozenTurns > 0) {
         playerFrozenTurns--;
         const freezeFx = player.temporaryEffects.find(e => e.type === 'debuff_freeze');
@@ -147,6 +156,9 @@ function onPlayerTurnStart() {
 /** Перед атакой/способностью игрока */
 function beginPlayerAction() {
     if (!isPlayerTurn) return false;
+    if (window.dungeonDuoBattleActive && typeof dungeonDuoIsLocalTurn === 'function' && !dungeonDuoIsLocalTurn()) {
+        return false;
+    }
     if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
         if (!window.pvpOnTurnStart(true)) return false;
     }
@@ -195,6 +207,11 @@ function endPlayerActionChain() {
         window.pvpOnEndPlayerActionChain();
         return;
     }
+    if (window.dungeonDuoBattleActive && typeof onDungeonDuoPlayerActionEnded === 'function') {
+        onDungeonDuoPlayerActionEnded();
+        return;
+    }
+    if (typeof beginMonsterQueuePhase === 'function') beginMonsterQueuePhase();
     setTimeout(() => monsterTurn(), 60);
 }
 

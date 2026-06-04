@@ -666,6 +666,13 @@ function migrateOldSave(playerData) {
     }
     if (!Array.isArray(playerData.friends.cached)) playerData.friends.cached = [];
 
+    if (!playerData.dungeonProgress || typeof playerData.dungeonProgress !== 'object') {
+        playerData.dungeonProgress = { clears: {}, lastRun: null };
+    }
+    if (!playerData.dungeonProgress.clears || typeof playerData.dungeonProgress.clears !== 'object') {
+        playerData.dungeonProgress.clears = {};
+    }
+
     return playerData;
 }
 

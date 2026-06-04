@@ -132,6 +132,20 @@ function buildEnemyCombatantWrapperHtml(monster, enemyIndex, isFocused, statusSl
         '</div></div>';
 }
 
+function buildDungeonAllyCombatantHtml() {
+    if (!window.dungeonDuoBattleActive || typeof getDungeonDuoAlly !== 'function') return '';
+    const ally = getDungeonDuoAlly();
+    if (!ally) return '';
+    const aHp = ally.maxHealth > 0 ? (ally.health / ally.maxHealth * 100) : 0;
+    return '<div class="combatant-wrapper combatant-wrapper--ally" id="allyWrapper">' +
+        '<div class="combatant-sprite"><span class="sprite-fallback">👥</span></div>' +
+        '<div class="combatant-info">' +
+        '<div class="combatant-name" style="color:#3498db;">' + escapeBattleHtml(ally.name || 'Союзник') + '</div>' +
+        '<div class="health-bar"><div class="health-fill player-hp" style="width:' + aHp + '%;"></div></div>' +
+        '<div class="health-text">' + (ally.health || 0) + '/' + (ally.maxHealth || 0) + '</div>' +
+        '</div></div>';
+}
+
 function buildBattleEnemiesRowHtml() {
     const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
     if (enemies.length <= 1) return '';
@@ -257,6 +271,7 @@ function renderBattle(options) {
     const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena">' +
         enemyBlockHtml +
         '<div class="vs-badge">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
+        '<div class="battle-party-row">' +
         '<div class="combatant-wrapper" id="playerWrapper">' +
             '<div class="combatant-sprite" id="playerSprite">' + playerSpriteHtml + '</div>' +
             '<div class="combatant-info">' +
@@ -266,6 +281,8 @@ function renderBattle(options) {
                 '<div class="health-text">' + player.health + '/' + player.maxHealth + (player.class === 'Маг' ? ' | 💎' + player.mana : '') + '</div>' +
                 '<div class="combatant-status-slot" data-side="player">' + playerStatusHTML + debuffedStatsHTML + '</div>' +
             '</div>' +
+        '</div>' +
+        buildDungeonAllyCombatantHtml() +
         '</div>' +
         '</div>' + (typeof buildBattleAbilityHotbarHtml === 'function' ? buildBattleAbilityHotbarHtml() : '') +
         '<div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +

@@ -51,6 +51,7 @@ function victory() {
         return;
     }
     if (!currentMonster) return;
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
     const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
     let totalExp = currentMonster.exp;
     if (enemies.length > 1) {
@@ -88,9 +89,10 @@ function victory() {
     showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', () => {
         window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
-        if (returnTo && returnTo !== '__dungeon_solo__' && typeof showGatheringResources === 'function') {
+        if (returnTo && returnTo !== '__dungeon_solo__' && returnTo !== '__dungeon_duo__' &&
+            typeof showGatheringResources === 'function') {
             showGatheringResources(returnTo);
-        } else if (returnTo !== '__dungeon_solo__') {
+        } else if (returnTo !== '__dungeon_solo__' && returnTo !== '__dungeon_duo__') {
             renderGame();
         }
     });

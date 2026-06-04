@@ -1,18 +1,5 @@
 // js/core/battle/battleMonster.js
 
-/**
- * TODO(multi-enemy): After one enemy finishes its turn, advance focus to the
- * next living enemy, syncCurrentMonsterFromFocus(), and call monsterTurn() again before
- * finishMonsterPhase / onPlayerTurnStart. Return true when another enemy turn was started.
- */
-function advanceMonsterQueue() {
-    const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
-    if (enemies.length <= 1) return false;
-    const living = enemies.filter(e => e && e.health > 0);
-    if (living.length <= 1) return false;
-    return false;
-}
-
 function applyMonsterBuff(type, value, duration) {
     if (!currentMonster.activeBuffs) currentMonster.activeBuffs = {};
     
@@ -314,6 +301,10 @@ function useMonsterAbility(ability) {
 
 function monsterTurn() {
     if (window.pvpBattleActive) return;
+    if (window.dungeonDuoBattleActive && typeof getDuoDungeonState === 'function') {
+        const duo = getDuoDungeonState();
+        if (duo.role !== 'host') return;
+    }
     if (!currentMonster || currentMonster.health <= 0) { 
         isPlayerTurn = true; 
         updateBattleButtons(); 
@@ -354,8 +345,7 @@ function monsterTurn() {
         addBattleLog(`${currentMonster.name} ${stunEffect.type === 'Оглушение' ? 'оглушён' : 'заморожен'} и пропускает ход!`, 'info');
         stunEffect.dur--;
         if (stunEffect.dur <= 0) currentMonster.effects = currentMonster.effects.filter(e => e !== stunEffect);
-        finishMonsterPhase();
-        onPlayerTurnStart();
+        finishMonsterTurnOrQueue();
         if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
         else renderBattle();
         return;
@@ -366,8 +356,7 @@ function monsterTurn() {
         addBattleLog('🛡️ Иммунитет! Монстр не может атаковать!', 'info');
         immune.dur--;
         if (immune.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== immune);
-        finishMonsterPhase();
-        onPlayerTurnStart();
+        finishMonsterTurnOrQueue();
         if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
         else renderBattle();
         return;
@@ -421,8 +410,7 @@ function monsterTurn() {
     if (!abilityUsed) {
         if (monsterAttackMissesFromBlind()) {
             addBattleLog(`👁️ ${currentMonster.name} ослеплён и промахивается!`, 'info');
-            finishMonsterPhase();
-            onPlayerTurnStart();
+            finishMonsterTurnOrQueue();
             if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
             else renderBattle();
             return;
@@ -513,8 +501,7 @@ function monsterTurn() {
                 const hpPct = reviveAb.reviveHp || reviveAb.revive || 50;
                 player.health = Math.floor(player.maxHealth * hpPct / 100);
                 addBattleLog(`✨ ${reviveAb.name}! Вы воскресли с ${hpPct}% HP!`, 'success');
-                finishMonsterPhase();
-                onPlayerTurnStart();
+                finishMonsterTurnOrQueue();
                 if (typeof safeRenderBattle === 'function') safeRenderBattle();
                 else renderBattle({ force: true });
                 return;
@@ -522,11 +509,7 @@ function monsterTurn() {
             gameOver(); 
             return; 
         }
-        if (!isPlayerTurn && typeof advanceMonsterQueue === 'function' && advanceMonsterQueue()) {
-            return;
-        }
-        finishMonsterPhase();
-        onPlayerTurnStart();
+        finishMonsterTurnOrQueue();
     }, {
         onImpact: monsterImpactFn || undefined,
         onAnimEnd: () => {

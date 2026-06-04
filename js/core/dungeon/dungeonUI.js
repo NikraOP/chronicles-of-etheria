@@ -198,19 +198,71 @@ function dungeonUiCreateDuoRoom(dungeonId) {
         dungeonUiDuoSoon();
         return;
     }
-    createDuoDungeonLobby(dungeonId);
+    createDuoDungeonLobby(dungeonId).then(function () {
+        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+    });
 }
 
-function dungeonUiJoinDuoRoom(dungeonId) {
+function dungeonUiJoinDuoRoom(_dungeonId) {
     if (!isDungeonDuoReady()) {
         dungeonUiDuoSoon();
         return;
     }
-    joinDuoDungeonLobby(dungeonId);
+    dungeonUiJoinDuoRoomPrompt();
+}
+
+function showDuoDungeonLobbyScreen() {
+    if (!dungeonUiPrepareScreen('showDungeonsHub', [])) return;
+    const el = document.getElementById('dynamicContent');
+    if (!el) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || duo.status === 'idle') {
+        showDungeonsHub();
+        return;
+    }
+    const dungeon = duo.dungeonId && typeof getDungeonById === 'function' ? getDungeonById(duo.dungeonId) : null;
+    const dungeonName = dungeon ? dungeon.name : (duo.dungeonId || '—');
+    const readyYou = duo.localReady ? '✅' : '⏳';
+    const readyPartner = duo.remoteReady ? '✅' : '⏳';
+    let actions = '<button type="button" class="action-btn" onclick="toggleDuoDungeonLobbyReady()">' +
+        (duo.localReady ? 'Снять готовность' : 'Готов') + '</button>';
+    actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="leaveDuoDungeonLobby();showDungeonsHub()">Выйти</button>';
+    if (duo.status === 'sync') {
+        actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartDuoRun()">В забег</button>';
+    }
+    el.innerHTML =
+        '<section class="dungeon-hub dungeon-duo-lobby">' +
+        '<h2>👥 Дуо-комната</h2>' +
+        '<p class="dungeon-duo-lobby__code">Код: <strong>' + escapeDungeonText(duo.roomCode) + '</strong> · ' +
+        escapeDungeonText(dungeonName) + ' · роль: ' + escapeDungeonText(duo.role || '') + '</p>' +
+        '<p class="dungeon-duo-lobby__ready">Вы ' + readyYou + ' · Партнёр ' + readyPartner +
+        (duo.runSeed != null ? ' · seed ' + duo.runSeed : '') + '</p>' +
+        '<div class="dungeon-detail__actions">' + actions + '</div>' +
+        '</section>';
+}
+
+function dungeonUiStartDuoRun() {
+    if (typeof startDuoDungeonFromLobby !== 'function') return;
+    const session = startDuoDungeonFromLobby();
+    if (!session) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (duo && duo.dungeonId) openDungeonDetail(duo.dungeonId);
+}
+
+function dungeonUiJoinDuoRoomPrompt() {
+    const code = typeof prompt === 'function'
+        ? prompt('Введите код комнаты дуо-данжа (6 символов):', '')
+        : '';
+    if (!code) return;
+    joinDuoDungeonLobby(code);
+    setTimeout(function () {
+        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+    }, 800);
 }
 
 function getActiveDungeonSession() {
-    const raw = typeof getDungeonSession === 'function' ? getDungeonSession() : null;
+    const raw = typeof getDungeonRunSession === 'function' ? getDungeonRunSession()
+        : (typeof getDungeonSession === 'function' ? getDungeonSession() : null);
     if (!raw || !raw.run) return null;
     const dungeon = typeof getDungeonById === 'function' ? getDungeonById(raw.dungeonId) : null;
     return {
@@ -290,3 +342,6 @@ window.dungeonUiDuoSoon = dungeonUiDuoSoon;
 window.dungeonUiCreateDuoRoom = dungeonUiCreateDuoRoom;
 window.dungeonUiJoinDuoRoom = dungeonUiJoinDuoRoom;
 window.dungeonUiStartRoomBattle = dungeonUiStartRoomBattle;
+window.showDuoDungeonLobbyScreen = showDuoDungeonLobbyScreen;
+window.dungeonUiStartDuoRun = dungeonUiStartDuoRun;
+window.dungeonUiJoinDuoRoomPrompt = dungeonUiJoinDuoRoomPrompt;

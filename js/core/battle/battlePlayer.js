@@ -560,8 +560,18 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
             const healBonus = player.temporaryEffects.find(e => e.healBonus).healBonus;
             healAmount = Math.floor(healAmount * (1 + healBonus / 100));
         }
-        player.health = Math.min(player.maxHealth, player.health + healAmount);
-        addBattleLog(`💚 +${healAmount} HP`, 'heal');
+        if (targetKind === 'ally' && typeof getDungeonDuoAlly === 'function') {
+            const ally = getDungeonDuoAlly();
+            if (ally) {
+                const allyHeal = Math.floor((ally.maxHealth || 100) * a.heal / 100);
+                ally.health = Math.min(ally.maxHealth || allyHeal, (ally.health || 0) + allyHeal);
+                addBattleLog('💚 Союзник +' + allyHeal + ' HP', 'heal');
+                if (typeof broadcastDungeonDuoRoomState === 'function') broadcastDungeonDuoRoomState();
+            }
+        } else {
+            player.health = Math.min(player.maxHealth, player.health + healAmount);
+            addBattleLog(`💚 +${healAmount} HP`, 'heal');
+        }
     }
     
     if (a.lifesteal) {

@@ -192,6 +192,7 @@ function hostBroadcastRunSeed() {
     duoDungeonState.status = 'sync';
     sendDuoDungeonMessage(DUNGEON_DUO_MSG.RUN_SEED, { dungeonId, seed, run });
     duoDungeonLog(`Забег сгенерирован (seed ${seed}).`, 'success');
+    if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
 }
 
 function maybeStartDuoDungeonSync() {
@@ -222,24 +223,43 @@ function applyRemoteDuoDungeonRunSeed(payload) {
     duoDungeonState.run = payload.run || buildDuoDungeonRun(dungeonId, seed);
     duoDungeonState.status = 'sync';
     duoDungeonLog(`Получен забег от хоста (seed ${seed}).`, 'success');
+    if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
 }
 
-/** @param {object} payload — room_state from host; full battle sync not implemented. */
 function applyRemoteDuoDungeonRoomState(payload) {
-    // TODO: merge host-authoritative room snapshot (enemies, floor, roomIndex, party HP).
-    void payload;
+    if (!payload) return;
+    if (typeof applyDungeonDuoRoomSnapshot === 'function' && window.dungeonDuoBattleActive) {
+        applyDungeonDuoRoomSnapshot(payload);
+        return;
+    }
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (!session || duoDungeonState.role === 'host') return;
+    if (payload.completed) {
+        session.state = 'complete';
+        if (typeof addMessage === 'function') addMessage('🏆 Хост завершил подземелье.', 'success');
+        return;
+    }
+    if (typeof payload.floorIndex === 'number') session.floorIndex = payload.floorIndex;
+    if (typeof payload.roomIndex === 'number') session.roomIndex = payload.roomIndex;
+    if (payload.state) session.state = payload.state;
+    if (typeof openDungeonDetail === 'function' && duoDungeonState.dungeonId) {
+        openDungeonDetail(duoDungeonState.dungeonId);
+    }
 }
 
-/** @param {object} payload — battle_action from peer; turn validation not implemented. */
 function applyRemoteDuoDungeonBattleAction(payload) {
-    // TODO: apply validated remote action to local battle state (host rejects invalid).
-    void payload;
+    if (typeof applyRemoteDuoDungeonBattleActionImpl === 'function') {
+        applyRemoteDuoDungeonBattleActionImpl(payload);
+    }
 }
 
 function applyRemoteDuoDungeonForfeit(_payload) {
-    // TODO: end duo run, show forfeit UI, reset to idle lobby.
-    duoDungeonLog('Партнёр сдался.', 'info');
-    duoDungeonState.status = 'idle';
+    duoDungeonLog('Партнёр сдался или отключился.', 'warning');
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    if (typeof abandonDungeonRun === 'function') abandonDungeonRun();
+    duoDungeonState.status = 'lobby';
+    duoDungeonState.remoteReady = false;
+    if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
 }
 
 function handleDungeonDuoMessage(msg) {

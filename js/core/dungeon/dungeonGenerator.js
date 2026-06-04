@@ -108,15 +108,26 @@ function resolveEnemiesForRoom(namePool, count, rng, mults, dungeon) {
     return enemies;
 }
 
-function floorStatMults(floorIndex, enemyCount) {
-    const floorMult = 1 + floorIndex * 0.12;
-    const packHp = enemyCount >= 2 ? DUNGEON_BALANCE.soloHpPackMult : 1;
-    const atkMult = DUNGEON_BALANCE.soloAtkMult;
+function getPackMult(table, enemyCount, fallback) {
+    if (!table) return fallback;
+    const n = Math.max(1, Math.min(3, enemyCount));
+    return table[n] != null ? table[n] : fallback;
+}
+
+function floorStatMults(floorIndex, enemyCount, mode) {
+    const isDuo = mode === 'duo';
+    const floorMult = 1 + floorIndex * (DUNGEON_BALANCE.floorThreatStep || 0.12);
+    const packHpTable = isDuo ? DUNGEON_BALANCE.packHp.duo : DUNGEON_BALANCE.packHp.solo;
+    const packAtkTable = isDuo ? DUNGEON_BALANCE.packAtk.duo : DUNGEON_BALANCE.packAtk.solo;
+    const modeHp = isDuo ? DUNGEON_BALANCE.modeHp.duo : DUNGEON_BALANCE.modeHp.solo;
+    const modeAtk = isDuo ? DUNGEON_BALANCE.modeAtk.duo : DUNGEON_BALANCE.modeAtk.solo;
+    const packHp = getPackMult(packHpTable, enemyCount, isDuo ? 0.38 : 0.42);
+    const packAtk = getPackMult(packAtkTable, enemyCount, isDuo ? 0.9 : 0.88);
     return {
-        hp: packHp * floorMult,
-        atk: atkMult * floorMult,
+        hp: packHp * modeHp * floorMult,
+        atk: packAtk * modeAtk * floorMult,
         def: floorMult * 0.95,
-        exp: floorMult
+        exp: floorMult * (isDuo ? (DUNGEON_BALANCE.reward.duo.exp || 1.3) : 1)
     };
 }
 
@@ -143,11 +154,22 @@ function generateDungeonRun(dungeonId, seed) {
         const roomCount = rollRoomCount(rng, dungeon);
         const rooms = [];
 
+        const runMode = dungeon.mode === 'duo' ? 'duo' : 'solo';
+
         for (let r = 0; r < roomCount; r++) {
             const archetype = weightedPickArchetype(rng);
+            if (archetype.id === 'shrine') {
+                rooms.push({
+                    archetype: 'shrine',
+                    enemies: [],
+                    isBoss: false,
+                    isShrine: true
+                });
+                continue;
+            }
             const isBoss = archetype.id === 'boss' || (r === roomCount - 1 && f === floorCount - 1 && rng() < 0.35);
             const enemyCount = rollEnemyCount(rng, archetype, f, isBoss);
-            const mults = floorStatMults(f, enemyCount);
+            const mults = floorStatMults(f, enemyCount, runMode);
             const enemies = resolveEnemiesForRoom(namePool, enemyCount, rng, mults, dungeon);
 
             if (!enemies.length && namePool.length) {
@@ -158,7 +180,8 @@ function generateDungeonRun(dungeonId, seed) {
             rooms.push({
                 archetype: archetype.id,
                 enemies: enemies,
-                isBoss: isBoss
+                isBoss: isBoss,
+                isShrine: false
             });
         }
 

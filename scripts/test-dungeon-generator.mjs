@@ -38,6 +38,8 @@ function load(rel) {
     vm.runInContext(readFileSync(join(root, rel), 'utf8'), ctx);
 }
 
+ctx.window = ctx;
+load('js/data/locations.js');
 load('js/data/dungeons.js');
 load('js/core/dungeon/dungeonGenerator.js');
 
