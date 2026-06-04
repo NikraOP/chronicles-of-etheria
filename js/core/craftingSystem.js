@@ -229,25 +229,81 @@ function getResourcesAtLocationForProfession(profId) {
     return names.sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
+function escapeHtmlText(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getGatherResourceDescription(r) {
+    if (r && r.desc) return String(r.desc);
+    if (r && r.battle) return 'Особая добыча — победа в бою, затем тушка в инвентарь.';
+    return 'Ресурс для крафта, продажи и улучшений.';
+}
+
+function getAdjustedGatherExpForResource(r, profId) {
+    const prof = player.professions[profId];
+    const tier = prof ? (parseInt(prof.tier, 10) || 1) : 1;
+    const bonuses = getProfessionBonuses(tier);
+    const baseExp = parseInt(r.exp, 10) || 0;
+    return Math.floor(baseExp * (1 + bonuses.expBonus));
+}
+
+function getAdjustedGatherTimeForResource(r, profId) {
+    const prof = player.professions[profId];
+    const tier = prof ? (parseInt(prof.tier, 10) || 1) : 1;
+    const bonuses = getProfessionBonuses(tier);
+    const baseTime = parseInt(r.time, 10) || 0;
+    if (r.battle) return 0;
+    return Math.max(2, Math.floor(baseTime * (1 - bonuses.gatherSpeedBonus)));
+}
+
+function buildGatherResourceTooltipHtml(r, profId) {
+    const name = escapeHtmlText(r.name || 'Ресурс');
+    const desc = escapeHtmlText(getGatherResourceDescription(r));
+    const resTier = parseInt(r.tier, 10) || 1;
+    let meta = '⭐ Тир ' + resTier;
+    if (r.battle) {
+        meta += ' · ⚔️ Бой';
+    } else {
+        const adjTime = getAdjustedGatherTimeForResource(r, profId);
+        const adjExp = getAdjustedGatherExpForResource(r, profId);
+        const baseExp = parseInt(r.exp, 10) || 0;
+        meta += '<br>⏱️ ' + adjTime + ' с';
+        meta += ' · +' + adjExp + ' XP';
+        if (adjExp !== baseExp) {
+            meta += ' <span class="prof-tooltip-muted">(баз. ' + baseExp + ')</span>';
+        }
+    }
+    return '<div class="prof-resource-tooltip" role="tooltip">' +
+        '<div class="prof-resource-tooltip-name">' + name + '</div>' +
+        '<div class="prof-resource-tooltip-desc">' + desc + '</div>' +
+        '<div class="prof-resource-tooltip-meta">' + meta + '</div>' +
+        '</div>';
+}
+
 function renderGatherProfessionIconsHtml(profId) {
     const defs = getGatherableResourceDefsAtLocation(profId);
     if (!defs.length) {
-        return '<div class="profession-resource-icons profession-resource-icons--empty" title="На этой локации нет ресурсов для вашего тира">' +
+        return '<div class="profession-resource-strip profession-resource-icons profession-resource-icons--empty" title="На этой локации нет ресурсов для вашего тира">' +
             '<span class="profession-resource-empty">∅</span></div>';
     }
-    const maxShow = 8;
-    let html = '<div class="profession-resource-icons">';
-    for (let i = 0; i < Math.min(defs.length, maxShow); i++) {
+    const count = defs.length;
+    const densityClass = count > 12 ? 'profession-resource-icons--dense'
+        : count > 8 ? 'profession-resource-icons--many'
+        : count > 4 ? 'profession-resource-icons--medium' : '';
+    const iconSize = count > 12 ? 26 : count > 8 ? 28 : 32;
+    let html = '<div class="profession-resource-strip profession-resource-icons ' + densityClass + '" data-resource-count="' + count + '">';
+    for (let i = 0; i < defs.length; i++) {
         const r = defs[i];
-        const tip = (r.name || '') + ' · T' + (r.tier || 1);
-        html += '<div class="profession-resource-icon-chip" title="' + tip.replace(/"/g, '&quot;') + '">';
+        html += '<div class="profession-resource-icon-chip" tabindex="0" aria-label="' + escapeHtmlText(r.name || '') + '">';
         html += typeof renderItemIconHTML === 'function'
-            ? renderItemIconHTML(r, { size: 32, fallback: r.icon || '📦' })
+            ? renderItemIconHTML(r, { size: iconSize, fallback: r.icon || '📦' })
             : '<span>' + (r.icon || '📦') + '</span>';
+        html += buildGatherResourceTooltipHtml(r, profId);
         html += '</div>';
-    }
-    if (defs.length > maxShow) {
-        html += '<span class="prof-resource-more">+' + (defs.length - maxShow) + '</span>';
     }
     html += '</div>';
     return html;
@@ -818,6 +874,7 @@ window.getProfessionLearnBlockReason = getProfessionLearnBlockReason;
 window.getResourcesAtLocationForProfession = getResourcesAtLocationForProfession;
 window.getGatherableResourceDefsAtLocation = getGatherableResourceDefsAtLocation;
 window.renderGatherProfessionIconsHtml = renderGatherProfessionIconsHtml;
+window.getAdjustedGatherExpForResource = getAdjustedGatherExpForResource;
 window.formatLocationResourcesHint = formatLocationResourcesHint;
 window.getMaxCraftCount = getMaxCraftCount;
 window.scaleRecipeMaterials = scaleRecipeMaterials;

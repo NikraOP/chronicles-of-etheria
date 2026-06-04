@@ -21,8 +21,8 @@ ctx.PROFESSIONS_DB = {
 };
 ctx.RESOURCES_DB = {
     mining: [
-        { name: 'Медная руда', tier: 1, locations: ['Сумеречный лес'] },
-        { name: 'Железная руда', tier: 2, locations: ['Сумеречный лес'] }
+        { name: 'Медная руда', tier: 1, exp: 15, time: 3, locations: ['Сумеречный лес'] },
+        { name: 'Железная руда', tier: 2, exp: 35, time: 5, locations: ['Сумеречный лес'] }
     ]
 };
 ctx.player.location = 'Сумеречный лес';
@@ -84,6 +84,14 @@ assert(ctx.getResourcesAtLocationForProfession('mining').includes('Железн�
 const defs = ctx.getGatherableResourceDefsAtLocation('mining');
 assert(defs.length >= 1 && defs[0].name, 'gather defs return objects with name');
 assert(ctx.getGatherableResourceDefsAtLocation('mining').every(d => d.tier <= 2), 'defs respect prof tier');
+
+const iconsHtml = ctx.renderGatherProfessionIconsHtml('mining');
+assert(iconsHtml.indexOf('prof-resource-tooltip') !== -1, 'tooltip markup in profession icons');
+assert(iconsHtml.indexOf('XP') !== -1, 'tooltip shows exp');
+assert(iconsHtml.indexOf('Тир') !== -1, 'tooltip shows tier');
+const adjExp = ctx.getAdjustedGatherExpForResource(defs[0], 'mining');
+assert(adjExp >= 15, 'adjusted exp includes profession bonus at tier 2');
+assert(iconsHtml.indexOf('+') !== -1 && iconsHtml.indexOf('XP') !== -1, 'tooltip shows exp line');
 
 ctx.player.resources = { 'Медная руда': 20 };
 const ringRecipe = { name: 'Медное кольцо', tier: 1, resources: { 'Медная руда': 3 } };

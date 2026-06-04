@@ -51,9 +51,9 @@ function showProfessions() {
                     '<div class="profession-name" style="font-weight: 600; font-size: 16px;">' + prof.name + '</div>' +
                     '<span class="profession-type type-gathering" style="font-size: 10px; padding: 2px 10px; border-radius: 10px; background: rgba(46,204,113,0.2); color: var(--green);">Добыча</span>' +
                 '</div>' +
-                resourceIcons +
             '</div>' +
-            '<div class="prof-location-line">' + locLine + (noResourcesHere ? ' · нет ресурсов' : '') + '</div>' +
+            resourceIcons +
+            '<div class="prof-location-line">' + locLine + (noResourcesHere ? ' · нет ресурсов' : (gatherDefs.length ? ' · ' + gatherDefs.length + ' рес.' : '')) + '</div>' +
             (learned ? 
                 '<div>Тир: <strong>' + tier + '</strong>/6</div>' +
                 (tier < 6 ? 
