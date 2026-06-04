@@ -862,9 +862,9 @@ function showItemCooldownsInBattle() {
                        (player.inventory.scrolls && player.inventory.scrolls.length > 0);
     if (!hasPotions) return '';
     
-    let html = '<div style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px;">';
-    html += '<div style="font-size: 11px; color: var(--gold); margin-bottom: 8px;">📦 Предметы:</div>';
-    html += '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+    let html = '<div class="battle-consumables-panel" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px;">';
+    html += '<div style="font-size: 11px; color: var(--gold); margin-bottom: 8px;">📦 Предметы (зелья, еда, эликсиры, свитки):</div>';
+    html += '<div class="battle-consumables-panel__buttons" style="display: flex; flex-wrap: wrap; gap: 8px;">';
     
     if (player.inventory.potions && player.inventory.potions.length > 0) {
         const cd = window.getItemCooldown('potion');

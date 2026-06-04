@@ -2892,7 +2892,7 @@ body.gather-screen-flash::after {
     gap: 10px;
     margin-right: auto !important;
     margin-left: 0 !important;
-    align-self: flex-end;
+    align-self: center;
     flex-shrink: 0;
     z-index: 2;
     padding: 10px 12px 12px;
@@ -4499,6 +4499,7 @@ h3 { font-size: 18px; }
 .battle-arena {
     display: flex !important;
     justify-content: space-between !important;
+    align-items: center !important;
     flex-direction: row !important;
     flex-wrap: wrap;
 }
@@ -4518,6 +4519,7 @@ h3 { font-size: 18px; }
 
 #playerWrapper {
     margin-left: auto !important;
+    align-self: center !important;
 }
 
 .vs-badge {

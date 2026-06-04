@@ -847,8 +847,9 @@ function useConsumable(type, index) {
     if (typeof updateBattleVitality === 'function') updateBattleVitality();
     else renderBattle({ vitalsOnly: true });
     
-    setTimeout(() => { 
-        if (typeof monsterTurn !== 'undefined') monsterTurn(); 
+    setTimeout(function () {
+        if (typeof endPlayerActionChain === 'function') endPlayerActionChain();
+        else if (typeof monsterTurn === 'function') monsterTurn();
     }, 500);
 }
 

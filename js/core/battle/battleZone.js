@@ -170,6 +170,12 @@ function enterBattleZoneWithMonster(monsterData, options) {
     currentMonster = null;
     battleLogEntries = [];
     syncBattleZoneLayout();
+
+    const inDungeon = typeof getDungeonRunSession === 'function' && getDungeonRunSession();
+    if (inDungeon && typeof beginEngagedCombatFromStaging === 'function') {
+        beginEngagedCombatFromStaging();
+        return true;
+    }
     if (typeof renderBattleStaging === 'function') renderBattleStaging();
     return true;
 }
