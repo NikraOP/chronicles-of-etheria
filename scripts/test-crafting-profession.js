@@ -70,9 +70,10 @@ assert(normAncient.tier === 6, 'ancient rarity forces tier 6 recipe');
 assert(ctx.getCraftRarityColor('Древний') === '#e67e22', 'ancient color');
 assert(ctx.getCraftRarityColor('Божественный') === '#1abc9c', 'divine color');
 
-assert(ctx.getProfessionLearnBlockReason('jewelry').indexOf('12') !== -1, 'jewelry blocked below lvl 12');
-ctx.player.level = 12;
-assert(ctx.getProfessionLearnBlockReason('jewelry') === '', 'jewelry learnable at 12');
+assert(ctx.getProfessionLearnBlockReason('jewelry') === '', 'any profession learnable without level gate');
+ctx.player.professions.jewelry = { tier: 1, exp: 0 };
+assert(ctx.getProfessionLearnBlockReason('jewelry').indexOf('изучена') !== -1, 'already learned blocked');
+delete ctx.player.professions.jewelry;
 
 const atLoc = ctx.getResourcesAtLocationForProfession('mining');
 assert(atLoc.includes('Медная руда'), 'tier1 ore at location');

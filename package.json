@@ -10,6 +10,7 @@
     "build:pvp-mqtt-direct": "esbuild js/vendor/pvp-mqtt-direct.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/pvp-mqtt-direct.bundle.mjs",
     "build:pvp-vendor": "npm run build:pvp-mqtt-direct && npm run build:pvp-transport && npm run build:pvp-transport-mqtt && npm run build:pvp-transport-ws",
     "start:relay": "node server/pvp-relay.mjs",
+    "test:crafting": "node scripts/test-crafting-profession.js",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test": "echo \"Error: no test specified\" && exit 1"

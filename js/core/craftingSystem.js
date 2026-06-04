@@ -129,17 +129,8 @@ function findProfessionMeta(profId) {
         || null;
 }
 
-function getProfessionLearnMinLevel(profId) {
-    const prof = findProfessionMeta(profId);
-    const lvl = prof && prof.learnMinLevel != null ? parseInt(prof.learnMinLevel, 10) : 1;
-    return Number.isFinite(lvl) && lvl > 0 ? lvl : 1;
-}
-
 function getProfessionLearnBlockReason(profId) {
     if (player.professions[profId]) return 'Профессия уже изучена';
-    const minLvl = getProfessionLearnMinLevel(profId);
-    const playerLvl = parseInt(player.level, 10) || 1;
-    if (playerLvl < minLvl) return `Нужен ${minLvl} ур. персонажа (сейчас ${playerLvl})`;
     return '';
 }
 
@@ -211,12 +202,23 @@ function getCraftBlockReason(recipe, profId) {
     return '';
 }
 
+function decodeCraftBlockReason(raw) {
+    if (!raw) return '';
+    try {
+        return decodeURIComponent(raw);
+    } catch (e) {
+        return raw;
+    }
+}
+
 function bindCraftRecipeGrid(profId) {
-    const grid = document.getElementById('craftRecipeGrid');
-    if (!grid) return;
-    grid.querySelectorAll('.craft-recipe-card').forEach(card => {
+    const root = document.getElementById('dynamicContent');
+    if (!root) return;
+    root.querySelectorAll('.craft-recipe-card').forEach(card => {
+        if (card.dataset.craftBound === '1') return;
+        card.dataset.craftBound = '1';
         card.addEventListener('click', () => {
-            const reason = card.getAttribute('data-block-reason') || '';
+            const reason = decodeCraftBlockReason(card.getAttribute('data-block-reason'));
             if (reason) {
                 addMessage('❌ ' + reason, 'error');
                 return;
@@ -225,6 +227,19 @@ function bindCraftRecipeGrid(profId) {
             if (!recipeName) return;
             prepareCraft(profId, recipeName);
         });
+    });
+}
+
+function scrollCraftResultIntoView() {
+    const resultDiv = document.getElementById('craftResult');
+    if (!resultDiv) return;
+    requestAnimationFrame(() => {
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const main = document.querySelector('.main-content');
+        if (main) {
+            const top = resultDiv.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 12;
+            main.scrollTop = Math.max(0, top);
+        }
     });
 }
 
@@ -461,6 +476,7 @@ function showCraftingRecipes(profId) {
             + ' рецепт(ов) откроются с повышением тира профессии</div>';
     }
     html += '</div>';
+    html += '<div id="craftResult" class="craft-result-panel"></div>';
     
     if (availableRecipes.length === 0) {
         html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; text-align: center;">';
@@ -515,7 +531,7 @@ function showCraftingRecipes(profId) {
         
         for (const [itemType, recipes] of Object.entries(grouped)) {
             html += `<h3 style="margin-top: 20px; margin-bottom: 10px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px;">${typeNames[itemType] || itemType}</h3>`;
-            html += '<div class="resource-grid craft-recipe-grid" id="craftRecipeGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-bottom: 15px;">';
+            html += '<div class="resource-grid craft-recipe-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-bottom: 15px;">';
             
             for (const r of recipes) {
                 const norm = normalizeRecipeForCraft(r);
@@ -556,8 +572,9 @@ function showCraftingRecipes(profId) {
                 
                 const safeRecipe = encodeURIComponent(norm.name);
                 const blockAttr = blockReason ? encodeURIComponent(blockReason) : '';
+                const blockDataAttr = blockReason ? ` data-block-reason="${blockAttr}"` : '';
                 
-                html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}" data-block-reason="${blockAttr}" role="button" tabindex="0">`;
+                html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}"${blockDataAttr} role="button" tabindex="0">`;
                 html += '<div style="display: flex; gap: 12px;">';
                 html += typeof renderItemIconHTML === 'function'
                     ? renderItemIconHTML(norm, { size: 44, fallback: norm.icon || '📦' })
@@ -575,8 +592,7 @@ function showCraftingRecipes(profId) {
         }
     }
     
-    html += '<div id="craftResult" style="margin-top: 15px;"></div>';
-    html += '<button class="action-btn" onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
+    html += '<button class="action-btn craft-back-btn" onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
     document.getElementById('dynamicContent').innerHTML = html;
     bindCraftRecipeGrid(profId);
 }
@@ -627,26 +643,28 @@ function prepareCraft(profId, recipeName) {
     const resultDiv = document.getElementById('craftResult');
     if (!resultDiv) {
         completeCrafting(profId, { silent: true });
+        saveGame();
         return;
     }
-    let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px; margin-top: 10px;">';
-        resultHtml += '<div style="margin-bottom: 10px;">🔨 <strong>Крафт завершён!</strong></div>';
-        resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано: <span style="color: var(--gold); font-weight: bold;">' + normRecipe.name + '</span></div>';
-        resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (normRecipe.exp || normRecipe.time || 0) + ' XP</div>';
-        if (bonuses.craftQualityBonus > 0) {
-            resultHtml += '<div style="font-size: 11px; color: #f0c040;">✨ Бонус качества: +' + Math.floor(bonuses.craftQualityBonus * 100) + '%</div>';
-        }
-        resultHtml += '<button id="completeCraftBtn" class="action-btn" style="margin-top: 12px; width: 100%; padding: 10px; background: linear-gradient(135deg, #27ae60, #2ecc71);">🎁 Забрать предмет</button>';
-        resultHtml += '</div>';
-        resultDiv.innerHTML = resultHtml;
-        
-        const completeBtn = document.getElementById('completeCraftBtn');
+    let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px;">';
+    resultHtml += '<div style="margin-bottom: 10px;">🔨 <strong>Крафт завершён!</strong></div>';
+    resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано: <span style="color: var(--gold); font-weight: bold;">' + normRecipe.name + '</span></div>';
+    resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (normRecipe.exp || normRecipe.time || 0) + ' XP</div>';
+    if (bonuses.craftQualityBonus > 0) {
+        resultHtml += '<div style="font-size: 11px; color: #f0c040;">✨ Бонус качества: +' + Math.floor(bonuses.craftQualityBonus * 100) + '%</div>';
+    }
+    resultHtml += '<button id="completeCraftBtn" class="action-btn" style="margin-top: 12px; width: 100%; padding: 10px; background: linear-gradient(135deg, #27ae60, #2ecc71);">🎁 Забрать предмет</button>';
+    resultHtml += '</div>';
+    resultDiv.innerHTML = resultHtml;
+    scrollCraftResultIntoView();
+
+    const completeBtn = document.getElementById('completeCraftBtn');
     if (completeBtn) {
         completeBtn.onclick = () => {
             completeCrafting(profId);
         };
     }
-    
+
     saveGame();
 }
 

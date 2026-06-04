@@ -37,8 +37,6 @@ function showProfessions() {
         const expNeeded = getExpForNextTier(tier);
         const percent = (expNeeded > 0 && tier < 6) ? (exp / expNeeded * 100) : 100;
         const bonuses = getProfessionBonuses(tier);
-        const learnBlock = typeof getProfessionLearnBlockReason === 'function'
-            ? getProfessionLearnBlockReason(prof.id) : '';
         const locHint = typeof formatLocationResourcesHint === 'function'
             ? formatLocationResourcesHint(prof.id) : '';
         
@@ -60,9 +58,7 @@ function showProfessions() {
                 ) +
                 '<div style="font-size: 10px; color: var(--gold); margin-bottom: 8px;">⚡ Бонусы: -' + Math.floor(bonuses.gatherSpeedBonus * 100) + '% время, +' + Math.floor(bonuses.doubleGatherChance * 100) + '% двойная добыча</div>' +
                 '<button class="action-btn" onclick="showGatheringResources(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">⛏️ Собирать</button>' :
-                (learnBlock ?
-                    '<div style="font-size: 10px; color: #e74c3c; margin-top: 8px;">🔒 ' + learnBlock + '</div>' :
-                    '<button class="action-btn" onclick="learnProfession(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">📚 Изучить</button>')) +
+                '<button class="action-btn" onclick="learnProfession(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">📚 Изучить</button>') +
             '</div>';
     });
     html += '</div>';
@@ -75,8 +71,6 @@ function showProfessions() {
         const expNeeded = getExpForNextTier(tier);
         const percent = (expNeeded > 0 && tier < 6) ? (exp / expNeeded * 100) : 100;
         const bonuses = getProfessionBonuses(tier);
-        const learnBlock = typeof getProfessionLearnBlockReason === 'function'
-            ? getProfessionLearnBlockReason(prof.id) : '';
         const locHint = typeof formatLocationResourcesHint === 'function'
             ? formatLocationResourcesHint(prof.id) : '';
         
@@ -98,9 +92,7 @@ function showProfessions() {
                 ) +
                 '<div style="font-size: 10px; color: var(--gold); margin-bottom: 8px;">✨ Качество +' + Math.floor(bonuses.craftQualityBonus * 100) + '%, экономия ' + Math.floor(bonuses.materialSaveChance * 100) + '%</div>' +
                 '<button class="action-btn" onclick="showCraftingRecipes(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">🔨 Создавать</button>' :
-                (learnBlock ?
-                    '<div style="font-size: 10px; color: #e74c3c; margin-top: 8px;">🔒 ' + learnBlock + '</div>' :
-                    '<button class="action-btn" onclick="learnProfession(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">📚 Изучить</button>')) +
+                '<button class="action-btn" onclick="learnProfession(\'' + prof.id + '\')" style="margin-top:8px;width:100%; padding: 10px;">📚 Изучить</button>') +
             '</div>';
     });
     html += '</div>';
@@ -108,12 +100,6 @@ function showProfessions() {
 }
 
 function learnProfession(profId) {
-    const block = typeof getProfessionLearnBlockReason === 'function'
-        ? getProfessionLearnBlockReason(profId) : '';
-    if (block) {
-        addMessage('🔒 ' + block, 'error');
-        return;
-    }
     if (player.professions[profId]) { addMessage('Профессия уже изучена!', 'error'); return; }
     player.professions[profId] = { tier: 1, exp: 0 };
     saveGame();

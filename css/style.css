@@ -1049,6 +1049,21 @@ body.low-hp .main-content {
     font-weight: 700;
     color: #2ecc71;
 }
+.craft-result-panel {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: 12px 0 16px;
+    min-height: 0;
+}
+.craft-result-panel:empty {
+    display: none;
+    margin: 0;
+}
+.craft-back-btn {
+    position: relative;
+    z-index: 1;
+}
 .gather-auto-toast {
     margin-top: 14px;
     padding: 14px 16px;
