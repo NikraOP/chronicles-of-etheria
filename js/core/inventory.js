@@ -849,6 +849,7 @@ function useConsumable(type, index) {
     
     setTimeout(function () {
         if (typeof endPlayerActionChain === 'function') endPlayerActionChain();
+        else if (typeof startMonsterPhaseAfterPlayer === 'function') startMonsterPhaseAfterPlayer();
         else if (typeof monsterTurn === 'function') monsterTurn();
     }, 500);
 }

@@ -136,7 +136,8 @@ function onPlayerTurnStart() {
         isPlayerTurn = false;
         updateBattleButtons();
         renderBattle();
-        setTimeout(() => monsterTurn(), 120);
+        if (typeof startMonsterPhaseAfterPlayer === 'function') startMonsterPhaseAfterPlayer();
+        else setTimeout(() => monsterTurn(), 120);
         return false;
     }
     if (playerSkipNextTurn) {
@@ -145,7 +146,8 @@ function onPlayerTurnStart() {
         addBattleLog('💫 Вы пропускаете ход...', 'info');
         updateBattleButtons();
         renderBattle();
-        setTimeout(() => monsterTurn(), 120);
+        if (typeof startMonsterPhaseAfterPlayer === 'function') startMonsterPhaseAfterPlayer();
+        else setTimeout(() => monsterTurn(), 120);
         return false;
     }
     isPlayerTurn = true;

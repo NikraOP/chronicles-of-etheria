@@ -140,7 +140,8 @@ function attemptDodge() {
             renderBattle();
             return;
         }
-        setTimeout(() => { monsterTurn(); }, 500);
+        if (typeof startMonsterPhaseAfterPlayer === 'function') startMonsterPhaseAfterPlayer();
+        else setTimeout(() => { monsterTurn(); }, 500);
     }
     renderBattle();
 }
@@ -905,7 +906,8 @@ function fleeBattle() {
         }
     } else {
         addBattleLog('❌ Побег не удался!', 'info');
-        setTimeout(() => { monsterTurn(); }, 500);
+        if (typeof startMonsterPhaseAfterPlayer === 'function') startMonsterPhaseAfterPlayer();
+        else setTimeout(() => { monsterTurn(); }, 500);
     }
 }
 

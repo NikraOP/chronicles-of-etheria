@@ -104,15 +104,20 @@ function useMonsterAbility(ability) {
             const hits = ability.hits || 1;
             const monsterAtk = getMonsterCurrentAttack();
             const critBuff = currentMonster.activeBuffs && currentMonster.activeBuffs.crit;
+            const strikeTarget = typeof pickMonsterCombatTargetForAbility === 'function'
+                ? pickMonsterCombatTargetForAbility(ability)
+                : (typeof pickMonsterCombatTarget === 'function' ? pickMonsterCombatTarget() : 'player');
             let totalApplied = 0;
+            let lastTarget = strikeTarget;
             for (let h = 0; h < hits; h++) {
                 let dmg = Math.floor(monsterAtk * (ability.multiplier || 1));
                 if (critBuff && critBuff.remainingTurns > 0 && Math.random() * 100 <= critBuff.value) {
                     dmg = Math.floor(dmg * 1.5);
                     if (h === 0) addBattleLog(`💥 Критический удар ${currentMonster.name}!`, 'crit');
                 }
-                const hit = applyMonsterDamageToTarget(dmg);
+                const hit = applyMonsterDamageToTarget(dmg, strikeTarget);
                 totalApplied += hit.applied;
+                lastTarget = hit.target;
                 if (hits === 1 && hit.applied > 0) {
                     const targetLabel = hit.target === 'ally' ? 'союзнику' : 'вам';
                     addBattleLog(`⚔️ ${currentMonster.name} бьёт ${targetLabel}: ${hit.applied} урона`, 'dmg');
@@ -120,10 +125,7 @@ function useMonsterAbility(ability) {
             }
             if (hits > 1) addBattleLog(`⚔️ Серия из ${hits} ударов: всего ${totalApplied} урона`, 'dmg');
             if (typeof setStrikeImpact === 'function') {
-                const strikeTarget = typeof pickMonsterCombatTarget === 'function'
-                    ? pickMonsterCombatTarget()
-                    : 'player';
-                setStrikeImpact(() => floatDamage(strikeTarget, totalApplied, false));
+                setStrikeImpact(() => floatDamage(lastTarget, totalApplied, false));
             }
             break;
         }
@@ -311,7 +313,10 @@ function monsterTurn() {
         const duo = getDuoDungeonState();
         if (duo.role !== 'host') return;
     }
-    if (window._monsterTurnBusy) return;
+    if (window._monsterTurnBusy) {
+        if (typeof scheduleMonsterTurn === 'function') scheduleMonsterTurn(120);
+        return;
+    }
     if (!currentMonster || currentMonster.health <= 0) {
         if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
         return;

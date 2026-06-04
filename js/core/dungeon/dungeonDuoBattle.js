@@ -131,6 +131,10 @@ function resetDungeonDuoRoundActs() {
 }
 
 function startDungeonDuoMonsterPhase() {
+    if (typeof startMonsterPhaseAfterPlayer === 'function') {
+        startMonsterPhaseAfterPlayer();
+        return;
+    }
     if (typeof beginMonsterQueuePhase === 'function') beginMonsterQueuePhase();
     setTimeout(function () {
         if (typeof monsterTurn === 'function') monsterTurn();
