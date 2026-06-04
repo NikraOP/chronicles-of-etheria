@@ -167,8 +167,11 @@ export function createFriendExchangesApi(dataDir, accountsApi) {
 
         async sendOffer(fromAccount, toPlayerId, body) {
             const toId = accountsApi.sanitizeId(toPlayerId);
-            if (!toId || toId === fromAccount.playerId) {
-                return { error: 'invalid_target', status: 400 };
+            if (!toId) {
+                return { error: 'invalid_target', status: 400, message: 'Укажите друга из списка' };
+            }
+            if (toId === fromAccount.playerId) {
+                return { error: 'invalid_target', status: 400, message: 'Нельзя отправить обмен самому себе' };
             }
             const friendIds = await accountsApi.getFriendIds(fromAccount.playerId);
             if (!friendIds.includes(toId)) {

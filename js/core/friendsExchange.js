@@ -149,29 +149,50 @@
         return parts.length ? parts.join(' · ') : 'пусто';
     }
 
+    function renderExchangeDraftItemIcon(item, fallback) {
+        if (item && typeof renderItemIconHTML === 'function') {
+            return renderItemIconHTML(item, { size: 36, fallback: fallback || '📦' });
+        }
+        return '<span class="exchange-draft-item__emoji">' + (fallback || '📦') + '</span>';
+    }
+
     function buildExchangeDraftListHtml(side, title) {
         const draft = getExchangeDraft(side);
         let html = '<div class="exchange-draft" data-ex-draft="' + side + '">';
         html += '<h4 class="exchange-draft__title">' + escapeExHtml(title) + '</h4>';
         html += '<div class="exchange-draft__list">';
         if (draft.gold > 0) {
-            html += '<span class="exchange-draft-chip">💰 ' + draft.gold +
-                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="gold" data-ex-side="' + side +
-                '">×</button></span>';
+            html += '<div class="exchange-draft-item exchange-draft-item--gold">' +
+                '<div class="exchange-draft-item__icon">💰</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">Золото</div>' +
+                '<div class="exchange-draft-item__meta">' + draft.gold + ' монет</div></div>' +
+                '<button type="button" class="exchange-draft-chip__x" data-ex-rm="gold" data-ex-side="' + side +
+                '">×</button></div>';
         }
         (draft.resources || []).forEach(function (r, i) {
-            html += '<span class="exchange-draft-chip">' + escapeExHtml(r.name) + ' ×' + r.qty +
-                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="res" data-ex-side="' + side +
-                '" data-ex-idx="' + i + '">×</button></span>';
+            const resDef = typeof findResourceDefByName === 'function' ? findResourceDefByName(r.name) : null;
+            const iconItem = resDef || { name: r.name, icon: '💎' };
+            html += '<div class="exchange-draft-item">' +
+                '<div class="exchange-draft-item__icon">' + renderExchangeDraftItemIcon(iconItem, '💎') + '</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">' + escapeExHtml(r.name) +
+                '</div><div class="exchange-draft-item__meta">×' + r.qty + '</div></div>' +
+                '<button type="button" class="exchange-draft-chip__x" data-ex-rm="res" data-ex-side="' + side +
+                '" data-ex-idx="' + i + '">×</button></div>';
         });
         (draft.items || []).forEach(function (row, i) {
-            const label = (row.item && row.item.name) || 'Предмет';
-            html += '<span class="exchange-draft-chip">📦 ' + escapeExHtml(label) +
-                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="item" data-ex-side="' + side +
-                '" data-ex-idx="' + i + '">×</button></span>';
+            const item = row.item || {};
+            const slot = EX_INV_SLOTS.find(function (s) { return s.key === row.invKey; });
+            const fb = slot ? slot.icon : '📦';
+            html += '<div class="exchange-draft-item">' +
+                '<div class="exchange-draft-item__icon">' + renderExchangeDraftItemIcon(item, fb) + '</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">' + escapeExHtml(item.name || 'Предмет') +
+                '</div><div class="exchange-draft-item__meta">' + escapeExHtml(slot ? slot.label : 'Предмет') +
+                (item.rarity ? ' · ' + escapeExHtml(item.rarity) : '') + '</div></div>' +
+                '<button type="button" class="exchange-draft-chip__x" data-ex-rm="item" data-ex-side="' + side +
+                '" data-ex-idx="' + i + '">×</button></div>';
         });
         if (draftIsEmpty(draft)) {
-            html += '<span class="exchange-draft__empty">Пока ничего не добавлено</span>';
+            html += '<p class="exchange-draft__empty">Пока ничего не добавлено — нажмите «Добавить к обмену»</p>';
         }
         html += '</div>';
         html += '<div class="exchange-draft__actions">';
@@ -559,8 +580,14 @@
             }
             return;
         }
-        _exchangeTargetId = String(targetPlayerId || '');
+        _exchangeTargetId = typeof resolveFriendPlayerId === 'function'
+            ? resolveFriendPlayerId(targetPlayerId)
+            : String(targetPlayerId || '').trim();
         _exchangeTargetName = String(targetName || 'друг');
+        if (!_exchangeTargetId) {
+            if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга. Обновите список.', 'error');
+            return;
+        }
         _exchangeKind = 'gift';
         resetExchangeDrafts();
         const modal = document.getElementById('modalOverlay');
@@ -594,6 +621,14 @@
                 return;
             }
         }
+        const targetId = typeof resolveFriendPlayerId === 'function'
+            ? resolveFriendPlayerId(_exchangeTargetId)
+            : String(_exchangeTargetId || '').trim();
+        const targetName = _exchangeTargetName;
+        if (!targetId) {
+            if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга для обмена.', 'error');
+            return;
+        }
         closeExchangeModal();
         try {
             if (typeof ensureFriendsOnlineSession === 'function') {
@@ -603,7 +638,7 @@
             await friendsHttpFetch('/api/v1/exchanges/send', {
                 method: 'POST',
                 body: {
-                    toPlayerId: _exchangeTargetId,
+                    toPlayerId: targetId,
                     kind: _exchangeKind,
                     fromOffer: fromOffer,
                     toOffer: toOffer
@@ -614,7 +649,7 @@
             if (typeof saveGame === 'function') saveGame();
             if (typeof renderGame === 'function') renderGame();
             if (typeof addMessage === 'function') {
-                addMessage('🎁 Предложение отправлено: ' + _exchangeTargetName, 'success');
+                addMessage('🎁 Предложение отправлено: ' + targetName, 'success');
             }
             await refreshExchangesList();
             if (getFriendsActiveTab() === 'exchanges' && typeof renderFriendsScreenInner === 'function') {
@@ -871,8 +906,9 @@
             const btn = e.target && e.target.closest ? e.target.closest('.friend-exchange-btn') : null;
             if (!btn) return;
             e.preventDefault();
-            const id = btn.getAttribute('data-exchange-target-id');
+            const rawId = btn.getAttribute('data-exchange-target-id');
             const name = btn.getAttribute('data-exchange-target-name') || 'друг';
+            const id = typeof resolveFriendPlayerId === 'function' ? resolveFriendPlayerId(rawId) : rawId;
             if (id) openExchangeModal(id, name);
         });
         window.__friendsExchangeClickBound = true;

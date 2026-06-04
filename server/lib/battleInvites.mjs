@@ -72,8 +72,11 @@ export function createBattleInvitesApi(dataDir, pvpApi, accountsApi) {
     return {
         async createInvite(fromAccount, toPlayerId, snapshot) {
             const toId = accountsApi.sanitizeId(toPlayerId);
-            if (!toId || toId === fromAccount.playerId) {
-                return { error: 'invalid_target', status: 400 };
+            if (!toId) {
+                return { error: 'invalid_target', status: 400, message: 'Укажите друга из списка' };
+            }
+            if (toId === fromAccount.playerId) {
+                return { error: 'invalid_target', status: 400, message: 'Нельзя вызвать на бой самого себя' };
             }
             const friendIds = await accountsApi.getFriendIds(fromAccount.playerId);
             if (!friendIds.includes(toId)) {

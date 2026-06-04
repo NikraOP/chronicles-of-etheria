@@ -6460,14 +6460,57 @@ body.account-gate-active #app.account-gate-layout {
 }
 .exchange-draft__list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
     min-height: 28px;
     margin-bottom: 12px;
+    max-height: min(36vh, 280px);
+    overflow-y: auto;
 }
 .exchange-draft__empty {
     font-size: 12px;
     color: var(--text-muted);
+    margin: 0;
+    text-align: center;
+    padding: 12px 8px;
+}
+.exchange-draft-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    background: rgba(0, 0, 0, 0.32);
+}
+.exchange-draft-item--gold {
+    border-color: rgba(255, 215, 100, 0.35);
+}
+.exchange-draft-item__icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.exchange-draft-item__emoji {
+    font-size: 28px;
+    line-height: 1;
+}
+.exchange-draft-item__body {
+    flex: 1;
+    min-width: 0;
+}
+.exchange-draft-item__name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+}
+.exchange-draft-item__meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
 }
 .exchange-draft-chip {
     display: inline-flex;

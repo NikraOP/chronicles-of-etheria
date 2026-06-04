@@ -66,6 +66,10 @@ function escapeFriendsHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+function escapeFriendsAttr(s) {
+    return escapeFriendsHtml(s).replace(/'/g, '&#39;');
+}
+
 function ensureFriendsPlayerState() {
     if (!player) return;
     if (!player.friends) {
@@ -357,11 +361,31 @@ function buildFriendsPublicProfile() {
     };
 }
 
+function resolveFriendPlayerId(rawId) {
+    const id = String(rawId || '').trim();
+    if (!id || !player) return '';
+    if (id.indexOf('p_') === 0) return id;
+    ensureFriendsPlayerState();
+    const cached = player.friends.cached || [];
+    for (let i = 0; i < cached.length; i++) {
+        const entry = cached[i];
+        if (!entry) continue;
+        if (entry.playerId === id) return entry.playerId;
+        if (entry.friendCode && String(entry.friendCode).toUpperCase() === id.toUpperCase()) {
+            return entry.playerId || '';
+        }
+    }
+    return id;
+}
+
 function friendsErrorMessage(err) {
-    const code = err && (err.message || err.data && err.data.error);
+    const code = err && (err.message || (err.data && err.data.error));
+    const serverMsg = err && err.data && err.data.message;
     if (code === 'unauthorized') return 'Сессия устарела — откройте вкладку «Друзья» снова.';
-    if (code === 'not_friend') return 'Можно вызывать на бой только друзей из списка.';
-    if (code === 'invalid_target') return 'Некорректный игрок для вызова.';
+    if (code === 'not_friend') return 'Этот игрок не в списке друзей. Обновите вкладку «Друзья».';
+    if (code === 'invalid_target') {
+        return serverMsg || 'Некорректный друг. Обновите список друзей и попробуйте снова.';
+    }
     if (code === 'invite_not_found') return 'Приглашение устарело или уже обработано.';
     if (code === 'offer_not_found') return 'Обмен устарел или уже обработан.';
     if (code === 'exchange_limit') return 'Слишком много активных обменов.';
@@ -708,9 +732,13 @@ async function challengeFriendToPvP(targetPlayerId, friendName) {
         }
         return;
     }
-    const toId = String(targetPlayerId || '').trim();
+    const toId = resolveFriendPlayerId(targetPlayerId);
     if (!toId) {
-        if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга.', 'error');
+        if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга. Обновите список друзей.', 'error');
+        return;
+    }
+    if (toId === player.friends.playerId) {
+        if (typeof addMessage === 'function') addMessage('❌ Нельзя вызвать на бой самого себя.', 'error');
         return;
     }
     if (typeof getPvPPlayerSnapshot !== 'function') {
@@ -775,12 +803,12 @@ function renderFriendCard(entry) {
         '<div class="friend-card__actions">' +
         (playerId
             ? '<button type="button" class="action-btn friend-exchange-btn" data-exchange-target-id="' +
-                escapeFriendsHtml(playerId) + '" data-exchange-target-name="' +
-                escapeFriendsHtml(p.name || 'Герой') + '">🎁 Обмен</button>' +
+                escapeFriendsAttr(playerId) + '" data-exchange-target-name="' +
+                escapeFriendsAttr(p.name || 'Герой') + '">🎁 Обмен</button>' +
             '<button type="button" class="action-btn friend-duel-btn" data-pvp-challenge-id="' +
-                escapeFriendsHtml(playerId) + '" data-pvp-challenge-name="' +
-                escapeFriendsHtml(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>'
-            : '') +
+                escapeFriendsAttr(playerId) + '" data-pvp-challenge-name="' +
+                escapeFriendsAttr(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>'
+            : '<p class="friend-card__no-id">Друг офлайн — попросите открыть вкладку «Друзья»</p>') +
         '</div>' +
         '<span class="friend-card__footer-time"><span class="friend-card__footer-icon" aria-hidden="true">🕐</span> Обновлено: ' +
         escapeFriendsHtml(updated) + '</span></footer>' +
@@ -990,6 +1018,7 @@ window.renderFriendPortraitHTML = renderFriendPortraitHTML;
 window.resolveFriendPortraitFromProfile = resolveFriendPortraitFromProfile;
 window.findSkinDefInDb = findSkinDefInDb;
 window.challengeFriendToPvP = challengeFriendToPvP;
+window.resolveFriendPlayerId = resolveFriendPlayerId;
 window.acceptBattleInvite = acceptBattleInvite;
 window.declineBattleInvite = declineBattleInvite;
 window.startFriendsInvitePolling = startFriendsInvitePolling;
