@@ -179,7 +179,8 @@ function buildDungeonAllyCombatantHtml() {
     const skinText = portrait && portrait.skinName
         ? '<div class="combatant-skin-name">' + escapeBattleHtml((portrait.skinIcon ? portrait.skinIcon + ' ' : '') + portrait.skinName) + '</div>'
         : '';
-    return '<div class="combatant-wrapper combatant-wrapper--ally" id="allyWrapper">' +
+    const defeatedCls = (ally.health || 0) <= 0 ? ' battle-ally--defeated' : '';
+    return '<div class="combatant-wrapper combatant-wrapper--ally' + defeatedCls + '" id="allyWrapper">' +
         '<div class="combatant-sprite" id="allySprite">' + buildDuoAllySpriteInnerHtml(ally) + '</div>' +
         '<div class="combatant-info">' +
         '<div class="combatant-name" style="color:#3498db;">' + escapeBattleHtml(ally.name || 'Союзник') + '</div>' +

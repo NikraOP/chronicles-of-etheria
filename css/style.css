@@ -3260,6 +3260,21 @@ body.battle-engaged .battle-wrapper:has(#enemyPack) {
     pointer-events: none;
     white-space: nowrap;
 }
+.combatant-wrapper--targetable-ally {
+    outline-color: #5dade2;
+    cursor: pointer;
+}
+.combatant-wrapper--targetable-ally::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235dade2' stroke-width='2'%3E%3Cpath d='M12 21s-6-4.35-6-9a6 6 0 0 1 12 0c0 4.65-6 9-6 9z'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%235dade2'/%3E%3C/svg%3E");
+    filter: drop-shadow(0 0 6px rgba(93, 173, 226, 0.65));
+}
+.battle-target-reticle--ally {
+    filter: drop-shadow(0 0 8px rgba(93, 173, 226, 0.75));
+}
+.battle-ally--defeated {
+    opacity: 0.45;
+    pointer-events: none;
+}
 .combatant-wrapper--targetable {
     cursor: crosshair;
     outline: 2px dashed var(--green);

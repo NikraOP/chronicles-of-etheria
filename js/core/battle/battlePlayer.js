@@ -334,6 +334,27 @@ function showBattleAbilities() {
     document.getElementById('dynamicContent').innerHTML = html;
 }
 
+function resolveBattleSupportTarget(targetKind) {
+    if (targetKind === 'ally' && window.dungeonDuoBattleActive && typeof getDungeonDuoAlly === 'function') {
+        const ally = getDungeonDuoAlly();
+        if (ally && (ally.health == null || ally.health > 0)) {
+            return { unit: ally, label: ally.name || 'Союзник', isRemote: true };
+        }
+    }
+    return { unit: player, label: 'Вы', isRemote: false };
+}
+
+function ensureUnitTemporaryEffects(unit) {
+    if (!Array.isArray(unit.temporaryEffects)) unit.temporaryEffects = [];
+    return unit.temporaryEffects;
+}
+
+function syncDuoAfterRemoteSupport(isRemote) {
+    if (isRemote && window.dungeonDuoBattleActive && typeof requestDungeonDuoStateSync === 'function') {
+        requestDungeonDuoStateSync();
+    }
+}
+
 function useBattleAbility(index) {
     if (!requireBattleEngaged()) return;
     if (typeof isBattleTargetingActive === 'function' && isBattleTargetingActive()) return;
@@ -369,7 +390,9 @@ function useBattleAbility(index) {
             : ['enemy'];
         const hints = {
             self: '💚 Выберите себя',
-            ally: '🤝 Выберите союзника',
+            ally: window.dungeonDuoBattleActive
+                ? '💚 Выберите себя или союзника'
+                : '🤝 Выберите союзника',
             enemy: '🎯 Выберите цель'
         };
         const runAbility = function (kind, idx) {
@@ -731,18 +754,33 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         requestDungeonDuoStateSync();
     }
     
+    const supportTgt = resolveBattleSupportTarget(targetKind);
+
     if (a.partyBuff) {
         const pbDur = a.partyBuff.dur || 3;
-        player.temporaryEffects.push({ def: a.partyBuff.def || 0, dur: pbDur });
+        const partyFx = { def: a.partyBuff.def || 0, dur: pbDur };
+        ensureUnitTemporaryEffects(player).push(partyFx);
+        if (window.dungeonDuoBattleActive && typeof getDungeonDuoAlly === 'function') {
+            const duoAlly = getDungeonDuoAlly();
+            if (duoAlly && duoAlly.health > 0) {
+                ensureUnitTemporaryEffects(duoAlly).push({ def: partyFx.def, dur: pbDur });
+                syncDuoAfterRemoteSupport(true);
+            }
+        }
         addBattleLog(`🌟 Аура: +${a.partyBuff.def || 0}% защиты на ${pbDur} хода!`, 'heal');
     }
     
     if (a.healBonus && a.buff) {
-        player.temporaryEffects.push({ healBonus: a.healBonus, dur: a.buff.dur || 3 });
+        ensureUnitTemporaryEffects(supportTgt.unit).push({ healBonus: a.healBonus, dur: a.buff.dur || 3 });
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.regen) {
-        player.temporaryEffects.push({ regen: a.regen, dur: (a.buff && a.buff.dur) || a.dur || 3 });
+        ensureUnitTemporaryEffects(supportTgt.unit).push({
+            regen: a.regen,
+            dur: (a.buff && a.buff.dur) || a.dur || 3
+        });
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.nextCrit) nextCritGuaranteed = true;
@@ -752,19 +790,22 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         let buffDur = a.buff.dur;
         if (doubleThisCast) buffDur = Math.floor(buffDur * 1.5);
         const buffFx = { atk: a.buff.atk || 0, def: a.buff.def || 0, dodge: a.buff.dodge || 0, crit: a.buff.crit || 0, critDmg: a.buff.critDmg || 0, dur: buffDur, cdReduction: a.buff.cdReduction, freezeOnHit: a.freezeOnHit, counterChance: a.counterChance, counterDmg: a.counterDmg, freeOnDodge: a.freeOnDodge, ccImmune: a.ccImmune };
-        player.temporaryEffects.push(buffFx);
+        ensureUnitTemporaryEffects(supportTgt.unit).push(buffFx);
         let buffText = [];
         if (a.buff.atk) buffText.push(`+${a.buff.atk}% атаки`);
         if (a.buff.def) buffText.push(`+${a.buff.def}% защиты`);
         if (a.buff.dodge) buffText.push(`+${a.buff.dodge}% уклонения`);
         if (a.buff.crit) buffText.push(`+${a.buff.crit}% крита`);
         if (a.buff.critDmg) buffText.push(`+${a.buff.critDmg}% крит урона`);
-        const effDef = getPlayerEffectiveDefense();
-        addBattleLog(`💪 ${buffText.length ? buffText.join(', ') : 'Бафф'} на ${buffDur} хода! (🛡️ защита сейчас: ${effDef})`, 'heal');
+        addBattleLog(
+            `💪 ${supportTgt.label}: ${buffText.length ? buffText.join(', ') : 'Бафф'} на ${buffDur} хода!`,
+            'heal'
+        );
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
-    if (a.selfBuff) {
-        player.temporaryEffects.push({ next_damage_mult: a.selfBuff.value, dur: a.selfBuff.dur });
+    if (a.selfBuff && targetKind !== 'ally') {
+        ensureUnitTemporaryEffects(player).push({ next_damage_mult: a.selfBuff.value, dur: a.selfBuff.dur });
         addBattleLog(`😤 ${a.selfBuff.type}! Следующий удар +${a.selfBuff.value}%`, 'info');
     }
     
@@ -786,24 +827,15 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.heal) {
-        let healAmount = Math.floor(player.maxHealth * a.heal / 100);
+        const healUnit = supportTgt.unit;
+        let healAmount = Math.floor((healUnit.maxHealth || 100) * a.heal / 100);
         healAmount = applyLessonHealMult(healAmount);
-        if (player.temporaryEffects.some(e => e.healBonus)) {
-            const healBonus = player.temporaryEffects.find(e => e.healBonus).healBonus;
-            healAmount = Math.floor(healAmount * (1 + healBonus / 100));
-        }
-        if (targetKind === 'ally' && typeof getDungeonDuoAlly === 'function') {
-            const ally = getDungeonDuoAlly();
-            if (ally) {
-                const allyHeal = Math.floor((ally.maxHealth || 100) * a.heal / 100);
-                ally.health = Math.min(ally.maxHealth || allyHeal, (ally.health || 0) + allyHeal);
-                addBattleLog('💚 Союзник +' + allyHeal + ' HP', 'heal');
-                if (typeof requestDungeonDuoStateSync === 'function') requestDungeonDuoStateSync();
-            }
-        } else {
-            player.health = Math.min(player.maxHealth, player.health + healAmount);
-            addBattleLog(`💚 +${healAmount} HP`, 'heal');
-        }
+        const healFx = ensureUnitTemporaryEffects(healUnit);
+        const hb = healFx.find(function (e) { return e && e.healBonus; });
+        if (hb) healAmount = Math.floor(healAmount * (1 + hb.healBonus / 100));
+        healUnit.health = Math.min(healUnit.maxHealth || healAmount, (healUnit.health || 0) + healAmount);
+        addBattleLog(`💚 ${supportTgt.label}: +${healAmount} HP`, 'heal');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.lifesteal) {
@@ -813,20 +845,32 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.maxHpShield) {
-        const shieldValue = Math.floor(player.maxHealth * a.maxHpShield / 100);
-        const existingShield = player.temporaryEffects.find(e => e.shield);
-        if (existingShield) player.temporaryEffects = player.temporaryEffects.filter(e => e !== existingShield);
-        player.temporaryEffects.push({ shield: shieldValue, dur: a.dur || 3 });
-        addBattleLog(`🔮 Создан щит на ${shieldValue} HP (${a.maxHpShield}% от макс. HP)!`, 'heal');
+        const shieldUnit = supportTgt.unit;
+        const shieldValue = Math.floor((shieldUnit.maxHealth || 100) * a.maxHpShield / 100);
+        const fxList = ensureUnitTemporaryEffects(shieldUnit);
+        const existingShield = fxList.find(e => e.shield);
+        if (existingShield) shieldUnit.temporaryEffects = fxList.filter(e => e !== existingShield);
+        ensureUnitTemporaryEffects(shieldUnit).push({ shield: shieldValue, dur: a.dur || 3 });
+        addBattleLog(`🔮 ${supportTgt.label}: щит ${shieldValue} HP (${a.maxHpShield}% от макс. HP)!`, 'heal');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.maxManaBonus) {
-        const oldMaxMana = player.maxMana;
-        player.maxMana = Math.floor(player.maxMana * (1 + a.maxManaBonus / 100));
-        const manaIncrease = player.maxMana - oldMaxMana;
-        player.mana += manaIncrease;
-        addBattleLog(`💎 Максимальная мана увеличена на ${a.maxManaBonus}% (+${manaIncrease})!`, 'heal');
-        player.temporaryEffects.push({ type: 'maxManaBonus', value: a.maxManaBonus, oldMaxMana: oldMaxMana, dur: a.dur || 3 });
+        const manaUnit = supportTgt.unit;
+        if (manaUnit.class === 'Маг' && manaUnit.maxMana > 0) {
+            const oldMaxMana = manaUnit.maxMana;
+            manaUnit.maxMana = Math.floor(manaUnit.maxMana * (1 + a.maxManaBonus / 100));
+            const manaIncrease = manaUnit.maxMana - oldMaxMana;
+            manaUnit.mana = Math.min(manaUnit.maxMana, (manaUnit.mana || 0) + manaIncrease);
+            ensureUnitTemporaryEffects(manaUnit).push({
+                type: 'maxManaBonus',
+                value: a.maxManaBonus,
+                oldMaxMana: oldMaxMana,
+                dur: a.dur || 3
+            });
+            addBattleLog(`💎 ${supportTgt.label}: макс. мана +${a.maxManaBonus}% (+${manaIncrease})!`, 'heal');
+            syncDuoAfterRemoteSupport(supportTgt.isRemote);
+        }
     }
     
     if (a.shieldFromDamage && dmg > 0) {
@@ -838,22 +882,30 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.manaScaling && a.shield) {
-        const manaBonus = Math.floor(player.mana * 0.5);
-        const shieldValue = Math.floor(player.maxHealth * a.shield / 100) + manaBonus;
-        const existingShield = player.temporaryEffects.find(e => e.shield);
-        if (existingShield) player.temporaryEffects = player.temporaryEffects.filter(e => e !== existingShield);
-        player.temporaryEffects.push({ shield: shieldValue, dur: a.dur || 3 });
-        addBattleLog(`🔮 Щит с масштабированием от маны: ${shieldValue} HP!`, 'heal');
+        const shieldUnit = supportTgt.unit;
+        const manaBonus = shieldUnit.class === 'Маг' ? Math.floor((shieldUnit.mana || 0) * 0.5) : 0;
+        const shieldValue = Math.floor((shieldUnit.maxHealth || 100) * a.shield / 100) + manaBonus;
+        const fxList = ensureUnitTemporaryEffects(shieldUnit);
+        const existingShield = fxList.find(e => e.shield);
+        if (existingShield) shieldUnit.temporaryEffects = fxList.filter(e => e !== existingShield);
+        ensureUnitTemporaryEffects(shieldUnit).push({ shield: shieldValue, dur: a.dur || 3 });
+        addBattleLog(`🔮 ${supportTgt.label}: щит ${shieldValue} HP!`, 'heal');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.manaToShield) {
-        const manaUsed = Math.floor(player.mana * a.manaToShield / 100);
-        const shieldValue = manaUsed * 2;
-        player.mana -= manaUsed;
-        const existingShield = player.temporaryEffects.find(e => e.shield);
-        if (existingShield) player.temporaryEffects = player.temporaryEffects.filter(e => e !== existingShield);
-        player.temporaryEffects.push({ shield: shieldValue, dur: a.dur || 3 });
-        addBattleLog(`💎 ${manaUsed} маны превращено в щит (${shieldValue} HP)!`, 'heal');
+        const shieldUnit = supportTgt.unit;
+        if (shieldUnit.class === 'Маг') {
+            const manaUsed = Math.floor((shieldUnit.mana || 0) * a.manaToShield / 100);
+            const shieldValue = manaUsed * 2;
+            shieldUnit.mana = Math.max(0, (shieldUnit.mana || 0) - manaUsed);
+            const fxList = ensureUnitTemporaryEffects(shieldUnit);
+            const existingShield = fxList.find(e => e.shield);
+            if (existingShield) shieldUnit.temporaryEffects = fxList.filter(e => e !== existingShield);
+            ensureUnitTemporaryEffects(shieldUnit).push({ shield: shieldValue, dur: a.dur || 3 });
+            addBattleLog(`💎 ${supportTgt.label}: ${manaUsed} маны → щит ${shieldValue} HP!`, 'heal');
+            syncDuoAfterRemoteSupport(supportTgt.isRemote);
+        }
     }
     
     if (a.manaToDamage && dmg > 0) {
@@ -890,13 +942,21 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.restoreMana) {
-        player.mana = Math.min(player.maxMana, player.mana + a.restoreMana);
-        addBattleLog(`💎 +${a.restoreMana} маны`, 'heal');
+        const manaUnit = supportTgt.unit;
+        if (manaUnit.class === 'Маг' && manaUnit.maxMana > 0) {
+            manaUnit.mana = Math.min(manaUnit.maxMana, (manaUnit.mana || 0) + a.restoreMana);
+            addBattleLog(`💎 ${supportTgt.label}: +${a.restoreMana} маны`, 'heal');
+            syncDuoAfterRemoteSupport(supportTgt.isRemote);
+        }
     }
     if (a.restoreManaPercent) {
-        const manaRestore = Math.floor(player.maxMana * a.restoreManaPercent / 100);
-        player.mana = Math.min(player.maxMana, player.mana + manaRestore);
-        addBattleLog(`💎 +${manaRestore} маны (${a.restoreManaPercent}%)`, 'heal');
+        const manaUnit = supportTgt.unit;
+        if (manaUnit.class === 'Маг' && manaUnit.maxMana > 0) {
+            const manaRestore = Math.floor(manaUnit.maxMana * a.restoreManaPercent / 100);
+            manaUnit.mana = Math.min(manaUnit.maxMana, (manaUnit.mana || 0) + manaRestore);
+            addBattleLog(`💎 ${supportTgt.label}: +${manaRestore} маны (${a.restoreManaPercent}%)`, 'heal');
+            syncDuoAfterRemoteSupport(supportTgt.isRemote);
+        }
     }
     if (a.manaRefund && player.class === 'Маг') {
         const refund = Math.floor(player.maxMana * a.manaRefund / 100);
@@ -910,24 +970,27 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         addBattleLog(`🔁 Эхо: следующее заклинание повторится с ${Math.floor(a.echo * 100)}% силы`, 'info');
     }
     
-    if (a.immune) { 
-        player.temporaryEffects.push({ immune: true, dur: a.dur || 1 }); 
-        addBattleLog(`🛡️ Иммунитет на ${a.dur || 1} ход!`, 'heal');
+    if (a.immune) {
+        ensureUnitTemporaryEffects(supportTgt.unit).push({ immune: true, dur: a.dur || 1 });
+        addBattleLog(`🛡️ ${supportTgt.label}: иммунитет на ${a.dur || 1} ход!`, 'heal');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.reflect) {
         const reflectDur = a.dur || (a.buff && a.buff.dur) || 1;
-        player.temporaryEffects.push({ reflect: a.reflect, dur: reflectDur });
-        addBattleLog(`↩️ Отражение ${a.reflect}% урона на ${reflectDur} ход(ов)!`, 'info');
+        ensureUnitTemporaryEffects(supportTgt.unit).push({ reflect: a.reflect, dur: reflectDur });
+        addBattleLog(`↩️ ${supportTgt.label}: отражение ${a.reflect}% на ${reflectDur} ход(ов)!`, 'info');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
     if (a.damageReduction) {
         const drDur = a.dur || 2;
-        player.temporaryEffects.push({ damageReduction: a.damageReduction, dur: drDur });
-        addBattleLog(`🛡️ Получаемый урон снижен на ${a.damageReduction}% (${drDur} хода)!`, 'info');
+        ensureUnitTemporaryEffects(supportTgt.unit).push({ damageReduction: a.damageReduction, dur: drDur });
+        addBattleLog(`🛡️ ${supportTgt.label}: урон −${a.damageReduction}% (${drDur} хода)!`, 'info');
+        syncDuoAfterRemoteSupport(supportTgt.isRemote);
     }
     
-    if (a.deathSave) {
+    if (a.deathSave && !supportTgt.isRemote) {
         deathSaveActive = true;
         addBattleLog(`💪 Инстинкт выживания! Вы не умрёте от одного удара!`, 'success');
     }

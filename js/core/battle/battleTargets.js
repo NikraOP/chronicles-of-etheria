@@ -20,17 +20,49 @@ function lookupAbilityTargetingInDb(ability) {
     return row && row.targeting ? row.targeting : null;
 }
 
+function abilityHasOffensiveComponent(ability) {
+    if (!ability) return false;
+    if (ability.dmg || ability.doubleHit || ability.tripleHit || ability.quadHit || ability.multiHit) return true;
+    if (ability.hpLoss || ability.bleedPercent) return true;
+    if (ability.enemyDebuff) return true;
+    if (ability.effect && !ability.buff) return true;
+    if (ability.aoe && (ability.dmg || ability.hpLoss)) return true;
+    return false;
+}
+
+function isDungeonDuoCoopBattle() {
+    return !!(typeof window !== 'undefined' && window.dungeonDuoBattleActive);
+}
+
+function isAllyBattleSupportAbility(ability) {
+    if (!ability || ability.selfBuff) return false;
+    if (abilityHasOffensiveComponent(ability)) return false;
+    return !!(ability.buff || ability.heal || ability.maxHpShield || ability.restoreMana ||
+        ability.restoreManaPercent || ability.immune || ability.reflect ||
+        ability.damageReduction || ability.regen || ability.maxManaBonus ||
+        (ability.shield && !ability.dmg) || (ability.manaToShield && !ability.dmg));
+}
+
 /** @returns {'enemy'|'self'|'ally'|'all_enemies'} */
 function getBattleAbilityTargeting(ability) {
     if (!ability) return 'enemy';
     if (ability.targeting) return ability.targeting;
     const fromDb = lookupAbilityTargetingInDb(ability);
     if (fromDb) return fromDb;
-    if (ability.aoe) return 'all_enemies';
-    if ((ability.heal || ability.maxHpShield) && !(ability.dmg || ability.aoe || ability.doubleHit)) {
+    if (ability.aoe && abilityHasOffensiveComponent(ability)) return 'all_enemies';
+    if (ability.selfBuff) return 'self';
+    if (isDungeonDuoCoopBattle() && isAllyBattleSupportAbility(ability)) {
+        return 'ally';
+    }
+    if ((ability.heal || ability.maxHpShield) && !abilityHasOffensiveComponent(ability)) {
         return 'self';
     }
     return 'enemy';
+}
+
+function isBattleAllyTargetingMode(validKinds) {
+    if (!validKinds || validKinds.indexOf('enemy') >= 0) return false;
+    return validKinds.indexOf('ally') >= 0 || validKinds.indexOf('self') >= 0;
 }
 
 function targetingModeToValidKinds(mode) {
@@ -102,11 +134,12 @@ function refreshBattleTargetReticles() {
     if (!_targetingMode) return;
     const arena = document.getElementById('battleArena');
     if (!arena) return;
+    const allyMode = _pendingAction && isBattleAllyTargetingMode(_pendingAction.validKinds);
     arena.querySelectorAll('.combatant-wrapper--targetable').forEach(function (wrapper) {
         const reticle = document.createElement('span');
-        reticle.className = 'battle-target-reticle';
+        reticle.className = 'battle-target-reticle' + (allyMode ? ' battle-target-reticle--ally' : '');
         reticle.setAttribute('aria-hidden', 'true');
-        reticle.textContent = '🎯';
+        reticle.textContent = allyMode ? '💚' : '🎯';
         wrapper.appendChild(reticle);
     });
 }
@@ -115,9 +148,11 @@ function refreshBattleTargetableHighlights(validKinds) {
     const arena = document.getElementById('battleArena');
     if (!arena) return;
     arena.querySelectorAll('.combatant-wrapper--targetable').forEach(el => {
-        el.classList.remove('combatant-wrapper--targetable');
+        el.classList.remove('combatant-wrapper--targetable', 'combatant-wrapper--targetable-ally');
     });
     if (!_targetingMode || !validKinds) return;
+
+    const allyMode = isBattleAllyTargetingMode(validKinds);
 
     if (validKinds.indexOf('enemy') >= 0) {
         arena.querySelectorAll('.combatant-wrapper[data-enemy-index]').forEach(el => {
@@ -127,11 +162,16 @@ function refreshBattleTargetableHighlights(validKinds) {
     }
     if (validKinds.indexOf('self') >= 0) {
         const pw = document.getElementById('playerWrapper');
-        if (pw) pw.classList.add('combatant-wrapper--targetable');
+        if (pw) {
+            pw.classList.add('combatant-wrapper--targetable');
+            if (allyMode) pw.classList.add('combatant-wrapper--targetable-ally');
+        }
     }
     if (validKinds.indexOf('ally') >= 0) {
         const aw = document.getElementById('allyWrapper');
-        if (aw) aw.classList.add('combatant-wrapper--targetable');
+        if (aw && !aw.classList.contains('battle-ally--defeated')) {
+            aw.classList.add('combatant-wrapper--targetable', 'combatant-wrapper--targetable-ally');
+        }
     }
 }
 
@@ -168,7 +208,7 @@ function cancelBattleTargeting() {
     if (arena) {
         arena.classList.remove('battle-targeting-active');
         arena.querySelectorAll('.combatant-wrapper--targetable').forEach(el => {
-            el.classList.remove('combatant-wrapper--targetable');
+            el.classList.remove('combatant-wrapper--targetable', 'combatant-wrapper--targetable-ally');
         });
         clearBattleTargetReticles();
         const hint = arena.querySelector('.battle-targeting-hint');
