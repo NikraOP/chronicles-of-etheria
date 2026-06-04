@@ -84,15 +84,29 @@ function testSignalingErrorDetection() {
     assert(context.isPvPSignalingError({ error: 'Trystero: relay failure from wss://x' }), 'relay failure must match');
 }
 
+function testMeteredCredentialsUrlOrder() {
+    lsStore.etheria_pvp_metered_app_slug = 'mygame';
+    const urls = context.getPvPMeteredCredentialsUrls('pk_live_test_key_12345');
+    assert(urls[0].includes('mygame.metered.live'), 'slug.metered.live must be first');
+    assert(urls[urls.length - 1].includes('openrelay.metered.ca'), 'openrelay must be last');
+    assert(context.classifyMeteredApiKey('pk_live_abc') === 'publishable', 'pk_live is publishable');
+    delete lsStore.etheria_pvp_metered_app_slug;
+}
+
+function testConnackIsSignalingError() {
+    assert(context.isPvPSignalingError({ error: 'connack timeout' }), 'connack timeout is signaling');
+}
+
 function testTransportConfigRelays() {
     context.setPvPSignalingBackend('mqtt');
     const mqttCfg = context.getPvPTransportConfig();
     const mqttJson = JSON.stringify(mqttCfg);
     assert(mqttCfg.appId === 'chronicles-of-etheria-pvp-v4', 'transport appId mismatch');
     assert(mqttCfg.relayConfig.urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker');
-    assert(mqttCfg.relayConfig.urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX broker');
+    assert(mqttCfg.relayConfig.urls.some(u => u.includes('shiftr.io')), 'shiftr MQTT broker');
     assert(!mqttJson.includes('eclipseprojects'), 'eclipse MQTT must not be configured');
-    assert(mqttCfg.relayConfig.redundancy === 2, 'MQTT redundancy must be 2');
+    assert(!mqttJson.includes('broker.emqx.io'), 'EMQX removed from mqtt list');
+    assert(mqttCfg.relayConfig.redundancy === 1, 'MQTT redundancy must be 1');
     assert(mqttCfg.trickleIce === true, 'trickleIce must be enabled');
 
     context.setPvPSignalingBackend('nostr');
@@ -232,6 +246,8 @@ function testCompressPvPIceServers() {
     testLegacyFunctionRoomHandlers();
     testNostrRelayDenylist();
     testSignalingErrorDetection();
+    testMeteredCredentialsUrlOrder();
+    testConnackIsSignalingError();
     testTransportConfigRelays();
     testFirewallTurnUrls();
     testCompressPvPIceServers();
