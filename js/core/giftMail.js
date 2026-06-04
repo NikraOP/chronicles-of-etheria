@@ -111,13 +111,24 @@ function toggleGiftDraftItem(invKey, index) {
     } else {
         _giftDraftSelected[invKey][index] = true;
     }
-    refreshGiftMailPackUi();
+    notifyGiftDraftUiChanged();
 }
 
 function setGiftDraftGold(value) {
     const n = Math.max(0, Math.floor(Number(value) || 0));
     _giftDraftGold = Math.min(n, player ? player.gold || 0 : 0);
+    notifyGiftDraftUiChanged();
+}
+
+function getGiftDraftGold() {
+    return _giftDraftGold;
+}
+
+function notifyGiftDraftUiChanged() {
     refreshGiftMailPackUi();
+    if (window._exchangeModalOpen && typeof window.refreshExchangeModalBody === 'function') {
+        window.refreshExchangeModalBody();
+    }
 }
 
 function countGiftDraftItems() {
@@ -534,6 +545,7 @@ window.toggleGiftDraftItem = toggleGiftDraftItem;
 window.setGiftDraftGold = setGiftDraftGold;
 window.isGiftItemEquipped = isGiftItemEquipped;
 window.isGiftDraftSelected = isGiftDraftSelected;
+window.getGiftDraftGold = getGiftDraftGold;
 window.GIFT_INVENTORY_TYPES = GIFT_INVENTORY_TYPES;
 window.buildConsumedGiftJson = buildConsumedGiftJson;
 window.unpackGiftObject = unpackGiftObject;

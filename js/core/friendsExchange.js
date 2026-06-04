@@ -55,6 +55,12 @@
     }
 
     function toggleExchangeWantItem(invKey, index) {
+        if (typeof isGiftItemEquipped === 'function' && isGiftItemEquipped(invKey, index)) {
+            if (typeof addMessage === 'function') {
+                addMessage('Снимите предмет с экипировки перед выбором.', 'error');
+            }
+            return;
+        }
         if (!_exchangeWantSelected[invKey]) _exchangeWantSelected[invKey] = {};
         if (_exchangeWantSelected[invKey][index]) {
             delete _exchangeWantSelected[invKey][index];
@@ -66,7 +72,8 @@
     }
 
     function setExchangeWantGold(value) {
-        _exchangeWantGold = Math.max(0, Math.floor(Number(value) || 0));
+        const n = Math.max(0, Math.floor(Number(value) || 0));
+        _exchangeWantGold = Math.min(n, player ? player.gold || 0 : 0);
         refreshExchangeModalBody();
     }
 
@@ -120,7 +127,6 @@
     }
 
     function buildExchangeGivePickerHtml() {
-        if (typeof resetGiftDraft === 'function') resetGiftDraft();
         return buildExchangePickerBlock('give', true);
     }
 
@@ -133,11 +139,13 @@
         const entries = typeof collectGiftableInventoryEntries === 'function'
             ? collectGiftableInventoryEntries()
             : [];
-        let html = '<div class="exchange-picker">';
+        const goldVal = isGive
+            ? (typeof getGiftDraftGold === 'function' ? getGiftDraftGold() : 0)
+            : _exchangeWantGold;
+        let html = '<div class="exchange-picker" data-ex-picker="' + (isGive ? 'give' : 'want') + '">';
         html += '<label class="account-label">Золото</label>';
-        html += '<input type="number" min="0" class="hero-input exchange-gold-input" value="' +
-            (isGive ? '0' : _exchangeWantGold) + '" onchange="' +
-            (isGive ? 'setGiftDraftGold(this.value)' : 'setExchangeWantGold(this.value)') + '">';
+        html += '<input type="number" min="0" class="hero-input exchange-gold-input" data-ex-gold="' +
+            (isGive ? 'give' : 'want') + '" value="' + goldVal + '">';
         html += '<p class="exchange-picker__hint">Выберите предметы (не в экипировке):</p>';
         html += '<div class="exchange-picker__grid">';
         if (!entries.length) {
@@ -147,20 +155,50 @@
             const sel = isGive
                 ? (typeof isGiftDraftSelected === 'function' && isGiftDraftSelected(ent.invKey, ent.index))
                 : isWantSelected(ent.invKey, ent.index);
-            const fn = isGive
-                ? 'toggleGiftDraftItem(' + jsOnclickStr(ent.invKey) + ',' + ent.index + ')'
-                : 'toggleExchangeWantItem(' + jsOnclickStr(ent.invKey) + ',' + ent.index + ')';
             html += '<button type="button" class="exchange-picker__item' + (sel ? ' exchange-picker__item--on' : '') +
-                '" onclick="' + fn + '">' + escapeExHtml(ent.typeMeta.icon) + ' ' + escapeExHtml(ent.item.name) + '</button>';
+                '" data-ex-side="' + (isGive ? 'give' : 'want') + '" data-ex-inv="' + escapeExHtml(ent.invKey) +
+                '" data-ex-idx="' + ent.index + '">' + escapeExHtml(ent.typeMeta.icon) + ' ' +
+                escapeExHtml(ent.item.name) + '</button>';
         });
         html += '</div></div>';
         return html;
+    }
+
+    function bindExchangeModalPanel() {
+        const root = document.getElementById('exchangeModalBody');
+        if (!root) return;
+        root.querySelectorAll('.exchange-gold-input[data-ex-gold]').forEach(function (input) {
+            const side = input.getAttribute('data-ex-gold');
+            const handler = function () {
+                if (side === 'give') {
+                    if (typeof setGiftDraftGold === 'function') setGiftDraftGold(input.value);
+                } else {
+                    setExchangeWantGold(input.value);
+                }
+            };
+            input.addEventListener('input', handler);
+            input.addEventListener('change', handler);
+        });
+        root.querySelectorAll('.exchange-picker__item[data-ex-inv]').forEach(function (btn) {
+            btn.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                const side = btn.getAttribute('data-ex-side');
+                const inv = btn.getAttribute('data-ex-inv');
+                const idx = parseInt(btn.getAttribute('data-ex-idx'), 10);
+                if (side === 'want') {
+                    toggleExchangeWantItem(inv, idx);
+                } else if (typeof toggleGiftDraftItem === 'function') {
+                    toggleGiftDraftItem(inv, idx);
+                }
+            });
+        });
     }
 
     function refreshExchangeModalBody() {
         const body = document.getElementById('exchangeModalBody');
         if (!body) return;
         body.innerHTML = buildExchangeModalInner();
+        bindExchangeModalPanel();
     }
 
     function buildExchangeModalInner() {
@@ -546,4 +584,5 @@
     window.stopFriendsExchangePolling = stopFriendsExchangePolling;
     window.acceptExchangeInviteModal = acceptExchangeInviteModal;
     window.declineExchangeInviteModal = declineExchangeInviteModal;
+    window.refreshExchangeModalBody = refreshExchangeModalBody;
 })();
