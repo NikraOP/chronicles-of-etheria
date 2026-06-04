@@ -356,6 +356,10 @@ function bindCraftRecipeGrid(profId) {
         if (card.dataset.craftBound === '1') return;
         card.dataset.craftBound = '1';
         card.addEventListener('click', () => {
+            if (isCraftingLocked) {
+                addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
+                return;
+            }
             const reason = decodeCraftBlockReason(card.getAttribute('data-block-reason'));
             if (reason) {
                 addMessage('❌ ' + reason, 'error');
@@ -363,40 +367,19 @@ function bindCraftRecipeGrid(profId) {
             }
             const recipeName = decodeURIComponent(card.getAttribute('data-recipe-name') || '');
             if (!recipeName) return;
-            const qtyInput = document.getElementById('craftBatchQty');
-            let qty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
-            if (!Number.isFinite(qty) || qty < 1) qty = 1;
-            prepareCraft(profId, recipeName, qty);
+            startCraftProgress(profId, recipeName, card);
         });
     });
 }
 
-function clampCraftBatchInput() {
-    const input = document.getElementById('craftBatchQty');
-    if (!input) return 1;
-    let v = parseInt(input.value, 10);
-    if (!Number.isFinite(v) || v < 1) v = 1;
-    v = Math.min(CRAFT_BATCH_MAX, v);
-    input.value = String(v);
-    return v;
-}
-
-function adjustCraftBatchQty(delta) {
-    const input = document.getElementById('craftBatchQty');
-    if (!input) return;
-    let v = parseInt(input.value, 10) || 1;
-    v = Math.max(1, Math.min(CRAFT_BATCH_MAX, v + delta));
-    input.value = String(v);
-}
-
-function scrollCraftResultIntoView() {
-    const resultDiv = document.getElementById('craftResult');
-    if (!resultDiv) return;
+function scrollCraftProgressIntoView() {
+    const slot = document.getElementById('craftProgressSlot');
+    if (!slot || !slot.innerHTML) return;
     requestAnimationFrame(() => {
-        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         const main = document.querySelector('.main-content');
         if (main) {
-            const top = resultDiv.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 12;
+            const top = slot.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 12;
             main.scrollTop = Math.max(0, top);
         }
     });
@@ -415,10 +398,60 @@ function getProfessionBonuses(tier) {
 }
 
 let pendingCraftData = null;
+let craftProgressRafId = null;
+let activeCraftSession = null;
+let isCraftingLocked = false;
+
+function stopCraftProgress() {
+    if (craftProgressRafId) {
+        cancelAnimationFrame(craftProgressRafId);
+        craftProgressRafId = null;
+    }
+    activeCraftSession = null;
+    isCraftingLocked = false;
+    if (typeof document.querySelector === 'function') {
+        const grid = document.querySelector('.craft-recipe-grid');
+        if (grid) grid.classList.remove('craft-grid-locked');
+        document.querySelectorAll('.craft-recipe-crafting').forEach(el => el.classList.remove('craft-recipe-crafting'));
+    }
+    const slot = document.getElementById('craftProgressSlot');
+    if (slot) slot.innerHTML = '';
+}
 
 function flushPendingCraft() {
     if (!pendingCraftData || !pendingCraftData.profId) return;
     completeCrafting(pendingCraftData.profId, { silent: true });
+}
+
+function consumeCraftMaterials(materials, saveChance) {
+    if (!materials) return;
+    if (saveChance > 0 && Math.random() < saveChance) {
+        addMessage(`💎 Экономия материалов (+${Math.floor(saveChance * 100)}%)!`, 'success');
+        return;
+    }
+    consumePlayerResources(materials);
+}
+
+function finishCraftProgress(session) {
+    if (!session) return;
+    const blockReason = getCraftBlockReason(session.normRecipe, session.profId, 1);
+    if (blockReason) {
+        addMessage(`❌ ${blockReason}`, 'error');
+        stopCraftProgress();
+        return;
+    }
+    consumeCraftMaterials(session.scaledMaterials, session.bonuses.materialSaveChance);
+    pendingCraftData = {
+        profId: session.profId,
+        recipe: session.normRecipe,
+        adjustedExp: session.adjustedExp,
+        bonuses: session.bonuses,
+        batchCount: 1
+    };
+    const slot = document.getElementById('craftProgressSlot');
+    const hasUi = !!slot;
+    completeCrafting(session.profId, { silent: !hasUi });
+    stopCraftProgress();
 }
 
 // Функция для сбора всех рецептов профессии из всех категорий
@@ -598,6 +631,7 @@ function completeCrafting(profId, options) {
 
 function showCraftingRecipes(profId) {
     stopGathering();
+    stopCraftProgress();
     if (pendingCraftData) flushPendingCraft();
     
     const allRecipes = getAllRecipesForProfession(profId);
@@ -653,14 +687,8 @@ function showCraftingRecipes(profId) {
             + ' рецепт(ов) откроются с повышением тира профессии</div>';
     }
     html += '</div>';
-    html += '<div class="craft-batch-bar">';
-    html += '<span class="craft-batch-label">🔢 Создать за раз:</span>';
-    html += '<button type="button" class="craft-batch-btn" onclick="adjustCraftBatchQty(-1)" aria-label="Меньше">−</button>';
-    html += '<input type="number" id="craftBatchQty" class="craft-batch-input" min="1" max="' + CRAFT_BATCH_MAX + '" value="1" onchange="clampCraftBatchInput()" onblur="clampCraftBatchInput()">';
-    html += '<button type="button" class="craft-batch-btn" onclick="adjustCraftBatchQty(1)" aria-label="Больше">+</button>';
-    html += '<span class="craft-batch-hint">макс. ' + CRAFT_BATCH_MAX + ' · по материалам</span>';
-    html += '</div>';
-    html += '<div id="craftResult" class="craft-result-panel"></div>';
+    html += '<div id="craftProgressSlot" class="craft-progress-slot"></div>';
+    html += '<p class="craft-progress-hint">Нажмите на рецепт с ✓ — начнётся создание. Ресурсы спишутся по завершении.</p>';
     
     if (availableRecipes.length === 0) {
         html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; text-align: center;">';
@@ -781,17 +809,20 @@ function showCraftingRecipes(profId) {
     bindCraftRecipeGrid(profId);
 }
 
-function prepareCraft(profId, recipeName, craftCount) {
+function startCraftProgress(profId, recipeName, cardEl) {
+    if (isCraftingLocked) {
+        addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
+        return;
+    }
     if (pendingCraftData) flushPendingCraft();
+
     const allRecipes = getAllRecipesForProfession(profId);
     const recipe = allRecipes.find(r => r.name === recipeName);
-    const normRecipe = normalizeRecipeForCraft(recipe);
-    
     if (!recipe) {
         addMessage(`❌ Рецепт "${recipeName}" не найден!`, 'error');
         return;
     }
-    
+    const normRecipe = normalizeRecipeForCraft(recipe);
     const prof = player.professions[profId];
     if (!prof) {
         addMessage('❌ Профессия не изучена!', 'error');
@@ -801,70 +832,101 @@ function prepareCraft(profId, recipeName, craftCount) {
     applyProfessionTierUps(prof);
     const bonuses = getProfessionBonuses(prof.tier);
 
-    let qty = parseInt(craftCount, 10);
-    if (!Number.isFinite(qty) || qty < 1) qty = 1;
-    qty = Math.min(CRAFT_BATCH_MAX, Math.floor(qty));
-    const maxCraft = getMaxCraftCount(normRecipe, profId);
-    if (maxCraft <= 0) {
-        const blockReason = getCraftBlockReason(normRecipe, profId, 1);
-        addMessage(`❌ ${blockReason || 'Нельзя создать'}`, 'error');
-        return;
-    }
-    qty = Math.min(qty, maxCraft);
-
-    const blockReason = getCraftBlockReason(normRecipe, profId, qty);
+    const blockReason = getCraftBlockReason(normRecipe, profId, 1);
     if (blockReason) {
         addMessage(`❌ ${blockReason}`, 'error');
         return;
     }
-    
+
     const materials = normRecipe.resources || normRecipe.materials;
     if (!materials) {
         addMessage(`❌ У рецепта "${normRecipe.name}" нет материалов!`, 'error');
         return;
     }
-    
-    consumePlayerResources(scaleRecipeMaterials(materials, qty));
-    
+
+    const baseSec = normRecipe.time || normRecipe.exp || 5;
+    const adjustedTime = Math.max(2, Math.floor(baseSec * (1 - bonuses.gatherSpeedBonus)));
     const perExp = normRecipe.exp || normRecipe.time || 0;
-    pendingCraftData = {
-        profId: profId,
-        recipe: normRecipe,
-        adjustedExp: perExp,
-        bonuses: bonuses,
-        actualMaterials: scaleRecipeMaterials(materials, qty),
-        savedMaterials: false,
-        batchCount: qty
-    };
-    
-    // Показываем результат
-    const resultDiv = document.getElementById('craftResult');
-    if (!resultDiv) {
-        completeCrafting(profId, { silent: true });
-        saveGame();
+    const scaledMaterials = scaleRecipeMaterials(materials, 1);
+
+    const slot = document.getElementById('craftProgressSlot');
+    if (!slot) {
+        finishCraftProgress({
+            profId,
+            normRecipe,
+            adjustedExp: perExp,
+            bonuses,
+            scaledMaterials
+        });
         return;
     }
-    const qtyLabel = qty > 1 ? ' ×' + qty : '';
-    let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px;">';
-    resultHtml += '<div style="margin-bottom: 10px;">🔨 <strong>Крафт завершён!</strong></div>';
-    resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано' + qtyLabel + ': <span style="color: var(--gold); font-weight: bold;">' + normRecipe.name + '</span></div>';
-    resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (perExp * qty) + ' XP</div>';
-    if (bonuses.craftQualityBonus > 0) {
-        resultHtml += '<div style="font-size: 11px; color: #f0c040;">✨ Бонус качества: +' + Math.floor(bonuses.craftQualityBonus * 100) + '%</div>';
-    }
-    resultHtml += '<button id="completeCraftBtn" class="action-btn" style="margin-top: 12px; width: 100%; padding: 10px; background: linear-gradient(135deg, #27ae60, #2ecc71);">🎁 Забрать предмет</button>';
-    resultHtml += '</div>';
-    resultDiv.innerHTML = resultHtml;
-    scrollCraftResultIntoView();
 
-    const completeBtn = document.getElementById('completeCraftBtn');
-    if (completeBtn) {
-        completeBtn.onclick = () => {
-            completeCrafting(profId);
-        };
+    stopCraftProgress();
+    isCraftingLocked = true;
+    if (typeof document.querySelector === 'function') {
+        const grid = document.querySelector('.craft-recipe-grid');
+        if (grid) grid.classList.add('craft-grid-locked');
     }
+    if (cardEl) cardEl.classList.add('craft-recipe-crafting');
 
-    saveGame();
+    activeCraftSession = {
+        profId,
+        normRecipe,
+        adjustedExp: perExp,
+        bonuses,
+        scaledMaterials
+    };
+
+    const iconHtml = typeof renderItemIconHTML === 'function'
+        ? renderItemIconHTML(normRecipe, { size: 32, fallback: normRecipe.icon || '📦' })
+        : (normRecipe.icon || '📦');
+
+    slot.innerHTML = `
+        <div class="crafting-progress craft-active" id="craftProgressPanel">
+            <div class="craft-progress-header">
+                <span class="craft-progress-icon">${iconHtml}</span>
+                <strong>🔨 Создание: ${normRecipe.name}</strong>
+                <span id="craftPercent">0%</span>
+            </div>
+            <div class="crafting-bar">
+                <div class="crafting-fill" id="craftFill"></div>
+            </div>
+            <div class="craft-progress-hint-detail">
+                ⚡ −${Math.floor(bonuses.gatherSpeedBonus * 100)}% времени · ✨ +${Math.floor(bonuses.craftQualityBonus * 100)}% качества
+            </div>
+        </div>
+    `;
+    scrollCraftProgressIntoView();
+
+    const totalTime = adjustedTime * 1000;
+    const startTime = performance.now();
+
+    const tick = (now) => {
+        if (!isCraftingLocked || !activeCraftSession) return;
+
+        const elapsed = now - startTime;
+        const percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
+        const fill = document.getElementById('craftFill');
+        const percentEl = document.getElementById('craftPercent');
+        if (fill) fill.style.width = percent + '%';
+        if (percentEl) percentEl.textContent = percent + '%';
+
+        if (percent < 100) {
+            craftProgressRafId = requestAnimationFrame(tick);
+            return;
+        }
+
+        craftProgressRafId = null;
+        const panel = document.getElementById('craftProgressPanel');
+        if (panel) panel.classList.add('craft-complete');
+        finishCraftProgress(activeCraftSession);
+    };
+
+    craftProgressRafId = requestAnimationFrame(tick);
+}
+
+function prepareCraft(profId, recipeName) {
+    startCraftProgress(profId, recipeName, null);
 }
 
 window.getCraftRarityColor = getCraftRarityColor;
@@ -878,7 +940,6 @@ window.getAdjustedGatherExpForResource = getAdjustedGatherExpForResource;
 window.formatLocationResourcesHint = formatLocationResourcesHint;
 window.getMaxCraftCount = getMaxCraftCount;
 window.scaleRecipeMaterials = scaleRecipeMaterials;
-window.clampCraftBatchInput = clampCraftBatchInput;
-window.adjustCraftBatchQty = adjustCraftBatchQty;
+window.startCraftProgress = startCraftProgress;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;

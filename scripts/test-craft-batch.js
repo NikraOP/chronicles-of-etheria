@@ -18,7 +18,10 @@ const ctx = {
     stopGathering: () => {},
     saveGame: () => {},
     showCraftingRecipes: () => {},
-    document: { getElementById: () => null }
+    document: { getElementById: () => null },
+    performance: { now: () => 0 },
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {}
 };
 ctx.window = ctx;
 ctx.CRAFTING_RECIPES = {
@@ -36,10 +39,10 @@ function assert(cond, msg) {
 
 const recipe = ctx.CRAFTING_RECIPES.jewelry.rings[0];
 assert(ctx.getMaxCraftCount(recipe, 'jewelry') === 33, 'max 33 crafts');
-ctx.prepareCraft('jewelry', 'Медное кольцо', 5);
-assert(ctx.player.resources['Медная руда'] === 85, 'consumed 15 ore');
-assert(ctx.player.inventory.rings.length === 5, 'five rings created');
-assert(ctx.player.professions.jewelry.exp === 150, '5x30 exp');
-assert(!ctx.pendingCraftData, 'pending cleared after auto-claim');
+ctx.startCraftProgress('jewelry', 'Медное кольцо', null);
+assert(ctx.player.resources['Медная руда'] === 97, 'consumed 3 ore after craft');
+assert(ctx.player.inventory.rings.length === 1, 'one ring created');
+assert(ctx.player.professions.jewelry.exp === 30, '30 exp');
+assert(!ctx.pendingCraftData, 'pending cleared after craft');
 
 console.log('test-craft-batch: OK');

@@ -395,6 +395,24 @@ function onGatheringComplete(profId, resourceName, adjustedExp, outcome, gatherO
 
     addMessage(`⛏️ Базовая добыча +${outcome.autoCount} ${resourceName}. Заберите критический бонус!`, 'info');
     isGatheringLocked = true;
+    scrollGatherClaimIntoView();
+}
+
+function scrollGatherClaimIntoView() {
+    requestAnimationFrame(() => {
+        const btn = document.getElementById('claimCriticalBtn');
+        const panel = document.querySelector('.gather-critical-panel');
+        const target = btn || panel || document.getElementById('gatherResult');
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        const main = document.querySelector('.main-content');
+        if (main) {
+            const rect = target.getBoundingClientRect();
+            const mainRect = main.getBoundingClientRect();
+            const top = rect.bottom - mainRect.top + main.scrollTop - main.clientHeight + 80;
+            main.scrollTop = Math.max(0, top);
+        }
+    });
 }
 
 function startGathering(profId, resourceName, time, exp, requiredTier, gatherOptions) {
