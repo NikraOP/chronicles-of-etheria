@@ -35,6 +35,7 @@ function renderEquipmentSlotCard(slotKey, label, fallbackEmoji) {
 function showEquipment() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     ensurePlayerJewelryState();
     let html = '<h2>🛡️ Экипировка</h2>';
@@ -116,6 +117,7 @@ function showEquipment() {
 window.showEquipment = showEquipment;
 
 function showArmorList() {
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showEquipment', []);
     if (!player.inventory.helmets) player.inventory.helmets = [];
     if (!player.inventory.chests) player.inventory.chests = [];
     if (!player.inventory.pants) player.inventory.pants = [];
@@ -302,6 +304,7 @@ function equipArmorByType(index, slotType, inventoryType) {
 window.equipArmorByType = equipArmorByType;
 
 function showWeaponList() {
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showEquipment', []);
     if (!player.inventory.weapons) player.inventory.weapons = [];
     let html = '<h2>⚔️ Доступное оружие</h2>';
     if (player.inventory.weapons.length === 0) {
@@ -380,6 +383,7 @@ function equipWeapon(index) {
 window.equipWeapon = equipWeapon;
 
 function showJewelryList() {
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showEquipment', []);
     ensurePlayerJewelryState();
     let html = '<h2>💎 Ювелирные изделия</h2>';
 
@@ -517,6 +521,7 @@ window.unequipItem = unequipItem;
 function showInventory() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     
     if (!player.inventory.helmets) player.inventory.helmets = [];

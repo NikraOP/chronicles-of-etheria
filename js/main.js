@@ -628,6 +628,11 @@ function migrateOldSave(playerData) {
     } else if (!playerData.battleKeys || typeof playerData.battleKeys !== 'object') {
         playerData.battleKeys = { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' };
     }
+    if (typeof ensureUiKeys === 'function') {
+        ensureUiKeys(playerData);
+    } else if (!playerData.uiKeys || typeof playerData.uiKeys !== 'object') {
+        playerData.uiKeys = { back: 'Backspace' };
+    }
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];

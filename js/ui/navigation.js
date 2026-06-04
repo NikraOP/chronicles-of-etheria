@@ -3,6 +3,7 @@
 function showLocations() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     let html = '<h2>🗺️ Локации</h2><div class="location-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">';
     LOCATIONS.forEach(loc => {
@@ -29,6 +30,7 @@ function selectLocation(name) {
 function showProfessions() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     if (typeof flushPendingCraft === 'function') flushPendingCraft();
     let html = '<h2>🔧 Профессии</h2><p style="margin-bottom:15px;">Изучайте профессии, собирайте ресурсы и создавайте предметы. Каждый тир даёт бонусы!</p>';
@@ -121,6 +123,7 @@ function learnProfession(profId) {
 function showAbilities() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     if (typeof ensureAbilityQuickSlots === 'function') ensureAbilityQuickSlots(player);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();

@@ -3,6 +3,7 @@
 function showShop() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
     let html = '<h2>🏪 Магазин</h2><p>💰 Золото: <span style="color:var(--gold);" id="shopGoldAmount">' + player.gold + '</span></p><div class="shop-tabs">';
     const tabs = ['Оружие', 'Шлемы', 'Нагрудники', 'Поножи', 'Сапоги', '📜 Свитки добычи', 'Продажа ресурсов', 'Продажа предметов', '🎨 Скины'];

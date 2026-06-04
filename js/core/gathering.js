@@ -600,6 +600,7 @@ function renderGatherScrollPanel(profId) {
 function showGatheringResources(profId) {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showProfessions', []);
     stopGatheringAnimation();
     pendingGatherData = null;
 
@@ -667,7 +668,7 @@ function showGatheringResources(profId) {
     }
 
     html += '<div id="gatheringProgress"></div>';
-    html += '<button type="button" class="action-btn" onclick="showProfessions()" style="margin-top:15px;width:100%;">↩️ Назад к профессиям</button>';
+    html += '<button type="button" class="action-btn ui-nav-back" data-ui-nav-back onclick="showProfessions()" style="margin-top:15px;width:100%;">↩️ Назад к профессиям</button>';
     document.getElementById('dynamicContent').innerHTML = html;
 
     if (availableResources.length > 0) bindGatheringResourceGrid(profId, availableResources);

@@ -1,4 +1,5 @@
 function renderGame() {
+    if (typeof uiNavReset === 'function') uiNavReset();
     if (!player) return;
     if (typeof isBattleEngaged === 'function' && isBattleEngaged()) {
         if (typeof addMessage === 'function') {

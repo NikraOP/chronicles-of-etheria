@@ -16,6 +16,7 @@
     "test:shop": "node scripts/test-shop-sell.js",
     "test:hotbar": "node scripts/test-ability-hotbar.js",
     "test:battle-zone": "node scripts/test-battle-zone.js",
+    "test:ui-nav": "node scripts/test-ui-nav-back.js",
     "test:gift-mail": "node scripts/test-gift-mail.js",
     "test:divine-armor": "node scripts/test-divine-armor-craft.js",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",

@@ -8,11 +8,14 @@ const DEFAULT_BATTLE_KEYS = {
     continue: 'Enter'
 };
 const BATTLE_KEY_ACTIONS = ['attack', 'dodge', 'abilities', 'continue'];
+const DEFAULT_UI_KEYS = { back: 'Backspace' };
+const UI_KEY_ACTIONS = ['back'];
 const HOTBAR_BIND_FORBIDDEN = new Set(['Tab', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Unidentified', 'Dead']);
 
 let _hotbarPickName = null;
 let _hotbarBindSlotIndex = null;
 let _battleBindAction = null;
+let _uiBindAction = null;
 
 function escapeHotbarText(s) {
     if (!s) return '';
@@ -100,6 +103,65 @@ function ensureBattleKeys(p) {
     });
 }
 
+function ensureUiKeys(p) {
+    if (!p) return;
+    if (!p.uiKeys || typeof p.uiKeys !== 'object') {
+        p.uiKeys = Object.assign({}, DEFAULT_UI_KEYS);
+    }
+    UI_KEY_ACTIONS.forEach(action => {
+        if (!p.uiKeys[action]) {
+            p.uiKeys[action] = DEFAULT_UI_KEYS[action];
+        }
+    });
+}
+
+function getUiKey(action) {
+    if (!player || UI_KEY_ACTIONS.indexOf(action) < 0) return null;
+    ensureUiKeys(player);
+    return player.uiKeys[action] || null;
+}
+
+function setUiKey(action, code) {
+    if (!player || UI_KEY_ACTIONS.indexOf(action) < 0) return false;
+    if (!isAbilityHotbarBindableKey(code)) {
+        if (typeof addMessage === 'function') addMessage('Эту клавишу нельзя назначить.', 'error');
+        return false;
+    }
+    ensureUiKeys(player);
+    releaseKeyFromAllBinds(code, { type: 'ui', action: action });
+    player.uiKeys[action] = code;
+    saveGame();
+    return true;
+}
+
+function sanitizeUiKeys() {
+    if (!player) return;
+    ensureUiKeys(player);
+    ensureBattleKeys(player);
+    ensureAbilityQuickKeys(player);
+    const used = new Map();
+    BATTLE_KEY_ACTIONS.forEach(action => {
+        const code = player.battleKeys[action];
+        if (code) used.set(code, 'battle-' + action);
+    });
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        const code = player.abilityQuickKeys[i];
+        if (code) used.set(code, 'quick-' + i);
+    }
+    UI_KEY_ACTIONS.forEach(action => {
+        let code = player.uiKeys[action];
+        if (!code || !isAbilityHotbarBindableKey(code)) {
+            code = DEFAULT_UI_KEYS[action];
+            player.uiKeys[action] = code;
+        }
+        if (used.has(code)) {
+            player.uiKeys[action] = DEFAULT_UI_KEYS[action];
+            code = player.uiKeys[action];
+        }
+        used.set(code, 'ui-' + action);
+    });
+}
+
 function getBattleKey(action) {
     if (!player || BATTLE_KEY_ACTIONS.indexOf(action) < 0) return null;
     ensureBattleKeys(player);
@@ -110,6 +172,7 @@ function releaseKeyFromAllBinds(code, except) {
     if (!player || !code) return;
     ensureAbilityQuickKeys(player);
     ensureBattleKeys(player);
+    ensureUiKeys(player);
     for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
         if (except && except.type === 'quick' && except.index === i) continue;
         if (player.abilityQuickKeys[i] === code) {
@@ -120,6 +183,12 @@ function releaseKeyFromAllBinds(code, except) {
         if (except && except.type === 'battle' && except.action === action) return;
         if (player.battleKeys[action] === code) {
             player.battleKeys[action] = DEFAULT_BATTLE_KEYS[action];
+        }
+    });
+    UI_KEY_ACTIONS.forEach(action => {
+        if (except && except.type === 'ui' && except.action === action) return;
+        if (player.uiKeys[action] === code) {
+            player.uiKeys[action] = DEFAULT_UI_KEYS[action];
         }
     });
 }
@@ -166,8 +235,78 @@ function sanitizeBattleKeys() {
 function cancelAllKeyBindModes() {
     _hotbarBindSlotIndex = null;
     _battleBindAction = null;
+    _uiBindAction = null;
     refreshAbilityHotbarBindUi();
     refreshSettingsBattleKeysUi();
+    refreshSettingsUiKeysUi();
+}
+
+function getUiKeyActionLabels() {
+    return { back: 'Шаг назад (меню)' };
+}
+
+function startUiKeyBind(action) {
+    if (UI_KEY_ACTIONS.indexOf(action) < 0) return;
+    _uiBindAction = action;
+    _battleBindAction = null;
+    _hotbarBindSlotIndex = null;
+    _hotbarPickName = null;
+    refreshSettingsUiKeysUi();
+    refreshSettingsBattleKeysUi();
+    refreshAbilityHotbarBindUi();
+    const labels = getUiKeyActionLabels();
+    if (typeof addMessage === 'function') {
+        addMessage('«' + labels[action] + '»: нажмите клавишу (Esc — отмена).', 'info');
+    }
+}
+
+function buildUiKeysSettingsHtml() {
+    if (!player) return '';
+    ensureUiKeys(player);
+    const labels = getUiKeyActionLabels();
+    const listening = _uiBindAction === 'back';
+    const keyLabel = listening ? '…' : formatAbilityKeyLabel(getUiKey('back'));
+    return '<section class="settings-section settings-section-keys" id="settingsUiKeys">' +
+        '<h3 class="settings-section-title">⌨️ Навигация</h3>' +
+        '<p class="theme-editor-desc">Возврат на экран выше: из добычи/крафта — к профессиям, из профессий — в игру. Не работает во время боя.</p>' +
+        '<div class="battle-keybind-list">' +
+        '<div class="battle-keybind-row">' +
+            '<span class="battle-keybind-row__label">↩️ ' + escapeHotbarText(labels.back) + '</span>' +
+            '<button type="button" class="ability-hotbar__bind battle-keybind-row__btn' +
+            (listening ? ' ability-hotbar__bind--listening' : '') +
+            '" data-ui-bind="back">' + escapeHotbarText(keyLabel) + '</button>' +
+        '</div></div></section>';
+}
+
+function refreshSettingsUiKeysUi() {
+    const root = document.getElementById('settingsUiKeys');
+    if (!root) return;
+    root.outerHTML = buildUiKeysSettingsHtml();
+    initUiKeysSettings(document.getElementById('settingsUiKeys'));
+}
+
+function initUiKeysSettings(root) {
+    if (!root) root = document.getElementById('settingsUiKeys');
+    if (!root) return;
+    root.querySelectorAll('[data-ui-bind]').forEach(btn => {
+        const action = btn.dataset.uiBind;
+        btn.addEventListener('click', function () {
+            if (_uiBindAction === action) {
+                cancelAllKeyBindModes();
+                return;
+            }
+            cancelAllKeyBindModes();
+            startUiKeyBind(action);
+        });
+    });
+}
+
+function tryNavigateBackByKey(code) {
+    if (!player) return false;
+    ensureUiKeys(player);
+    if (player.uiKeys.back !== code) return false;
+    if (typeof executeNavigateBack !== 'function') return false;
+    return executeNavigateBack();
 }
 
 function startBattleKeyBind(action) {
@@ -611,6 +750,27 @@ function useQuickAbility(slotIndex) {
 function handleAbilityHotbarKeydown(e) {
     if (!player) return;
 
+    if (_uiBindAction !== null) {
+        if (e.code === 'Escape') {
+            e.preventDefault();
+            cancelAllKeyBindModes();
+            if (typeof addMessage === 'function') addMessage('Назначение клавиши отменено.', 'info');
+            return;
+        }
+        if (!isAbilityHotbarBindableKey(e.code)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const action = _uiBindAction;
+        setUiKey(action, e.code);
+        _uiBindAction = null;
+        refreshSettingsUiKeysUi();
+        const labels = getUiKeyActionLabels();
+        if (typeof addMessage === 'function') {
+            addMessage('«' + labels[action] + '»: клавиша «' + formatAbilityKeyLabel(e.code) + '».', 'success');
+        }
+        return;
+    }
+
     if (_battleBindAction !== null) {
         if (e.code === 'Escape' && _battleBindAction === 'continue') {
             e.preventDefault();
@@ -678,6 +838,11 @@ function handleAbilityHotbarKeydown(e) {
 
     if (isAbilityHotbarTypingTarget(e.target)) return;
     if (e.repeat) return;
+
+    if (tryNavigateBackByKey(e.code)) {
+        e.preventDefault();
+        return;
+    }
 
     if (currentMonster && isPlayerTurn && isBattleScreenActive()) {
         ensureBattleKeys(player);
@@ -871,4 +1036,13 @@ window.tryCloseBattleEndModalByKey = tryCloseBattleEndModalByKey;
 window.buildBattleKeysSettingsHtml = buildBattleKeysSettingsHtml;
 window.initBattleKeysSettings = initBattleKeysSettings;
 window.refreshSettingsBattleKeysUi = refreshSettingsBattleKeysUi;
+window.DEFAULT_UI_KEYS = DEFAULT_UI_KEYS;
+window.ensureUiKeys = ensureUiKeys;
+window.getUiKey = getUiKey;
+window.setUiKey = setUiKey;
+window.sanitizeUiKeys = sanitizeUiKeys;
+window.buildUiKeysSettingsHtml = buildUiKeysSettingsHtml;
+window.initUiKeysSettings = initUiKeysSettings;
+window.refreshSettingsUiKeysUi = refreshSettingsUiKeysUi;
+window.tryNavigateBackByKey = tryNavigateBackByKey;
 window.updateBattleActionKeyHints = updateBattleActionKeyHints;

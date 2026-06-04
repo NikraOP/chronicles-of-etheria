@@ -711,6 +711,7 @@ function completeCrafting(profId, options) {
 function showCraftingRecipes(profId) {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showProfessions', []);
     stopGathering();
     stopCraftProgress();
     if (pendingCraftData) flushPendingCraft();
@@ -884,7 +885,7 @@ function showCraftingRecipes(profId) {
         }
     }
     
-    html += '<button class="action-btn craft-back-btn" onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
+    html += '<button type="button" class="action-btn craft-back-btn ui-nav-back" data-ui-nav-back onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
     document.getElementById('dynamicContent').innerHTML = html;
     bindCraftRecipeGrid(profId);
 }

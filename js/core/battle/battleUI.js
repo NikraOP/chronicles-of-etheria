@@ -1,5 +1,19 @@
 // js/core/battle/battleUI.js
 
+function buildStagingRosterPortraitHtml(m) {
+    const icon = m.icon || '👹';
+    const fallback = escapeBattleHtml(icon);
+    if (!m.img) {
+        return '<span class="battle-staging-roster-portrait battle-staging-roster-portrait--emoji">' + fallback + '</span>';
+    }
+    const src = typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(m.img) : m.img;
+    return '<span class="battle-staging-roster-portrait">' +
+        '<img class="battle-staging-roster-portrait-img" src="' + escapeBattleHtml(src) + '" alt="" loading="lazy" ' +
+        'onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'flex\';">' +
+        '<span class="battle-staging-roster-portrait-fallback" style="display:none" aria-hidden="true">' + fallback + '</span>' +
+        '</span>';
+}
+
 function buildStagingMonsterRosterHtml(candidates, isFixed) {
     if (!candidates || !candidates.length) {
         return '<p class="battle-staging-roster-empty">В этой локации нет противников.</p>';
@@ -7,9 +21,8 @@ function buildStagingMonsterRosterHtml(candidates, isFixed) {
     let list = '';
     for (let i = 0; i < candidates.length; i++) {
         const m = candidates[i];
-        const icon = m.icon || '👹';
         list += '<li class="battle-staging-roster-item">' +
-            '<span class="battle-staging-roster-icon" aria-hidden="true">' + icon + '</span>' +
+            buildStagingRosterPortraitHtml(m) +
             '<span class="battle-staging-roster-name">' + escapeBattleHtml(m.name || 'Монстр') + '</span>' +
             '</li>';
     }
