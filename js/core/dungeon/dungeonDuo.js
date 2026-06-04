@@ -469,6 +469,11 @@ function applyRemoteDuoDungeonRoomState(payload) {
 }
 
 function applyRemoteDuoDungeonBattleAction(payload) {
+    if (!payload) return;
+    if (window.dungeonDuoBattleActive && payload.type === 'player_visual' && payload.visual) {
+        if (typeof playRemoteDungeonDuoVisual === 'function') playRemoteDungeonDuoVisual(payload.visual);
+        return;
+    }
     if (typeof applyRemoteDuoDungeonBattleActionImpl === 'function') {
         applyRemoteDuoDungeonBattleActionImpl(payload);
     }

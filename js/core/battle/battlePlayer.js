@@ -203,6 +203,17 @@ function executePlayerAttackAtTarget(targetKind, targetIndex) {
     const msg = (crit ? '💥 КРИТ! ' : '⚔️ ') + appliedDamage + ' урона';
     addBattleLog(msg, crit ? 'crit' : 'dmg');
 
+    if (window.dungeonDuoBattleActive && typeof pushDungeonDuoBattleVisual === 'function') {
+        const focusIdx = typeof getBattleFocusIndex === 'function' ? getBattleFocusIndex() : 0;
+        pushDungeonDuoBattleVisual({
+            action: 'attack',
+            damage: appliedDamage,
+            crit: crit,
+            targetIndex: focusIdx,
+            heavy: crit
+        });
+    }
+
     animatePlayerAttack(() => {
         if (currentMonster.health <= 0) {
             if (tryVictoryAfterEnemyDown()) endPlayerActionChain();
@@ -974,6 +985,18 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
 
     updateBattleVitality();
     if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+
+    if (window.dungeonDuoBattleActive && typeof pushDungeonDuoBattleVisual === 'function') {
+        const focusIdx = typeof getBattleFocusIndex === 'function' ? getBattleFocusIndex() : 0;
+        pushDungeonDuoBattleVisual({
+            action: 'ability',
+            abilityName: a.name || '',
+            damage: appliedDamage,
+            crit: crit,
+            targetIndex: focusIdx,
+            heavy: !!crit || appliedDamage >= Math.floor((typeof getPlayerEffectiveAttack === 'function' ? getPlayerEffectiveAttack() : 0) * 1.2)
+        });
+    }
 
     const afterAbilityResolve = () => {
         if (currentMonster.health <= 0) {

@@ -180,7 +180,7 @@ function buildDungeonAllyCombatantHtml() {
         ? '<div class="combatant-skin-name">' + escapeBattleHtml((portrait.skinIcon ? portrait.skinIcon + ' ' : '') + portrait.skinName) + '</div>'
         : '';
     return '<div class="combatant-wrapper combatant-wrapper--ally" id="allyWrapper">' +
-        '<div class="combatant-sprite">' + buildDuoAllySpriteInnerHtml(ally) + '</div>' +
+        '<div class="combatant-sprite" id="allySprite">' + buildDuoAllySpriteInnerHtml(ally) + '</div>' +
         '<div class="combatant-info">' +
         '<div class="combatant-name" style="color:#3498db;">' + escapeBattleHtml(ally.name || 'Союзник') + '</div>' +
         '<div class="health-bar"><div class="health-fill player-hp" style="width:' + aHp + '%;"></div></div>' +
@@ -598,9 +598,16 @@ function playStrikeAnimation(attackerSide, callback, options) {
     options = options || {};
     window._strikeAnimActive = true;
     const isPlayer = attackerSide === 'player';
-    const attackerEl = document.getElementById(isPlayer ? 'playerSprite' : 'enemySprite');
-    const defenderEl = document.getElementById(isPlayer ? 'enemySprite' : 'playerSprite');
-    const defenderWrap = document.getElementById(isPlayer ? 'enemyWrapper' : 'playerWrapper');
+    const isAlly = attackerSide === 'ally';
+    const attackerEl = document.getElementById(
+        isPlayer ? 'playerSprite' : (isAlly ? 'allySprite' : 'enemySprite')
+    );
+    const defenderEl = document.getElementById(
+        isPlayer || isAlly ? 'enemySprite' : 'playerSprite'
+    );
+    const defenderWrap = document.getElementById(
+        isPlayer || isAlly ? 'enemyWrapper' : 'playerWrapper'
+    );
     const arena = document.getElementById('battleArena');
     const isCrit = !!options.isCrit;
     const heavy = !!options.heavy;
@@ -618,8 +625,8 @@ function playStrikeAnimation(attackerSide, callback, options) {
         arena.style.setProperty('--kb-x', Math.max(10, Math.round(dist * 0.14)) + 'px');
     }
 
-    const hitClass = isPlayer ? 'taking-damage-from-player' : 'taking-damage-from-enemy';
-    const attackClass = isPlayer ? 'player-attacking' : 'enemy-attacking';
+    const hitClass = (isPlayer || isAlly) ? 'taking-damage-from-player' : 'taking-damage-from-enemy';
+    const attackClass = isPlayer || isAlly ? 'player-attacking' : 'enemy-attacking';
 
     let animEndHandled = false;
     const onAttackAnimComplete = () => {
@@ -640,7 +647,7 @@ function playStrikeAnimation(attackerSide, callback, options) {
             [attackClass, 'is-striking'],
             duration,
             onAttackAnimComplete,
-            isPlayer ? 'playerLungeStrike' : 'enemyLungeStrike'
+            (isPlayer || isAlly) ? 'playerLungeStrike' : 'enemyLungeStrike'
         );
     } else {
         setTimeout(onAttackAnimComplete, duration);
@@ -651,7 +658,7 @@ function playStrikeAnimation(attackerSide, callback, options) {
         if (impactFired) return;
         impactFired = true;
 
-        if (duration >= 280) spawnCombatSlash(attackerSide);
+        if (duration >= 280) spawnCombatSlash((isPlayer || isAlly) ? 'player' : attackerSide);
 
         if (defenderEl) {
             defenderEl.classList.remove(hitClass, 'taking-damage');

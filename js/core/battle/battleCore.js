@@ -169,7 +169,7 @@ function onPlayerTurnStart() {
 /** Перед атакой/способностью игрока */
 function beginPlayerAction() {
     if (!isPlayerTurn) return false;
-    if (window.dungeonDuoBattleActive && typeof dungeonDuoIsLocalTurn === 'function' && !dungeonDuoIsLocalTurn()) {
+    if (window.dungeonDuoBattleActive && typeof dungeonDuoLocalCanAct === 'function' && !dungeonDuoLocalCanAct()) {
         return false;
     }
     if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
