@@ -627,7 +627,8 @@ function migrateOldSave(playerData) {
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];
     if (playerData.currentSkin === undefined) playerData.currentSkin = null;
     if (playerData.gender === undefined) playerData.gender = 'male';
-    
+    if (!Array.isArray(playerData.redeemedGiftIds)) playerData.redeemedGiftIds = [];
+
     return playerData;
 }
 

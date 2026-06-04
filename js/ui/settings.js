@@ -1,6 +1,18 @@
 /**
  * Настройки игры (шестерёнка у заголовка). Оформление — вкладка с RGB-кругами.
  */
+function buildSettingsTabsHtml(activeTab) {
+    const tabs = [
+        { id: 'appearance', label: 'Оформление' },
+        { id: 'game', label: 'Игра' },
+        { id: 'mail', label: 'Почта' }
+    ];
+    return tabs.map(t =>
+        '<button type="button" class="settings-tab' + (activeTab === t.id ? ' active' : '') +
+        '" data-tab="' + t.id + '" onclick="showSettings(\'' + t.id + '\')">' + t.label + '</button>'
+    ).join('');
+}
+
 function showSettings(activeTab) {
     if (typeof stopGathering === 'function') stopGathering();
     const el = document.getElementById('dynamicContent');
@@ -17,10 +29,7 @@ function showSettings(activeTab) {
         '<h2>Настройки</h2>' +
         '<button type="button" class="settings-close-btn" onclick="closeSettings()" aria-label="Закрыть">✕</button>' +
         '</div>' +
-        '<nav class="settings-tabs" role="tablist">' +
-        '<button type="button" class="settings-tab' + (tab === 'appearance' ? ' active' : '') + '" data-tab="appearance" onclick="showSettings(\'appearance\')">Оформление</button>' +
-        '<button type="button" class="settings-tab' + (tab === 'game' ? ' active' : '') + '" data-tab="game" onclick="showSettings(\'game\')">Игра</button>' +
-        '</nav>' +
+        '<nav class="settings-tabs" role="tablist">' + buildSettingsTabsHtml(tab) + '</nav>' +
         '<div class="settings-tab-body" id="settingsTabBody"></div>' +
         '</div>';
 
@@ -29,6 +38,12 @@ function showSettings(activeTab) {
         body.innerHTML = '<section class="settings-section" id="settingsAppearance"></section>';
         if (typeof mountAppearanceEditor === 'function') {
             mountAppearanceEditor(document.getElementById('settingsAppearance'));
+        }
+    } else if (tab === 'mail') {
+        if (typeof mountGiftMailTab === 'function') {
+            mountGiftMailTab(body);
+        } else {
+            body.innerHTML = '<p class="theme-editor-desc">Модуль почты не загружен.</p>';
         }
     } else {
         body.innerHTML =
