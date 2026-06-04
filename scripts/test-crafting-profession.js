@@ -15,6 +15,18 @@ const ctx = {
 };
 ctx.window = ctx;
 ctx.CRAFTING_RECIPES = { tailoring: { weapons: [] } };
+ctx.PROFESSIONS_DB = {
+    gathering: [{ id: 'mining', learnMinLevel: 1 }],
+    crafting: [{ id: 'jewelry', learnMinLevel: 12, relatedGathering: ['mining'] }]
+};
+ctx.RESOURCES_DB = {
+    mining: [
+        { name: 'Медная руда', tier: 1, locations: ['Сумеречный лес'] },
+        { name: 'Железная руда', tier: 2, locations: ['Сумеречный лес'] }
+    ]
+};
+ctx.player.location = 'Сумеречный лес';
+ctx.player.level = 5;
 vm.runInNewContext(src, ctx, { filename: 'craftingSystem.js' });
 
 function assert(cond, msg) {
@@ -57,5 +69,15 @@ assert(normAncient.tier === 6, 'ancient rarity forces tier 6 recipe');
 
 assert(ctx.getCraftRarityColor('Древний') === '#e67e22', 'ancient color');
 assert(ctx.getCraftRarityColor('Божественный') === '#1abc9c', 'divine color');
+
+assert(ctx.getProfessionLearnBlockReason('jewelry').indexOf('12') !== -1, 'jewelry blocked below lvl 12');
+ctx.player.level = 12;
+assert(ctx.getProfessionLearnBlockReason('jewelry') === '', 'jewelry learnable at 12');
+
+const atLoc = ctx.getResourcesAtLocationForProfession('mining');
+assert(atLoc.includes('Медная руда'), 'tier1 ore at location');
+assert(!atLoc.includes('Железная руда'), 'tier2 ore hidden at prof tier 1');
+ctx.player.professions.mining = { tier: 2, exp: 0 };
+assert(ctx.getResourcesAtLocationForProfession('mining').includes('Железная руда'), 'tier2 ore at prof tier 2');
 
 console.log('Crafting profession tests OK');

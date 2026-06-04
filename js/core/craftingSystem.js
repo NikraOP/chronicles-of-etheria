@@ -122,6 +122,64 @@ function normalizeRecipeForCraft(recipe) {
     return r;
 }
 
+function findProfessionMeta(profId) {
+    if (!PROFESSIONS_DB) return null;
+    return PROFESSIONS_DB.gathering.find(p => p.id === profId)
+        || PROFESSIONS_DB.crafting.find(p => p.id === profId)
+        || null;
+}
+
+function getProfessionLearnMinLevel(profId) {
+    const prof = findProfessionMeta(profId);
+    const lvl = prof && prof.learnMinLevel != null ? parseInt(prof.learnMinLevel, 10) : 1;
+    return Number.isFinite(lvl) && lvl > 0 ? lvl : 1;
+}
+
+function getProfessionLearnBlockReason(profId) {
+    if (player.professions[profId]) return 'Профессия уже изучена';
+    const minLvl = getProfessionLearnMinLevel(profId);
+    const playerLvl = parseInt(player.level, 10) || 1;
+    if (playerLvl < minLvl) return `Нужен ${minLvl} ур. персонажа (сейчас ${playerLvl})`;
+    return '';
+}
+
+/** Ресурсы на текущей локации для профессии (с учётом тира профессии). */
+function getResourcesAtLocationForProfession(profId) {
+    const loc = String(player.location || '').trim();
+    if (!loc) return [];
+    const meta = findProfessionMeta(profId);
+    const profState = player.professions[profId];
+    const tier = profState ? (parseInt(profState.tier, 10) || 1) : 1;
+    const sourceIds = RESOURCES_DB[profId]
+        ? [profId]
+        : (meta && meta.relatedGathering ? meta.relatedGathering : []);
+    const names = [];
+    const seen = new Set();
+    for (const srcId of sourceIds) {
+        const list = RESOURCES_DB[srcId] || [];
+        for (const r of list) {
+            if (!r || !r.name || seen.has(r.name)) continue;
+            const resTier = parseInt(r.tier, 10) || 1;
+            const locs = r.locations || [];
+            if (locs.indexOf(loc) === -1 || tier < resTier) continue;
+            seen.add(r.name);
+            names.push(r.name);
+        }
+    }
+    return names.sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+function formatLocationResourcesHint(profId) {
+    const list = getResourcesAtLocationForProfession(profId);
+    const loc = player.location || '—';
+    if (!list.length) {
+        return `📍 ${loc}: нет ресурсов для этой профессии на вашем тире`;
+    }
+    const preview = list.slice(0, 6).join(', ');
+    const more = list.length > 6 ? ` +${list.length - 6}` : '';
+    return `📍 ${loc}: ${preview}${more}`;
+}
+
 function getCraftBlockReason(recipe, profId) {
     if (!recipe) return 'Рецепт не найден';
     const prof = player.professions[profId];
@@ -372,10 +430,12 @@ function showCraftingRecipes(profId) {
     const expNeeded = getExpForNextTier(currentTier);
     const percent = (expNeeded > 0 && currentTier < 6) ? (exp / expNeeded * 100) : 100;
     
-    const availableRecipes = allRecipes.filter(r => {
-        if (r.class && r.class !== player.class) return false;
-        return true;
+    const classRecipes = allRecipes.filter(r => !r.class || r.class === player.class);
+    const availableRecipes = classRecipes.filter(r => {
+        const norm = normalizeRecipeForCraft(r);
+        return norm.tier <= currentTier;
     });
+    const lockedByTierCount = classRecipes.filter(r => normalizeRecipeForCraft(r).tier > currentTier).length;
     
     let html = '<h2>' + prof.icon + ' ' + prof.name + ' — Создание предметов</h2>';
     html += '<div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 15px;">';
@@ -395,7 +455,12 @@ function showCraftingRecipes(profId) {
     html += '<div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">';
     html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">✨ Качество: +' + Math.floor(bonuses.craftQualityBonus * 100) + '%</span>';
     html += '<span style="background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 8px; font-size: 11px;">💎 Экономия: ' + Math.floor(bonuses.materialSaveChance * 100) + '%</span>';
-    html += '</div></div>';
+    html += '</div>';
+    if (lockedByTierCount > 0) {
+        html += '<div style="font-size: 11px; color: var(--text-secondary); margin-top: 8px;">🔒 Ещё ' + lockedByTierCount
+            + ' рецепт(ов) откроются с повышением тира профессии</div>';
+    }
+    html += '</div>';
     
     if (availableRecipes.length === 0) {
         html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; text-align: center;">';
@@ -588,5 +653,8 @@ function prepareCraft(profId, recipeName) {
 window.getCraftRarityColor = getCraftRarityColor;
 window.normalizeRecipeForCraft = normalizeRecipeForCraft;
 window.getCraftBlockReason = getCraftBlockReason;
+window.getProfessionLearnBlockReason = getProfessionLearnBlockReason;
+window.getResourcesAtLocationForProfession = getResourcesAtLocationForProfession;
+window.formatLocationResourcesHint = formatLocationResourcesHint;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
