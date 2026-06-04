@@ -13,8 +13,9 @@
     let _exchangePollActive = false;
     let _exchangePollTimer = null;
     let _exchangePollInFlight = false;
-    let _exchangeListInFlight = false;
     let _lastHandledIncomingId = '';
+    let _lastHandledExchangeEventSeq = 0;
+    let _exchangeListRefreshPromise = null;
 
     function escapeExHtml(s) {
         if (!s) return '';
@@ -34,8 +35,13 @@
 
     function setFriendsActiveTab(tab) {
         friendsActiveTab = tab === 'exchanges' ? 'exchanges' : 'list';
+        if (friendsActiveTab === 'exchanges') {
+            refreshExchangesList().then(function () {
+                if (typeof renderFriendsScreenInner === 'function') renderFriendsScreenInner();
+            });
+            return;
+        }
         if (typeof renderFriendsScreenInner === 'function') renderFriendsScreenInner();
-        if (friendsActiveTab === 'exchanges') refreshExchangesList();
     }
 
     function resetExchangeWantDraft() {
@@ -273,19 +279,23 @@
 
     async function refreshExchangesList() {
         if (typeof getFriendsBackendKind === 'function' && getFriendsBackendKind() !== 'http') return;
-        if (_exchangeListInFlight) return;
-        _exchangeListInFlight = true;
-        try {
-            if (typeof ensureFriendsOnlineSession === 'function') {
-                await ensureFriendsOnlineSession({ silent: true });
+        if (_exchangeListRefreshPromise) return _exchangeListRefreshPromise;
+        _exchangeListRefreshPromise = (async function () {
+            try {
+                if (typeof ensureFriendsOnlineSession === 'function') {
+                    await ensureFriendsOnlineSession({ silent: true });
+                }
+                const data = await friendsHttpFetch('/api/v1/exchanges');
+                _cachedExchanges = data.offers || [];
+                if (Number.isFinite(data.seq)) {
+                    _exchangePollSince = Math.max(_exchangePollSince, data.seq);
+                }
+            } catch (_) { /* offline */ }
+            finally {
+                _exchangeListRefreshPromise = null;
             }
-            const data = await friendsHttpFetch('/api/v1/exchanges');
-            _cachedExchanges = data.offers || [];
-            if (Number.isFinite(data.seq)) _exchangePollSince = Math.max(_exchangePollSince, data.seq);
-        } catch (_) { /* offline */ }
-        finally {
-            _exchangeListInFlight = false;
-        }
+        })();
+        return _exchangeListRefreshPromise;
     }
 
     function buildFriendsTabsHtml() {
@@ -454,23 +464,32 @@
                 '/api/v1/exchanges/poll?since=' + encodeURIComponent(String(_exchangePollSince || 0)) +
                 '&wait=18'
             );
-            if (data && Number.isFinite(data.seq)) _exchangePollSince = data.seq;
+            if (data && data.event && Number.isFinite(data.event._seq)) {
+                _exchangePollSince = Math.max(_exchangePollSince, data.event._seq);
+            } else if (data && Number.isFinite(data.seq)) {
+                _exchangePollSince = Math.max(_exchangePollSince, data.seq);
+            }
             if (data && data.incoming && data.incoming.offerId &&
                 data.incoming.offerId !== _lastHandledIncomingId) {
                 showExchangeInviteModal(data.incoming);
             }
             if (data && data.event) {
-                if (data.event.type === 'exchange_accepted' && data.event.offer) {
-                    applyExchangeAccepted(data.event.offer, false);
-                    if (typeof addMessage === 'function') {
-                        addMessage('✅ Друг принял ваш обмен!', 'success');
+                const evSeq = data.event._seq || 0;
+                if (evSeq > _lastHandledExchangeEventSeq) {
+                    _lastHandledExchangeEventSeq = evSeq;
+                    if (data.event.type === 'exchange_accepted' && data.event.offer) {
+                        applyExchangeAccepted(data.event.offer, false);
+                        if (typeof addMessage === 'function') {
+                            addMessage('✅ Друг принял ваш обмен!', 'success');
+                        }
+                    } else if (data.event.type === 'exchange_declined') {
+                        if (typeof addMessage === 'function') addMessage('Обмен отклонён другом.', 'info');
                     }
-                } else if (data.event.type === 'exchange_declined') {
-                    if (typeof addMessage === 'function') addMessage('Обмен отклонён другом.', 'info');
-                }
-                await refreshExchangesList();
-                if (friendsActiveTab === 'exchanges' && typeof renderFriendsScreenInner === 'function') {
-                    renderFriendsScreenInner();
+                    await refreshExchangesList();
+                    if (friendsActiveTab === 'exchanges' && document.querySelector('.friends-screen') &&
+                        typeof renderFriendsScreenInner === 'function') {
+                        renderFriendsScreenInner();
+                    }
                 }
             }
         } catch (_) { /* offline */ }

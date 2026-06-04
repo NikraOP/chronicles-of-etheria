@@ -460,7 +460,12 @@ async function friendsListPollTick() {
         return;
     }
     await refreshFriendsFromServer();
-    if (document.querySelector('.friends-screen')) renderFriendsScreenInner();
+    if (!document.querySelector('.friends-screen')) return;
+    if (typeof getFriendsActiveTab === 'function' && getFriendsActiveTab() === 'exchanges' &&
+        typeof refreshExchangesList === 'function') {
+        await refreshExchangesList();
+    }
+    renderFriendsScreenInner();
 }
 
 function friendsUpdateLiveStatus(mode) {
@@ -873,11 +878,6 @@ function renderFriendsScreenInner() {
         html += '</div>';
         el.innerHTML = html;
         friendsUpdateLiveStatus(synced ? 'online' : 'loading');
-        if (typeof refreshExchangesList === 'function') refreshExchangesList().then(function () {
-            if (document.querySelector('.friends-screen') && typeof renderFriendsScreenInner === 'function') {
-                renderFriendsScreenInner();
-            }
-        });
         return;
     }
 

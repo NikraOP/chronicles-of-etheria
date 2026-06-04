@@ -289,6 +289,9 @@ export function createFriendExchangesApi(dataDir, accountsApi) {
                     return { ok: true, seq: box.seq, incoming: summarizeOffer(incoming), event: null };
                 }
                 if (event) {
+                    const ackSeq = event._seq || 0;
+                    box.events = box.events.filter(e => (e._seq || 0) > ackSeq);
+                    saveBox(playerId, box);
                     return { ok: true, seq: box.seq, incoming: null, event: event };
                 }
                 if (Date.now() >= deadline) {
