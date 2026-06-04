@@ -386,28 +386,45 @@ function renderDungeonFloorMap() {
     const roomTotal = floor.rooms.length;
     let nodes = '';
 
+    let listHtml = '';
+    const currentRoom = floor.rooms[roomIndex];
+
     floor.rooms.forEach(function (room, i) {
         let state = 'upcoming';
         if (i < roomIndex || room.cleared) state = 'cleared';
         else if (i === roomIndex) state = 'current';
 
         const icon = resolveRoomArchetypeIcon(room);
-        const label = room.name || (typeof ROOM_ARCHETYPES !== 'undefined' && room.archetype && ROOM_ARCHETYPES[room.archetype]
-            ? ROOM_ARCHETYPES[room.archetype].name
-            : 'Комната ' + (i + 1));
+        const title = room.title || room.name || ('Комната ' + (i + 1));
+        const desc = room.desc || '';
+        const statusLabel = state === 'current' ? 'Сейчас' : (state === 'cleared' ? 'Пройдено' : 'Впереди');
 
-        nodes += '<div class="dungeon-floor-room dungeon-floor-room--' + state + '" title="' + escapeDungeonText(label) + '">' +
+        nodes += '<div class="dungeon-floor-room dungeon-floor-room--' + state + '" title="' + escapeDungeonText(title) + '">' +
             '<span class="dungeon-floor-room__icon" aria-hidden="true">' + escapeDungeonText(icon) + '</span>' +
             '<span class="dungeon-floor-room__idx">' + (i + 1) + '</span>' +
             '</div>';
         if (i < floor.rooms.length - 1) {
             nodes += '<div class="dungeon-floor-map__connector' + (i < roomIndex ? ' dungeon-floor-map__connector--done' : '') + '" aria-hidden="true"></div>';
         }
+
+        listHtml += '<li class="dungeon-floor-list__item dungeon-floor-list__item--' + state + '">' +
+            '<div class="dungeon-floor-list__head">' +
+            '<span class="dungeon-floor-list__icon">' + escapeDungeonText(icon) + '</span>' +
+            '<span class="dungeon-floor-list__title">' + escapeDungeonText(title) + '</span>' +
+            '<span class="dungeon-floor-list__badge">' + escapeDungeonText(statusLabel) + '</span>' +
+            '</div>' +
+            (desc ? '<p class="dungeon-floor-list__desc">' + escapeDungeonText(desc) + '</p>' : '') +
+            '</li>';
     });
 
     const dungeonName = session.dungeonName || (session.dungeonId && typeof getDungeonById === 'function'
         ? (getDungeonById(session.dungeonId) || {}).name
         : '') || 'Подземелье';
+
+    const currentTitle = currentRoom && (currentRoom.title || currentRoom.name) ? currentRoom.title : ('Комната ' + (roomIndex + 1));
+    const currentDesc = currentRoom && currentRoom.desc
+        ? currentRoom.desc
+        : 'Нажмите «В бой», чтобы начать схватку. В бою выберите цель — над ней появится 🎯.';
 
     return '<div class="dungeon-floor-map" role="navigation" aria-label="Карта этажа">' +
         '<div class="dungeon-floor-map__head">' +
@@ -417,7 +434,13 @@ function renderDungeonFloorMap() {
         '<span class="dungeon-floor-map__room">Комната ' + (roomIndex + 1) + ' / ' + roomTotal + '</span>' +
         '</span>' +
         '</div>' +
+        '<p class="dungeon-floor-map__legend">🟡 — вы здесь · ✅ — пройдено · ⚪ — впереди. В бою 2–3 врага (в соло слабее, чем в дуо).</p>' +
         '<div class="dungeon-floor-map__track">' + nodes + '</div>' +
+        '<div class="dungeon-floor-map__current">' +
+        '<h3 class="dungeon-floor-map__current-title">▶ ' + escapeDungeonText(currentTitle) + '</h3>' +
+        '<p class="dungeon-floor-map__current-desc">' + escapeDungeonText(currentDesc) + '</p>' +
+        '</div>' +
+        '<ul class="dungeon-floor-list">' + listHtml + '</ul>' +
         '</div>';
 }
 

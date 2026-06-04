@@ -60,4 +60,9 @@ const infernalFight = infernal.floors.some(f => (f.rooms || []).some(r => r.enem
 if (!infernalFight) throw new Error('infernal_pit: no enemies');
 const named = infernal.floors.flatMap(f => f.rooms).flatMap(r => r.enemies || []).find(e => e.name === 'Пламенный пес');
 if (!named) throw new Error('infernal_pit: dungeon monster not resolved');
-console.log('ok', run.floors.length, 'floors', room.enemies.length, 'enemies in room 1', '| infernal:', named.name);
+const soloCombats = infernal.floors.flatMap(f => f.rooms).filter(r => r.enemies && r.enemies.length && !r.isShrine);
+const pack2plus = soloCombats.filter(r => r.enemies.length >= 2);
+if (!pack2plus.length) throw new Error('infernal_pit: expected 2+ enemy packs in solo');
+const oblivion = ctx.generateDungeonRun('oblivion_core', 60);
+if (!ctx.getDungeonById('oblivion_core')) throw new Error('oblivion_core missing');
+console.log('ok', run.floors.length, 'floors', '| solo packs 2+:', pack2plus.length, '| oblivion floors:', oblivion.floors.length);

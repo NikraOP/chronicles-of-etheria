@@ -24,8 +24,9 @@ const DUNGEON_BALANCE = {
     duoHpPackMult: 0.38,
     soloAtkMult: 0.88,
     duoAtkMult: 0.9,
-    enemiesPerRoomMin: 1,
+    enemiesPerRoomMin: 2,
     enemiesPerRoomMax: 3,
+    soloThreatMult: 0.78,
     floorCountMin: 2,
     floorCountMax: 5
 };
@@ -36,35 +37,40 @@ const ROOM_ARCHETYPES = {
         name: 'Коридор',
         icon: '🚪',
         weight: 32,
-        enemyCountBias: -1
+        enemyCountBias: 0,
+        desc: 'Узкий проход. Обычно 2 врага — чуть меньше давления, чем в зале.'
     },
     chamber: {
         id: 'chamber',
         name: 'Зал',
         icon: '🏛️',
         weight: 26,
-        enemyCountBias: 0
+        enemyCountBias: 0,
+        desc: 'Просторный зал. 2–3 врага, классическая боевая комната.'
     },
     nest: {
         id: 'nest',
         name: 'Гнездо',
         icon: '🕸️',
         weight: 22,
-        enemyCountBias: 1
+        enemyCountBias: 1,
+        desc: 'Логово монстров. Чаще 3 врага — толпа послабее по отдельности.'
     },
     shrine: {
         id: 'shrine',
         name: 'Святыня',
         icon: '✨',
         weight: 14,
-        enemyCountBias: -1
+        enemyCountBias: -1,
+        desc: 'Без боя. Восстанавливает 30% максимального HP и открывает следующую комнату.'
     },
     boss: {
         id: 'boss',
         name: 'Босс',
         icon: '💀',
         weight: 6,
-        enemyCountBias: 0
+        enemyCountBias: 0,
+        desc: 'Один усиленный противник. Больше HP и особые способности.'
     }
 };
 
@@ -291,6 +297,74 @@ const DUNGEONS_DB = [
         theme: {
             bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)'
         }
+    },
+    {
+        id: 'void_citadel',
+        name: 'Цитадель пустоты',
+        icon: '🌑',
+        mode: 'solo',
+        minLevel: 30,
+        maxLevel: 38,
+        recommendedLevel: 34,
+        backgroundId: 'void_prison',
+        finalBossId: 'distorted_warden',
+        monsterPool: ['void_shade', 'cyber_dragon', 'distorted_warden'],
+        floors: { min: 4, max: 5 },
+        roomsPerFloor: { min: 6, max: 8 },
+        goldMult: 16,
+        expMult: 1.32,
+        theme: { bgColor: 'linear-gradient(135deg, #12081a, #050208)' }
+    },
+    {
+        id: 'storm_spire',
+        name: 'Штормовая башня',
+        icon: '⚡',
+        mode: 'solo',
+        minLevel: 40,
+        maxLevel: 48,
+        recommendedLevel: 44,
+        backgroundId: 'sky_ruins',
+        finalBossId: 'neon_dragon',
+        monsterPool: ['sky_drone', 'cloud_stalker', 'neon_dragon', 'crystal_sentinel'],
+        floors: { min: 4, max: 5 },
+        roomsPerFloor: { min: 6, max: 9 },
+        goldMult: 17,
+        expMult: 1.36,
+        theme: { bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)' }
+    },
+    {
+        id: 'elder_maw',
+        name: 'Пасть древних',
+        icon: '🐲',
+        mode: 'solo',
+        minLevel: 50,
+        maxLevel: 58,
+        recommendedLevel: 54,
+        backgroundId: 'infernal',
+        finalBossId: 'ash_lord',
+        monsterPool: ['frost_lurker', 'ice_colossus', 'glacier_heart', 'ash_lord'],
+        floors: { min: 4, max: 5 },
+        roomsPerFloor: { min: 7, max: 9 },
+        goldMult: 19,
+        expMult: 1.42,
+        theme: { bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)' }
+    },
+    {
+        id: 'oblivion_core',
+        name: 'Ядро забвения',
+        icon: '☠️',
+        mode: 'solo',
+        minLevel: 60,
+        maxLevel: 75,
+        recommendedLevel: 68,
+        backgroundId: 'void_prison',
+        finalBossId: 'three_headed_hydra',
+        monsterPool: ['cyber_dragon', 'ash_lord', 'glacier_heart', 'three_headed_hydra'],
+        floors: { min: 5, max: 6 },
+        roomsPerFloor: { min: 7, max: 10 },
+        goldMult: 22,
+        expMult: 1.55,
+        theme: { bgColor: 'linear-gradient(135deg, #1a0818, #030208)' }
     }
 ];
 
@@ -319,21 +393,24 @@ function pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors) {
     const minTier = Math.max(1, maxTier - tierSize + 1);
     const slice = pool.slice(minTier - 1, maxTier);
 
-    const pickCount = Math.min(
-        DUNGEON_BALANCE.enemiesPerRoomMax,
-        Math.max(DUNGEON_BALANCE.enemiesPerRoomMin, slice.length)
-    );
-
     const picked = [];
     const available = slice.slice();
+    const pickCount = Math.max(
+        DUNGEON_BALANCE.enemiesPerRoomMin,
+        Math.min(DUNGEON_BALANCE.enemiesPerRoomMax, available.length || DUNGEON_BALANCE.enemiesPerRoomMin)
+    );
 
-    for (let i = 0; i < pickCount && available.length > 0; i++) {
+    for (let i = 0; i < pickCount; i++) {
+        if (!available.length) {
+            picked.push(slice[Math.floor(rng() * slice.length)]);
+            continue;
+        }
         const idx = Math.floor(rng() * available.length);
         picked.push(available[idx]);
-        available.splice(idx, 1);
+        if (available.length > 1) available.splice(idx, 1);
     }
 
-    return picked;
+    return picked.length ? picked : pool.slice(0, Math.min(pool.length, DUNGEON_BALANCE.enemiesPerRoomMin));
 }
 
 if (typeof window !== 'undefined') {

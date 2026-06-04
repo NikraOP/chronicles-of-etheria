@@ -57,8 +57,14 @@ function focusBattleEnemyAtIndex(index) {
     }
 }
 
+function isDungeonBattleContext() {
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    return !!(session && session.state === 'battle');
+}
+
 function getAutoResolveTarget(validKinds) {
     if (!validKinds || !validKinds.length) return null;
+    if (isDungeonBattleContext()) return null;
     if (validKinds.indexOf('self') >= 0 && validKinds.length === 1) {
         return { targetKind: 'self', targetIndex: 0 };
     }
@@ -191,8 +197,8 @@ function beginBattleTargeting(opts) {
     if (_targetingMode) cancelBattleTargeting();
 
     const validKinds = opts.validKinds || targetingModeToValidKinds(opts.targeting || 'enemy');
-    const auto = getAutoResolveTarget(validKinds);
-    if (auto && opts.skipAutoResolve !== true) {
+    const auto = opts.skipAutoResolve === true ? null : getAutoResolveTarget(validKinds);
+    if (auto) {
         if (auto.targetKind === 'enemy') focusBattleEnemyAtIndex(auto.targetIndex);
         if (typeof opts.handler === 'function') {
             opts.handler(auto.targetKind, auto.targetIndex, opts);
@@ -312,3 +318,4 @@ function restoreBattleTargetingUi() {
 window.restoreBattleTargetingUi = restoreBattleTargetingUi;
 window.refreshBattleTargetingUi = refreshBattleTargetingUi;
 window.refreshBattleTargetReticles = refreshBattleTargetReticles;
+window.isDungeonBattleContext = isDungeonBattleContext;

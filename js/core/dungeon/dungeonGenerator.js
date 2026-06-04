@@ -58,12 +58,17 @@ function weightedPickArchetype(rng, excludeIds) {
 }
 
 function pickNamesWithoutRepeat(pool, count, rng) {
-    const available = pool.slice();
+    if (!pool || !pool.length) return [];
     const picked = [];
-    for (let i = 0; i < count && available.length > 0; i++) {
-        const idx = Math.floor(rng() * available.length);
-        picked.push(available[idx]);
-        available.splice(idx, 1);
+    const available = pool.slice();
+    for (let i = 0; i < count; i++) {
+        if (available.length > 1) {
+            const idx = Math.floor(rng() * available.length);
+            picked.push(available[idx]);
+            available.splice(idx, 1);
+        } else {
+            picked.push(pool[Math.floor(rng() * pool.length)]);
+        }
     }
     return picked;
 }
@@ -82,13 +87,48 @@ function rollFloorCount(rng, dungeon) {
     return dungeonRandInt(rng, lo, hi);
 }
 
-function rollEnemyCount(rng, archetype, floorIndex, isBoss) {
+function rollEnemyCount(rng, archetype, floorIndex, isBoss, mode) {
     if (isBoss) return 1;
     let count = dungeonRandInt(rng, 2, 3);
     const bias = archetype && archetype.enemyCountBias != null ? archetype.enemyCountBias : 0;
-    count = dungeonClamp(count + bias, 1, DUNGEON_BALANCE.enemiesPerRoomMax);
-    if (floorIndex === 0) count = Math.min(count, 2);
-    return Math.max(DUNGEON_BALANCE.enemiesPerRoomMin, count);
+    count = dungeonClamp(count + bias, DUNGEON_BALANCE.enemiesPerRoomMin, DUNGEON_BALANCE.enemiesPerRoomMax);
+    return count;
+}
+
+function buildRoomPresentation(room) {
+    if (!room) return { title: 'Комната', desc: '' };
+    if (room.isShrine || room.archetype === 'shrine') {
+        return {
+            title: 'Святыня',
+            desc: 'Без боя. Лечение 30% HP, затем переход дальше.'
+        };
+    }
+    if (room.isFinalBoss) {
+        const name = room.enemies && room.enemies[0] ? room.enemies[0].name : 'Финальный босс';
+        return {
+            title: '👑 ' + name,
+            desc: 'Финал подземелья. Один босс — максимальная награда и сложность.'
+        };
+    }
+    if (room.isBoss) {
+        const name = room.enemies && room.enemies[0] ? room.enemies[0].name : 'Босс';
+        return {
+            title: '💀 ' + name,
+            desc: 'Босс-комната: один усиленный враг.'
+        };
+    }
+    const arch = typeof ROOM_ARCHETYPES !== 'undefined' && room.archetype
+        ? ROOM_ARCHETYPES[room.archetype]
+        : null;
+    const n = room.enemies ? room.enemies.length : 0;
+    const names = room.enemies && room.enemies.length
+        ? room.enemies.map(function (e) { return e.name; }).join(', ')
+        : '';
+    return {
+        title: (arch && arch.name) || 'Бой',
+        desc: ((arch && arch.desc) || 'Схватка с монстрами.') +
+            (n ? ' Сейчас: ' + n + ' вр.' + (names ? ' — ' + names : '') + '.' : '')
+    };
 }
 
 function buildScaledEnemy(template, mults, dungeon) {
@@ -131,9 +171,16 @@ function floorStatMults(floorIndex, enemyCount, mode) {
     const modeAtk = isDuo ? DUNGEON_BALANCE.modeAtk.duo : DUNGEON_BALANCE.modeAtk.solo;
     const packHp = getPackMult(packHpTable, enemyCount, isDuo ? 0.38 : 0.42);
     const packAtk = getPackMult(packAtkTable, enemyCount, isDuo ? 0.9 : 0.88);
+    let hp = packHp * modeHp * floorMult;
+    let atk = packAtk * modeAtk * floorMult;
+    if (!isDuo) {
+        const soloMult = DUNGEON_BALANCE.soloThreatMult != null ? DUNGEON_BALANCE.soloThreatMult : 0.78;
+        hp *= soloMult;
+        atk *= soloMult;
+    }
     return {
-        hp: packHp * modeHp * floorMult,
-        atk: packAtk * modeAtk * floorMult,
+        hp: hp,
+        atk: atk,
         def: floorMult * 0.95,
         exp: floorMult * (isDuo ? (DUNGEON_BALANCE.reward.duo.exp || 1.3) : 1)
     };
@@ -193,30 +240,38 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
             const mults = floorStatMults(floorIndex, 1, runMode);
             const bossEnemy = buildFinalBossEnemy(dungeon, floorIndex, mults, runMode);
             if (bossEnemy) {
-                rooms.push({
+                const finalRoom = {
                     archetype: 'boss',
                     enemies: [bossEnemy],
                     isBoss: true,
                     isFinalBoss: true,
                     isShrine: false
-                });
+                };
+                const finalUi = buildRoomPresentation(finalRoom);
+                finalRoom.title = finalUi.title;
+                finalRoom.desc = finalUi.desc;
+                rooms.push(finalRoom);
                 continue;
             }
         }
 
         const archetype = weightedPickArchetype(rng, isLastFloor ? ['shrine'] : null);
         if (archetype.id === 'shrine') {
-            rooms.push({
+            const shrineRoom = {
                 archetype: 'shrine',
                 enemies: [],
                 isBoss: false,
                 isShrine: true
-            });
+            };
+            const shrineUi = buildRoomPresentation(shrineRoom);
+            shrineRoom.title = shrineUi.title;
+            shrineRoom.desc = shrineUi.desc;
+            rooms.push(shrineRoom);
             continue;
         }
 
         const isBoss = archetype.id === 'boss' || (isLastFloor && r === roomCount - 1 && rng() < 0.28);
-        const enemyCount = rollEnemyCount(rng, archetype, floorIndex, isBoss);
+        const enemyCount = rollEnemyCount(rng, archetype, floorIndex, isBoss, runMode);
         const mults = floorStatMults(floorIndex, enemyCount, runMode);
         const enemies = resolveEnemiesForRoom(poolForRooms, enemyCount, rng, mults, dungeon);
 
@@ -225,12 +280,16 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
             if (fallback) enemies.push(buildScaledEnemy(fallback, mults, dungeon));
         }
 
-        rooms.push({
+        const combatRoom = {
             archetype: archetype.id,
             enemies: enemies,
             isBoss: isBoss,
             isShrine: false
-        });
+        };
+        const combatUi = buildRoomPresentation(combatRoom);
+        combatRoom.title = combatUi.title;
+        combatRoom.desc = combatUi.desc;
+        rooms.push(combatRoom);
     }
 
     if (!rooms.length) {
@@ -261,7 +320,7 @@ function generateDungeonRun(dungeonId, seed) {
     }
     const floors = [];
     for (let f = 0; f < lazy.totalFloors; f++) {
-        floors.push(generateDungeonFloor(dungeonId, f, lazy.totalFloors, lazy.seed));
+        floors.push(generateDungeonFloor(dungeonId, f, lazy.totalFloors, lazy.seed, lazy.mode));
     }
     return {
         dungeonId: lazy.dungeonId,

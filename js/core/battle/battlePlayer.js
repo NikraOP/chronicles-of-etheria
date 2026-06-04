@@ -18,7 +18,8 @@ function playerAttack() {
     };
 
     if (typeof beginBattleTargeting === 'function') {
-        if (getBattleEnemySlotCount() <= 1) {
+        const forceTarget = typeof isDungeonBattleContext === 'function' && isDungeonBattleContext();
+        if (!forceTarget && getBattleEnemySlotCount() <= 1) {
             if (typeof focusBattleEnemyAtIndex === 'function') focusBattleEnemyAtIndex(0);
             beginAttack('enemy', 0);
             return;
