@@ -5,6 +5,9 @@ console.log('battleIndex.js загружен');
 
 // Экспорт всех функций в глобальную область
 if (typeof startBattle !== 'undefined') window.startBattle = startBattle;
+if (typeof enterBattleZone !== 'undefined') window.enterBattleZone = enterBattleZone;
+if (typeof commitBattleStart !== 'undefined') window.commitBattleStart = commitBattleStart;
+if (typeof renderBattleStaging !== 'undefined') window.renderBattleStaging = renderBattleStaging;
 if (typeof playerAttack !== 'undefined') window.playerAttack = playerAttack;
 if (typeof showBattleAbilities !== 'undefined') window.showBattleAbilities = showBattleAbilities;
 if (typeof useBattleAbility !== 'undefined') window.useBattleAbility = useBattleAbility;

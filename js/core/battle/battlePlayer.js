@@ -1,6 +1,15 @@
 // js/core/battle/battlePlayer.js
 
+function requireBattleEngaged() {
+    if (typeof isBattleEngaged === 'function' && !isBattleEngaged()) {
+        if (typeof addMessage === 'function') addMessage('⚔️ Сначала нажмите «В бой» на поле сражения.', 'error');
+        return false;
+    }
+    return true;
+}
+
 function playerAttack() {
+    if (!requireBattleEngaged()) return;
     if (!beginPlayerAction()) return;
     if (playerAttackMissesFromBlind()) {
         addBattleLog('👁️ Ослепление — промах!', 'error');
@@ -60,6 +69,7 @@ function playerAttack() {
 }
 
 function attemptDodge() {
+    if (!requireBattleEngaged()) return;
     if (!beginPlayerAction()) return;
     isPlayerTurn = false;
     updateBattleButtons();
@@ -109,6 +119,7 @@ function closeBattleAbilitiesMenu() {
 }
 
 function showBattleAbilities() {
+    if (!requireBattleEngaged()) return;
     if (!currentMonster) return;
     window._battleAbilitiesMenuOpen = true;
     let html = '<h3>✨ Способности</h3><p class="battle-abilities-hint">Esc — назад к бою</p><div class="ability-grid">';
@@ -141,6 +152,7 @@ function showBattleAbilities() {
 }
 
 function useBattleAbility(index) {
+    if (!requireBattleEngaged()) return;
     if (!beginPlayerAction()) return;
     const a = player.abilities[index];
     
@@ -743,14 +755,26 @@ function fleeBattle() {
         forfeitPvPMatch();
         return;
     }
+    if (typeof isBattleZoneStaging === 'function' && isBattleZoneStaging()) {
+        if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+        if (typeof addMessage === 'function') addMessage('↩️ Вы покинули поле боя.', 'info');
+        if (typeof renderGame === 'function') renderGame();
+        return;
+    }
+    if (!currentMonster) return;
     if (Math.random() * 100 <= 50) {
-        const returnTo = currentMonster && currentMonster.returnTo;
-        addBattleLog('🏃 Сбежали!', 'info');
-        currentMonster = null;
-        document.getElementById('dynamicContent').innerHTML = '';
-        document.body.classList.remove('low-hp');
-        if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
-        else renderGame();
+        const returnTo = currentMonster.returnTo;
+        addBattleLog('🏃 Сбежали! Штраф за трусость.', 'info');
+        if (typeof applyFleePenalty === 'function') applyFleePenalty();
+        if (typeof leaveBattleZoneAfterFlee === 'function') leaveBattleZoneAfterFlee(returnTo);
+        else {
+            currentMonster = null;
+            if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
+            document.getElementById('dynamicContent').innerHTML = '';
+            document.body.classList.remove('low-hp');
+            if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
+            else renderGame();
+        }
     } else {
         addBattleLog('❌ Побег не удался!', 'info');
         setTimeout(() => { monsterTurn(); }, 500);

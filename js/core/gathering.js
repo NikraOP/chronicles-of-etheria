@@ -598,6 +598,8 @@ function renderGatherScrollPanel(profId) {
 }
 
 function showGatheringResources(profId) {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGatheringAnimation();
     pendingGatherData = null;
 

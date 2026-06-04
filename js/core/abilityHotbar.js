@@ -84,7 +84,7 @@ function isAbilityHotbarTypingTarget(el) {
 }
 
 function isBattleScreenActive() {
-    return !!(typeof document !== 'undefined' && document.querySelector('.battle-wrapper'));
+    return typeof isBattleEngaged === 'function' && isBattleEngaged();
 }
 
 function ensureBattleKeys(p) {

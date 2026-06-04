@@ -709,6 +709,8 @@ function completeCrafting(profId, options) {
 }
 
 function showCraftingRecipes(profId) {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGathering();
     stopCraftProgress();
     if (pendingCraftData) flushPendingCraft();

@@ -1272,6 +1272,92 @@ body.low-hp .main-content {
 }
 .gather-scroll-shop-card:hover { border-color: var(--accent); }
 
+/* --- Зона боя: подготовка и активный бой --- */
+body.battle-engaged .nav-grid,
+body.battle-engaged .main-header {
+    display: none !important;
+}
+body.battle-zone-active .main-content--battle-zone #dynamicContent {
+    min-height: 52vh;
+}
+.battle-wrapper--staging {
+    min-height: 48vh;
+    display: flex;
+    flex-direction: column;
+}
+.battle-staging-header {
+    text-align: center;
+    margin-bottom: 12px;
+}
+.battle-staging-title {
+    font-family: var(--font-display);
+    font-size: clamp(18px, 4vw, 22px);
+    color: var(--gold-light);
+    margin: 0 0 6px;
+}
+.battle-staging-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.45;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.battle-arena--staging {
+    flex: 1;
+    min-height: 220px;
+}
+.battle-staging-wait {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+.vs-badge--staging {
+    opacity: 0.85;
+}
+.battle-staging-commit-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    margin-top: auto;
+    background: linear-gradient(180deg, transparent 0%, rgba(8, 10, 18, 0.92) 35%);
+}
+.battle-commit-btn {
+    width: min(100%, 320px);
+    padding: 16px 24px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 45%, var(--gold-dark) 100%) !important;
+    border: 1px solid var(--border-gold) !important;
+    box-shadow: 0 8px 28px rgba(231, 76, 60, 0.35);
+    animation: battleCommitPulse 2s ease-in-out infinite;
+}
+.battle-staging-leave-btn {
+    width: min(100%, 280px);
+    padding: 10px 16px !important;
+    font-size: 12px !important;
+    background: rgba(0, 0, 0, 0.35) !important;
+    opacity: 0.9;
+}
+@keyframes battleCommitPulse {
+    0%, 100% { box-shadow: 0 8px 28px rgba(231, 76, 60, 0.3); }
+    50% { box-shadow: 0 8px 36px rgba(232, 184, 74, 0.45); }
+}
+.battle-staging-monster-silhouette {
+    filter: grayscale(0.4) brightness(0.85);
+    font-size: 48px;
+}
+@media (max-width: 600px) {
+    .battle-arena--staging { min-height: 180px; }
+    .battle-commit-btn { padding: 14px 18px !important; font-size: 15px !important; }
+}
+
 .craft-recipe-card {
     position: relative;
     overflow: visible;

@@ -320,62 +320,12 @@ function prepareBattleState() {
 }
 
 function startBattle() {
-    prepareBattleState();
-    
-    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
-    const monsters = loc.monsters;
-    const mData = monsters[Math.floor(Math.random() * monsters.length)];
-    const scale = Math.max(1, 1 + ((player.level - loc.minLvl) * 0.2));
-    setupBattleMonster(mData, scale, loc.goldMult);
-    
-    if (player.abilities) {
-        const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
-        if (passiveCounter) {
-            player.temporaryEffects.push({
-                counterChance: passiveCounter.counterChance,
-                counterDmg: passiveCounter.counterDmg || 80,
-                dur: 999
-            });
-        }
-    }
-    
-    // Сохраняем оригинальные статы
-    originalMonsterStats.attack = currentMonster.attack;
-    originalMonsterStats.defense = currentMonster.defense;
-    
-    player.health = player.maxHealth;
-    if (player.class === 'Маг') player.mana = player.maxMana;
-    player.temporaryEffects = [];
-    window.echoActive = false;
-    isPlayerTurn = true;
-    renderBattle();
+    if (typeof enterBattleZone === 'function') enterBattleZone();
 }
 
 function startBattleWithMonster(monsterData, options) {
-    if (!monsterData) return false;
-    prepareBattleState();
-    const battleOptions = options || {};
-    setupBattleMonster(monsterData, battleOptions.scale || 1, battleOptions.goldMult || monsterData.goldMult || 10);
-    
-    if (player.abilities) {
-        const passiveCounter = player.abilities.find(a => a.passive && a.counterChance);
-        if (passiveCounter) {
-            player.temporaryEffects.push({
-                counterChance: passiveCounter.counterChance,
-                counterDmg: passiveCounter.counterDmg || 80,
-                dur: 999
-            });
-        }
+    if (typeof enterBattleZoneWithMonster === 'function') {
+        return enterBattleZoneWithMonster(monsterData, options);
     }
-    
-    originalMonsterStats.attack = currentMonster.attack;
-    originalMonsterStats.defense = currentMonster.defense;
-    
-    player.health = player.maxHealth;
-    if (player.class === 'Маг') player.mana = player.maxMana;
-    player.temporaryEffects = [];
-    window.echoActive = false;
-    isPlayerTurn = true;
-    renderBattle();
-    return true;
+    return false;
 }

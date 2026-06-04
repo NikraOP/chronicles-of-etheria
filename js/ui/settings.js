@@ -14,6 +14,8 @@ function buildSettingsTabsHtml(activeTab) {
 }
 
 function showSettings(activeTab) {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof stopGathering === 'function') stopGathering();
     const el = document.getElementById('dynamicContent');
     if (!el) return;

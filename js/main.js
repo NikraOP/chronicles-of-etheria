@@ -187,6 +187,8 @@ function equipSkin(skinId) {
 }
 
 function showSkinsGallery() {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGathering();
     
     const skins = getSkinsForCurrentSchool();

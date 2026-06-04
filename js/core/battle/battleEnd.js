@@ -74,6 +74,7 @@ function victory() {
     currentMonster = null;
     isPlayerTurn = true;
     window._strikeAnimActive = false;
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();
@@ -102,6 +103,7 @@ function gameOver() {
     currentMonster = null;
     isPlayerTurn = true;
     window._strikeAnimActive = false;
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();

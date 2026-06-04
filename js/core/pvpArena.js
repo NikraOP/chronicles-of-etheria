@@ -1224,6 +1224,8 @@ function resetPvPLobbyForRematch() {
 }
 
 function showPvPArena() {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (!player) return;
     stopGathering();
     if (typeof flushPendingCraft === 'function') flushPendingCraft();

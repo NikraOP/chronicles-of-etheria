@@ -1,8 +1,58 @@
 // js/core/battle/battleUI.js
 
+function renderBattleStaging() {
+    if (!player || typeof isBattleZoneStaging !== 'function' || !isBattleZoneStaging()) return;
+    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
+    const preview = typeof getStagingPreviewMonster === 'function' ? getStagingPreviewMonster() : null;
+    const bgStyle = loc.bgColor;
+    const av = getAvatar();
+    const monsterIcon = preview ? (preview.icon || '👹') : '❓';
+    const monsterName = preview ? escapeBattleHtml(preview.name) : 'Неизвестный противник';
+    const monsterSrc = preview && preview.img
+        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(preview.img) : preview.img)
+        : '';
+    const monsterImg = monsterSrc
+        ? '<img src="' + monsterSrc + '" class="battle-staging-monster-img" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<span class=sprite-fallback>' + monsterIcon + '</span>\'">'
+        : '<span class="sprite-fallback battle-staging-monster-silhouette">' + monsterIcon + '</span>';
+
+    const html = '<div class="battle-wrapper battle-wrapper--staging">' +
+        '<div class="battle-staging-header">' +
+            '<h2 class="battle-staging-title">⚔️ ' + escapeBattleHtml(loc.name) + '</h2>' +
+            '<p class="battle-staging-sub">Вы на поле боя. Нажмите «В бой», чтобы начать схватку. До этого можно сменить раздел меню.</p>' +
+        '</div>' +
+        '<div class="battle-arena battle-arena--staging" style="background:' + bgStyle + ';" id="battleArena">' +
+            '<div class="combatant-wrapper battle-staging-enemy" id="enemyWrapper">' +
+                '<div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div>' +
+                '<div class="combatant-info">' +
+                    '<div class="combatant-name" style="color:#e74c3c;">' + monsterName + '</div>' +
+                    '<div class="battle-staging-wait">Ожидает начала боя…</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="vs-badge vs-badge--staging">⚔️ Подготовка ⚔️</div>' +
+            '<div class="combatant-wrapper" id="playerWrapper">' +
+                '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
+                '<div class="combatant-info">' +
+                    '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
+                    '<div class="health-text">' + player.health + '/' + player.maxHealth +
+                        (player.class === 'Маг' ? ' | 💎' + player.mana + '/' + player.maxMana : '') + '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="battle-staging-commit-wrap">' +
+            '<button type="button" class="action-btn battle-commit-btn" id="battleCommitBtn" onclick="commitBattleStart()">⚔️ В бой</button>' +
+            '<button type="button" class="action-btn battle-staging-leave-btn" onclick="fleeBattle()">↩️ Покинуть поле</button>' +
+        '</div>' +
+    '</div>';
+
+    const dc = document.getElementById('dynamicContent');
+    if (dc) dc.innerHTML = html;
+    if (typeof syncBattleZoneLayout === 'function') syncBattleZoneLayout();
+}
+
 function renderBattle(options) {
     options = options || {};
     if (!currentMonster) return;
+    if (typeof isBattleEngaged === 'function' && !isBattleEngaged()) return;
     if (!options.vitalsOnly) window._battleAbilitiesMenuOpen = false;
     if (window._strikeAnimActive && !options.force) {
         if (options.vitalsOnly) {

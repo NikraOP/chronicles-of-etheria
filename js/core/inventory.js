@@ -33,6 +33,8 @@ function renderEquipmentSlotCard(slotKey, label, fallbackEmoji) {
 
 // ===== ЭКИПИРОВКА =====
 function showEquipment() {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGathering();
     ensurePlayerJewelryState();
     let html = '<h2>🛡️ Экипировка</h2>';
@@ -513,6 +515,8 @@ window.unequipItem = unequipItem;
 
 // ===== ИНВЕНТАРЬ =====
 function showInventory() {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGathering();
     
     if (!player.inventory.helmets) player.inventory.helmets = [];
