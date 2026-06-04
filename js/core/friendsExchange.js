@@ -13,6 +13,7 @@
     let _exchangePickerPending = null;
     let _exchangePickerQty = 1;
     let _cachedExchanges = [];
+    let _exchangeOffersById = {};
 
     const EX_INV_SLOTS = [
         { key: 'weapons', label: 'Оружие', icon: '⚔️' },
@@ -149,11 +150,134 @@
         return parts.length ? parts.join(' · ') : 'пусто';
     }
 
-    function renderExchangeDraftItemIcon(item, fallback) {
+    function renderExchangeDraftItemIcon(item, fallback, size) {
+        const sz = size || 36;
         if (item && typeof renderItemIconHTML === 'function') {
-            return renderItemIconHTML(item, { size: 36, fallback: fallback || '📦' });
+            return renderItemIconHTML(item, { size: sz, fallback: fallback || '📦' });
         }
         return '<span class="exchange-draft-item__emoji">' + (fallback || '📦') + '</span>';
+    }
+
+    function payloadIsEmpty(payload) {
+        if (!payload) return true;
+        const gold = Math.floor(Number(payload.gold) || 0);
+        const items = payload.items || [];
+        const resources = payload.resources || [];
+        return gold <= 0 && !items.length && !resources.length;
+    }
+
+    function buildExchangePayloadDetailHtml(payload, sectionTitle) {
+        let html = '<div class="exchange-detail-block">';
+        html += '<h4 class="exchange-detail-block__title">' + escapeExHtml(sectionTitle) + '</h4>';
+        if (payloadIsEmpty(payload)) {
+            html += '<p class="exchange-detail-block__empty">— ничего —</p></div>';
+            return html;
+        }
+        html += '<div class="exchange-detail-block__list">';
+        const gold = Math.floor(Number(payload.gold) || 0);
+        if (gold > 0) {
+            html += '<div class="exchange-draft-item exchange-draft-item--gold">' +
+                '<div class="exchange-draft-item__icon">' + renderExchangeDraftItemIcon(null, '💰', 44) + '</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">Золото</div>' +
+                '<div class="exchange-draft-item__meta">' + gold + ' монет</div></div></div>';
+        }
+        (payload.resources || []).forEach(function (r) {
+            const resDef = typeof findResourceDefByName === 'function' ? findResourceDefByName(r.name) : null;
+            const iconItem = resDef || { name: r.name, icon: '💎' };
+            html += '<div class="exchange-draft-item">' +
+                '<div class="exchange-draft-item__icon">' + renderExchangeDraftItemIcon(iconItem, '💎', 44) + '</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">' + escapeExHtml(r.name) +
+                '</div><div class="exchange-draft-item__meta">Количество: ×' + (r.qty || 0) + '</div></div></div>';
+        });
+        (payload.items || []).forEach(function (row) {
+            const item = row.item || {};
+            const slot = EX_INV_SLOTS.find(function (s) { return s.key === row.invType; });
+            const fb = slot ? slot.icon : '📦';
+            let meta = slot ? slot.label : 'Предмет';
+            if (item.rarity) meta += ' · ' + item.rarity;
+            if (typeof formatItemBonusLine === 'function' && item) {
+                const bonus = formatItemBonusLine(item);
+                if (bonus) meta += ' · ' + bonus;
+            }
+            html += '<div class="exchange-draft-item">' +
+                '<div class="exchange-draft-item__icon">' + renderExchangeDraftItemIcon(item, fb, 44) + '</div>' +
+                '<div class="exchange-draft-item__body"><div class="exchange-draft-item__name">' + escapeExHtml(item.name || 'Предмет') +
+                '</div><div class="exchange-draft-item__meta">' + escapeExHtml(meta) + '</div></div></div>';
+        });
+        html += '</div></div>';
+        return html;
+    }
+
+    function findCachedExchange(offerId) {
+        if (!offerId) return null;
+        return _exchangeOffersById[offerId] || _cachedExchanges.find(function (o) {
+            return o.offerId === offerId;
+        }) || null;
+    }
+
+    function closeExchangeDetailModal() {
+        const modal = document.getElementById('modalOverlay');
+        if (modal && window._exchangeDetailModalOpen) {
+            modal.style.display = 'none';
+        }
+        window._exchangeDetailModalOpen = false;
+    }
+
+    function buildExchangeDetailModalHtml(o) {
+        const isIn = o.role === 'incoming';
+        const kindLabel = o.kind === 'trade' ? 'Обмен' : 'Подарок';
+        const fromName = escapeExHtml(o.fromName || 'Игрок');
+        const toName = escapeExHtml(o.toName || 'Игрок');
+        let html = '<div class="modal-exchange modal-exchange--detail">';
+        html += '<div class="exchange-detail-head">';
+        html += '<span class="exchange-card__badge exchange-detail-head__badge">' + kindLabel + '</span>';
+        html += '<h3 class="modal-exchange__title">' + (isIn ? 'Входящее предложение' : 'Исходящее предложение') + '</h3>';
+        html += '<p class="exchange-detail-flow"><strong>' + fromName + '</strong>';
+        html += ' <span class="exchange-detail-flow__arrow">→</span> ';
+        html += '<strong>' + toName + '</strong></p>';
+        if (isIn) {
+            html += '<p class="exchange-detail-flow__hint">Вам предлагают принять этот обмен</p>';
+        } else {
+            html += '<p class="exchange-detail-flow__hint">Ожидается ответ друга</p>';
+        }
+        html += '</div>';
+        if (isIn) {
+            html += buildExchangePayloadDetailHtml(o.fromOffer, 'Вам от «' + (o.fromName || 'друга') + '» — вы получите');
+            if (o.kind === 'trade') {
+                html += buildExchangePayloadDetailHtml(o.toOffer, 'Вы отдадите при принятии');
+            }
+        } else {
+            html += buildExchangePayloadDetailHtml(o.fromOffer, 'Вы отдаёте «' + (o.toName || 'другу') + '»');
+            if (o.kind === 'trade') {
+                html += buildExchangePayloadDetailHtml(o.toOffer, 'Хотите получить от «' + (o.toName || 'друга') + '»');
+            }
+        }
+        html += '<div class="modal-exchange__actions">';
+        if (isIn) {
+            html += '<button type="button" class="modal-btn modal-btn--primary" onclick="respondFriendExchange(' +
+                jsOnclickStr(o.offerId) + ',true);closeExchangeDetailModal()">Принять</button>';
+            html += '<button type="button" class="modal-btn modal-btn--ghost" onclick="respondFriendExchange(' +
+                jsOnclickStr(o.offerId) + ',false);closeExchangeDetailModal()">Отклонить</button>';
+        }
+        html += '<button type="button" class="modal-btn modal-btn--ghost" onclick="closeExchangeDetailModal()">Закрыть</button>';
+        html += '</div></div>';
+        return html;
+    }
+
+    function showExchangeDetailModal(offerId) {
+        const o = findCachedExchange(offerId);
+        if (!o) {
+            if (typeof addMessage === 'function') addMessage('Обмен не найден. Обновите вкладку.', 'info');
+            return;
+        }
+        const modal = document.getElementById('modalOverlay');
+        const content = document.getElementById('modalContent');
+        if (!modal || !content) return;
+        window._exchangeDetailModalOpen = true;
+        window._exchangeInviteModalOpen = false;
+        window._exchangeModalOpen = false;
+        content.innerHTML = buildExchangeDetailModalHtml(o);
+        modal.style.display = 'flex';
     }
 
     function buildExchangeDraftListHtml(side, title) {
@@ -670,9 +794,13 @@
                 if (typeof ensureFriendsOnlineSession === 'function') {
                     await ensureFriendsOnlineSession({ silent: true });
                 }
-                const data = await friendsHttpFetch('/api/v1/exchanges');
-                _cachedExchanges = data.offers || [];
-                if (Number.isFinite(data.seq)) {
+            const data = await friendsHttpFetch('/api/v1/exchanges');
+            _cachedExchanges = data.offers || [];
+            _exchangeOffersById = {};
+            _cachedExchanges.forEach(function (o) {
+                if (o && o.offerId) _exchangeOffersById[o.offerId] = o;
+            });
+            if (Number.isFinite(data.seq)) {
                     _exchangePollSince = Math.max(_exchangePollSince, data.seq);
                 }
             } catch (_) { /* offline */ }
@@ -710,18 +838,23 @@
                     ? 'От ' + escapeExHtml(o.fromName || 'друга')
                     : 'Для ' + escapeExHtml(o.toName || 'друга');
                 const kindLabel = o.kind === 'trade' ? 'Обмен' : 'Подарок';
-                html += '<article class="exchange-card exchange-card--' + (isIn ? 'incoming' : 'outgoing') + '">';
+                html += '<article class="exchange-card exchange-card--clickable exchange-card--' +
+                    (isIn ? 'incoming' : 'outgoing') + '" data-ex-offer-id="' + escapeExHtml(o.offerId) +
+                    '" role="button" tabindex="0" title="Нажмите, чтобы открыть подробности">';
+                html += '<div class="exchange-card__tap-hint">Нажмите для подробностей ›</div>';
+                html += '<div class="exchange-card__summary">';
                 html += '<div class="exchange-card__head"><span class="exchange-card__badge">' + kindLabel + '</span>';
                 html += '<strong>' + label + '</strong></div>';
                 html += '<p class="exchange-card__line">Отдают: ' + summarizePayload(o.fromOffer) + '</p>';
                 if (o.kind === 'trade') {
                     html += '<p class="exchange-card__line">Просят: ' + summarizePayload(o.toOffer) + '</p>';
                 }
+                html += '</div>';
                 if (isIn) {
-                    html += '<div class="exchange-card__actions">';
-                    html += '<button type="button" class="action-btn" onclick="respondFriendExchange(' +
+                    html += '<div class="exchange-card__actions" data-ex-stop-prop="1">';
+                    html += '<button type="button" class="action-btn" onclick="event.stopPropagation();respondFriendExchange(' +
                         jsOnclickStr(o.offerId) + ',true)">Принять</button>';
-                    html += '<button type="button" class="action-btn danger" onclick="respondFriendExchange(' +
+                    html += '<button type="button" class="action-btn danger" onclick="event.stopPropagation();respondFriendExchange(' +
                         jsOnclickStr(o.offerId) + ',false)">Отклонить</button>';
                     html += '</div>';
                 } else {
@@ -836,7 +969,7 @@
             return;
         }
         if (_exchangePollInFlight) return;
-        if (window._exchangeModalOpen || window._exchangeInviteModalOpen) {
+        if (window._exchangeModalOpen || window._exchangeInviteModalOpen || window._exchangeDetailModalOpen) {
             scheduleExchangePoll(3000);
             return;
         }
@@ -903,6 +1036,12 @@
     function bindFriendsExchangeDelegation() {
         if (window.__friendsExchangeClickBound) return;
         document.addEventListener('click', function (e) {
+            const card = e.target && e.target.closest ? e.target.closest('.exchange-card[data-ex-offer-id]') : null;
+            if (card && !(e.target.closest && e.target.closest('.exchange-card__actions'))) {
+                e.preventDefault();
+                showExchangeDetailModal(card.getAttribute('data-ex-offer-id'));
+                return;
+            }
             const btn = e.target && e.target.closest ? e.target.closest('.friend-exchange-btn') : null;
             if (!btn) return;
             e.preventDefault();
@@ -910,6 +1049,13 @@
             const name = btn.getAttribute('data-exchange-target-name') || 'друг';
             const id = typeof resolveFriendPlayerId === 'function' ? resolveFriendPlayerId(rawId) : rawId;
             if (id) openExchangeModal(id, name);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const card = e.target && e.target.closest ? e.target.closest('.exchange-card[data-ex-offer-id]') : null;
+            if (!card) return;
+            e.preventDefault();
+            showExchangeDetailModal(card.getAttribute('data-ex-offer-id'));
         });
         window.__friendsExchangeClickBound = true;
     }
@@ -931,4 +1077,6 @@
     window.acceptExchangeInviteModal = acceptExchangeInviteModal;
     window.declineExchangeInviteModal = declineExchangeInviteModal;
     window.refreshExchangeModalBody = refreshExchangeModalBody;
+    window.showExchangeDetailModal = showExchangeDetailModal;
+    window.closeExchangeDetailModal = closeExchangeDetailModal;
 })();

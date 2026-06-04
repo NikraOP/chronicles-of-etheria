@@ -6312,11 +6312,86 @@ body.account-gate-active #app.account-gate-layout {
     border: 1px solid var(--border);
     background: rgba(0, 0, 0, 0.3);
 }
+.exchange-card--clickable {
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.exchange-card--clickable:hover {
+    border-color: var(--border-gold);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+.exchange-card--clickable:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.5);
+    outline-offset: 2px;
+}
+.exchange-card__tap-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+}
 .exchange-card--incoming {
     border-color: rgba(45, 212, 191, 0.35);
 }
 .exchange-card--outgoing {
     border-color: rgba(var(--accent-rgb), 0.25);
+}
+.modal-exchange--detail {
+    text-align: left;
+    max-width: min(520px, 94vw);
+    max-height: min(85vh, 640px);
+    overflow-y: auto;
+}
+.exchange-detail-head {
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+.exchange-detail-head__badge {
+    margin-bottom: 8px;
+}
+.exchange-detail-flow {
+    margin: 10px 0 4px;
+    font-size: 15px;
+    color: var(--gold-light);
+}
+.exchange-detail-flow__arrow {
+    color: var(--text-muted);
+    margin: 0 6px;
+}
+.exchange-detail-flow__hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.exchange-detail-block {
+    margin: 14px 0;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
+}
+.exchange-detail-block__title {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold-light);
+}
+.exchange-detail-block__empty {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+.exchange-detail-block__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 .exchange-card__badge {
     display: inline-block;
