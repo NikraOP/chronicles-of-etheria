@@ -207,6 +207,11 @@ function finalizeCharacter() {
         initSkins();
     }
     
+    if (window._gameAccountCreatingChar && typeof gameAccountOnNewCharacterReady === 'function') {
+        gameAccountOnNewCharacterReady();
+        return;
+    }
+
     saveGame();
     
     console.log('10. Персонаж создан успешно!');

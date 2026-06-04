@@ -16,6 +16,7 @@
 
     global.ETHERIA_FRIENDS_BACKEND = 'auto';
     global.ETHERIA_PVP_USE_CLOUD = true;
+    global.ETHERIA_USE_GAME_ACCOUNTS = true;
 
     if (typeof document !== 'undefined' && typeof global.wakeCloudApi === 'function') {
         var apiBase = global.ETHERIA_FRIENDS_HTTP_API;

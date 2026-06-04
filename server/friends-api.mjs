@@ -10,6 +10,7 @@ import { ensureDir, flushAll } from './lib/jsonFile.mjs';
 import { createAccountsApi } from './lib/accounts.mjs';
 import { createPvPRoomsApi } from './lib/pvpRooms.mjs';
 import { createBattleInvitesApi } from './lib/battleInvites.mjs';
+import { createGameAccountsApi } from './lib/gameAccounts.mjs';
 import { createHttpHelpers } from './lib/httpUtil.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,7 @@ const { corsHeaders, json, readJsonBody } = createHttpHelpers(CORS_ORIGINS);
 const accounts = createAccountsApi(DATA_DIR);
 const pvp = createPvPRoomsApi(PVP_DIR);
 const battleInvites = createBattleInvitesApi(DATA_DIR, pvp, accounts);
+const gameAccounts = createGameAccountsApi(DATA_DIR);
 
 async function requireAuth(req, res, origin) {
     const { playerId, syncToken } = accounts.pickAuth(req);
@@ -32,6 +34,15 @@ async function requireAuth(req, res, origin) {
         return null;
     }
     return account;
+}
+
+async function requireGameAccount(req, res, origin) {
+    const ctx = await gameAccounts.requireAccount(req);
+    if (!ctx) {
+        json(res, 401, { ok: false, error: 'unauthorized', message: 'Войдите в аккаунт' }, origin);
+        return null;
+    }
+    return ctx;
 }
 
 const server = createServer(async (req, res) => {
@@ -164,6 +175,118 @@ const server = createServer(async (req, res) => {
             }
             friends.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
             json(res, 200, { ok: true, friends }, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/auth/register') {
+            const body = await readJsonBody(req);
+            const result = await gameAccounts.register(body);
+            if (result.error) {
+                json(res, result.status || 400, {
+                    ok: false,
+                    error: result.error,
+                    message: result.message || result.error
+                }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/auth/login') {
+            const body = await readJsonBody(req);
+            const result = await gameAccounts.login(body);
+            if (result.error) {
+                json(res, result.status || 400, {
+                    ok: false,
+                    error: result.error,
+                    message: result.message || result.error
+                }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/auth/logout') {
+            const token = gameAccounts.pickAccountToken(req);
+            await gameAccounts.logout(token);
+            json(res, 200, { ok: true }, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/auth/me') {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const result = await gameAccounts.me(ctx);
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/characters') {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const result = await gameAccounts.listCharacters(ctx);
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/characters') {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const body = await readJsonBody(req);
+            const result = await gameAccounts.createCharacter(ctx, body);
+            if (result.error) {
+                json(res, result.status || 400, {
+                    ok: false,
+                    error: result.error,
+                    message: result.message || result.error
+                }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const charGetMatch = url.pathname.match(/^\/api\/v1\/characters\/([a-zA-Z0-9_]+)$/);
+        if (req.method === 'GET' && charGetMatch) {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const result = await gameAccounts.getCharacter(ctx, charGetMatch[1]);
+            if (result.error) {
+                json(res, result.status || 404, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'PUT' && charGetMatch) {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const body = await readJsonBody(req);
+            const result = await gameAccounts.saveCharacter(ctx, charGetMatch[1], body);
+            if (result.error) {
+                json(res, result.status || 400, {
+                    ok: false,
+                    error: result.error,
+                    message: result.message || result.error
+                }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'DELETE' && charGetMatch) {
+            const ctx = await requireGameAccount(req, res, origin);
+            if (!ctx) return;
+            const result = await gameAccounts.deleteCharacter(ctx, charGetMatch[1]);
+            if (result.error) {
+                json(res, result.status || 404, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
             return;
         }
 

@@ -3,7 +3,7 @@
 // НЕ ОБЪЯВЛЯЙ ЗДЕСЬ ПЕРЕМЕННЫЕ ЗАНОВО! Они уже есть в других файлах
 // Просто вызываем init() когда все файлы загружены
 
-function init() {
+function initLegacyLocalGame() {
     createParticles();
     const saved = localStorage.getItem('rpg_save_v21');
     if (saved) {
@@ -21,7 +21,6 @@ function init() {
                     if (Date.now() >= (ag.expiresAt || 0) || (ag.gathersLeft || 0) <= 0) player.autoGather = null;
                 }
                 
-                // ИНИЦИАЛИЗАЦИЯ СКИНОВ
                 initSkinsSystem();
                 
                 updateAllItemPrices();
@@ -37,6 +36,14 @@ function init() {
         }
     }
     renderCharacterCreation();
+}
+
+function init() {
+    if (typeof bootstrapGameAccount === 'function') {
+        bootstrapGameAccount();
+        return;
+    }
+    initLegacyLocalGame();
 }
 
 // ===== СИСТЕМА СКИНОВ =====
@@ -485,6 +492,14 @@ function savePlayTime() {
     totalPlayTime += currentSession;
     localStorage.setItem('totalPlayTime', totalPlayTime);
 }
+
+window.addEventListener('beforeunload', function () {
+    if (typeof pushCloudCharacterSave === 'function') {
+        pushCloudCharacterSave();
+    } else if (player && typeof saveGame === 'function') {
+        saveGame();
+    }
+});
 
 // ===== ПАНЕЛЬ СОХРАНЕНИЙ =====
 

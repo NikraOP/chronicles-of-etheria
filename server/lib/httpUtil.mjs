@@ -1,4 +1,4 @@
-const MAX_BODY = 512 * 1024;
+const MAX_BODY = 2 * 1024 * 1024;
 
 export function createHttpHelpers(corsOrigins) {
     function corsHeaders(origin) {
@@ -7,8 +7,8 @@ export function createHttpHelpers(corsOrigins) {
             : (corsOrigins.includes(origin) ? origin : corsOrigins[0] || '*');
         return {
             'Access-Control-Allow-Origin': allow,
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id, X-Sync-Token',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, X-Player-Id, X-Sync-Token, X-Account-Token',
             'Access-Control-Max-Age': '86400',
             'Connection': 'keep-alive'
         };

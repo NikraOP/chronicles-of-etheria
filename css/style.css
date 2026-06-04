@@ -5929,6 +5929,183 @@ body.settings-open .main-header .settings-gear-btn {
     }
 }
 
+/* —— Облачный аккаунт —— */
+.account-screen {
+    min-height: min(100dvh, 900px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(16px, 4vw, 32px);
+}
+.account-screen--loading {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+.account-panel {
+    width: 100%;
+    max-width: 520px;
+    padding: clamp(20px, 4vw, 28px);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-gold);
+    background: linear-gradient(155deg, rgba(var(--primary-rgb), 0.12) 0%, rgba(0, 0, 0, 0.42) 55%);
+    box-shadow: var(--shadow-gold), var(--shadow-lg);
+}
+.account-panel--hub {
+    max-width: 640px;
+}
+.account-panel__title {
+    margin: 0 0 8px;
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 4vw, 1.55rem);
+    color: var(--gold-light);
+    letter-spacing: 0.04em;
+}
+.account-panel__sub {
+    margin: 0 0 16px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.account-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+.account-tab {
+    flex: 1;
+    min-height: 42px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.account-tab--active {
+    border-color: var(--border-gold);
+    color: var(--gold-light);
+    background: rgba(var(--accent-rgb), 0.14);
+}
+.account-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.account-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+.account-input {
+    width: 100%;
+    margin-bottom: 4px;
+}
+.account-submit {
+    margin-top: 12px;
+    min-height: 46px;
+    font-weight: 700;
+}
+.account-auth-error {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: rgba(232, 85, 69, 0.12);
+    border: 1px solid rgba(232, 85, 69, 0.35);
+    color: #fca5a5;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.account-hub-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.account-hub-login {
+    margin: 0;
+    font-size: 13px;
+    color: var(--gold-light);
+    font-weight: 600;
+}
+.account-logout-btn {
+    min-height: 40px;
+    font-size: 12px;
+}
+.account-char-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0 16px;
+    max-height: min(52vh, 420px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.account-char-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.28);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.account-char-card:hover {
+    border-color: var(--border-gold);
+    box-shadow: var(--shadow-sm);
+}
+.account-char-card__name {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gold-light);
+}
+.account-char-card__meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+.account-char-card__time {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+.account-char-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.account-char-card__actions .action-btn {
+    min-height: 40px;
+    min-width: 100px;
+}
+.account-empty {
+    padding: 24px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border: 1px dashed rgba(var(--accent-rgb), 0.22);
+    border-radius: var(--radius-md);
+    margin-bottom: 14px;
+}
+.account-hub-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.account-import-btn {
+    border-color: rgba(45, 212, 191, 0.4) !important;
+}
+
 @media (max-width: 600px) {
     .friends-me-layout {
         flex-direction: column;
