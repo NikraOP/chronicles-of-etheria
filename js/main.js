@@ -580,13 +580,21 @@ function migrateOldSave(playerData) {
     if (!playerData.inventory) {
         playerData.inventory = {
             weapons: [], helmets: [], chests: [], pants: [], boots: [],
-            potions: [], foods: [], elixirs: [], scrolls: [], stones: []
+            potions: [], foods: [], elixirs: [], scrolls: [], stones: [],
+            rings: [], necklaces: []
         };
     }
+    if (!Array.isArray(playerData.inventory.rings)) playerData.inventory.rings = [];
+    if (!Array.isArray(playerData.inventory.necklaces)) playerData.inventory.necklaces = [];
     
     if (!playerData.equipment) {
-        playerData.equipment = { weapon: null, helmet: null, chest: null, pants: null, boots: null };
+        playerData.equipment = {
+            weapon: null, helmet: null, chest: null, pants: null, boots: null,
+            ring: null, necklace: null
+        };
     }
+    if (playerData.equipment.ring === undefined) playerData.equipment.ring = null;
+    if (playerData.equipment.necklace === undefined) playerData.equipment.necklace = null;
     
     if (playerData.professions === undefined) playerData.professions = {};
     if (playerData.resources === undefined) playerData.resources = {};

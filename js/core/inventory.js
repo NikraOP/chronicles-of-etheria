@@ -1,8 +1,40 @@
 // inventory.js - Только экипировка и инвентарь (без дублирования КД)
 
+function ensurePlayerJewelryState() {
+    if (!player.inventory.rings) player.inventory.rings = [];
+    if (!player.inventory.necklaces) player.inventory.necklaces = [];
+    if (!player.equipment) player.equipment = {};
+    if (player.equipment.ring === undefined) player.equipment.ring = null;
+    if (player.equipment.necklace === undefined) player.equipment.necklace = null;
+}
+
+function formatItemBonusLine(item) {
+    if (!item) return '';
+    return [
+        item.dmg ? '⚔️+' + item.dmg + ' ' : '',
+        item.def ? '🛡️+' + item.def + ' ' : '',
+        item.hp ? '❤️+' + item.hp + ' ' : '',
+        item.crit ? '💥+' + item.crit + '% ' : '',
+        item.critDmg ? '⭐+' + item.critDmg + '% ' : '',
+        item.dodge ? '💨+' + item.dodge + '% ' : '',
+        item.mana ? '🔷+' + item.mana + ' ' : ''
+    ].join('');
+}
+
+function renderEquipmentSlotCard(slotKey, label, fallbackEmoji) {
+    const item = player.equipment[slotKey];
+    const equipped = item !== null && item !== undefined;
+    return `<div class="equipment-slot${equipped ? ' equipped' : ''}" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; border: 2px solid ${equipped ? 'var(--gold)' : 'var(--border)'};" onclick="unequipItem('${slotKey}')">
+        ${equipped ? renderItemIconHTML(item, { size: 40, fallback: fallbackEmoji }) : `<div class="item-icon item-icon--emoji" style="width:40px;height:40px;font-size:22px;margin:0 auto">${fallbackEmoji}</div>`}
+        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 5px;">${label}</div>
+        ${equipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[item.rarity] || '#ccc'}; margin-top: 8px;">${item.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
+    </div>`;
+}
+
 // ===== ЭКИПИРОВКА =====
 function showEquipment() {
     stopGathering();
+    ensurePlayerJewelryState();
     let html = '<h2>🛡️ Экипировка</h2>';
     
     // Шлемы
@@ -64,10 +96,17 @@ function showEquipment() {
         ${isWeaponEquipped ? `<div style="font-size: 11px; font-weight: 600; color: ${RARITY_COLORS[weaponItem.rarity] || '#ccc'}; margin-top: 8px;">${weaponItem.name}</div>` : '<div style="font-size: 10px; color: #666; margin-top: 8px;">Пусто</div>'}
     </div>`;
     html += '</div>';
+
+    html += '<h3 style="margin-top: 15px; color: #f0c040;">💎 Ювелирка</h3>';
+    html += '<div class="equipment-slots" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 400px;">';
+    html += renderEquipmentSlotCard('ring', 'Кольцо', '💍');
+    html += renderEquipmentSlotCard('necklace', 'Амулет', '📿');
+    html += '</div>';
     
     html += '<div style="margin-top:20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">' +
         '<button class="action-btn" onclick="showArmorList()">🎒 Броня</button>' +
         '<button class="action-btn" onclick="showWeaponList()">⚔️ Оружие</button>' +
+        '<button class="action-btn" onclick="showJewelryList()" style="grid-column: 1 / -1;">💍 Ювелирные изделия</button>' +
     '</div>';
     document.getElementById('dynamicContent').innerHTML = html;
 }
@@ -338,6 +377,98 @@ function equipWeapon(index) {
 
 window.equipWeapon = equipWeapon;
 
+function showJewelryList() {
+    ensurePlayerJewelryState();
+    let html = '<h2>💎 Ювелирные изделия</h2>';
+
+    html += '<h3 style="margin-top: 15px; color: #f0c040;">💍 Кольца (' + player.inventory.rings.length + ')</h3>';
+    if (player.inventory.rings.length === 0) {
+        html += '<p style="color:#666; padding: 10px; margin-left: 15px;">Нет колец — создайте у ювелира</p>';
+    } else {
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 20px;">';
+        for (let i = 0; i < player.inventory.rings.length; i++) {
+            const item = player.inventory.rings[i];
+            const isEquipped = player.equipment.ring === item;
+            html += `<div class="item-card" onclick="equipJewelryByType(${i}, 'ring', 'rings')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
+                <div style="display: flex; gap: 12px;">
+                    ${renderItemIconHTML(item, { size: 40, fallback: '💍' })}
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${formatItemBonusLine(item)}</div>
+                        <div style="font-size: 10px; color: var(--gold);">Редкость: ${item.rarity || 'Обычный'}</div>
+                        ${isEquipped ? '<div style="font-size: 10px; color: #2ecc71; margin-top: 4px;">✅ Экипировано</div>' : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    html += '<h3 style="margin-top: 15px; color: #9b59b6;">📿 Амулеты (' + player.inventory.necklaces.length + ')</h3>';
+    if (player.inventory.necklaces.length === 0) {
+        html += '<p style="color:#666; padding: 10px; margin-left: 15px;">Нет амулетов — создайте у ювелира</p>';
+    } else {
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 20px;">';
+        for (let i = 0; i < player.inventory.necklaces.length; i++) {
+            const item = player.inventory.necklaces[i];
+            const isEquipped = player.equipment.necklace === item;
+            html += `<div class="item-card" onclick="equipJewelryByType(${i}, 'necklace', 'necklaces')" style="background: rgba(0,0,0,0.2); border: 2px solid ${isEquipped ? 'var(--gold)' : 'var(--border)'}; border-radius: 10px; padding: 12px; cursor: pointer;">
+                <div style="display: flex; gap: 12px;">
+                    ${renderItemIconHTML(item, { size: 40, fallback: '📿' })}
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 14px; color: ${RARITY_COLORS[item.rarity] || '#ccc'};">${item.name}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${formatItemBonusLine(item)}</div>
+                        <div style="font-size: 10px; color: var(--gold);">Редкость: ${item.rarity || 'Обычный'}</div>
+                        ${isEquipped ? '<div style="font-size: 10px; color: #2ecc71; margin-top: 4px;">✅ Экипировано</div>' : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    html += '<button class="action-btn" onclick="showEquipment()" style="margin-top: 20px; width: 100%; padding: 12px;">↩️ Назад</button>';
+    document.getElementById('dynamicContent').innerHTML = html;
+}
+
+window.showJewelryList = showJewelryList;
+
+function equipJewelryByType(index, slotType, inventoryType) {
+    ensurePlayerJewelryState();
+    if (!player.inventory[inventoryType]) player.inventory[inventoryType] = [];
+    if (index < 0 || index >= player.inventory[inventoryType].length) {
+        addMessage('❌ Ошибка: предмет не найден', 'error');
+        return;
+    }
+
+    const item = player.inventory[inventoryType][index];
+    if (!item) {
+        addMessage('❌ Ошибка: предмет не найден', 'error');
+        return;
+    }
+
+    const currentItem = player.equipment[slotType];
+    player.equipment[slotType] = item;
+    player.inventory[inventoryType].splice(index, 1);
+
+    if (currentItem) {
+        player.inventory[inventoryType].push(currentItem);
+        addMessage(`🔄 Заменено: ${currentItem.name} → ${item.name}`, 'info');
+    } else {
+        addMessage(`✅ Экипировано: ${item.name}`, 'success');
+    }
+
+    resetBaseStats();
+    saveGame();
+    renderGame();
+    showEquipment();
+
+    const bonusText = formatItemBonusLine(item).trim();
+    if (bonusText) addMessage(`✨ Бонусы: ${bonusText}`, 'success');
+}
+
+window.equipJewelryByType = equipJewelryByType;
+
 function unequipItem(slot) {
     const item = player.equipment[slot];
     if (!item) {
@@ -362,6 +493,12 @@ function unequipItem(slot) {
     } else if (slot === 'boots') {
         if (!player.inventory.boots) player.inventory.boots = [];
         player.inventory.boots.push(item);
+    } else if (slot === 'ring') {
+        ensurePlayerJewelryState();
+        player.inventory.rings.push(item);
+    } else if (slot === 'necklace') {
+        ensurePlayerJewelryState();
+        player.inventory.necklaces.push(item);
     }
     
     resetBaseStats();
@@ -650,6 +787,41 @@ function showInventory() {
         html += '</div>';
     }
     
+    ensurePlayerJewelryState();
+
+    if (player.inventory.rings.length > 0) {
+        html += `<h3 style="margin-top: 20px; color: #f0c040;">💍 Кольца (${player.inventory.rings.length})</h3>`;
+        html += '<p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 4px;">Наденьте в разделе «Экипировка» → Ювелирные изделия</p>';
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
+        for (const item of player.inventory.rings) {
+            html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
+                ${renderItemIconHTML(item, { size: 36, fallback: '💍' })}
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 13px; color: #f0c040;">${item.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">${formatItemBonusLine(item)}</div>
+                    <div style="font-size: 9px; color: var(--gold);">${item.rarity || 'Обычный'}</div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    if (player.inventory.necklaces.length > 0) {
+        html += `<h3 style="margin-top: 20px; color: #9b59b6;">📿 Амулеты (${player.inventory.necklaces.length})</h3>`;
+        html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
+        for (const item of player.inventory.necklaces) {
+            html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: flex; gap: 10px;">
+                ${renderItemIconHTML(item, { size: 36, fallback: '📿' })}
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 13px; color: #9b59b6;">${item.name}</div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">${formatItemBonusLine(item)}</div>
+                    <div style="font-size: 9px; color: var(--gold);">${item.rarity || 'Обычный'}</div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
     // Камни
     if (player.inventory.stones && player.inventory.stones.length > 0) {
         html += `<h3 style="margin-top: 20px; color: #f0c040;">💎 Камни (${player.inventory.stones.length})</h3>`;

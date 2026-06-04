@@ -163,14 +163,18 @@ function finalizeCharacter() {
             elixirs: [],
             scrolls: [],
             gatherScrolls: [],
-            stones: []
+            stones: [],
+            rings: [],
+            necklaces: []
         },
         equipment: {
             weapon: null,
             helmet: null,
             chest: null,
             pants: null,
-            boots: null
+            boots: null,
+            ring: null,
+            necklace: null
         },
         abilities: [],
         unlockedSkins: [],
