@@ -640,6 +640,17 @@ function migrateOldSave(playerData) {
     if (playerData.gender === undefined) playerData.gender = 'male';
     if (!Array.isArray(playerData.redeemedGiftIds)) playerData.redeemedGiftIds = [];
 
+    if (!playerData.friends || typeof playerData.friends !== 'object') {
+        playerData.friends = {
+            playerId: '',
+            syncToken: '',
+            friendCode: '',
+            lastSyncAt: 0,
+            cached: []
+        };
+    }
+    if (!Array.isArray(playerData.friends.cached)) playerData.friends.cached = [];
+
     return playerData;
 }
 

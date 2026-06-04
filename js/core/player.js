@@ -184,6 +184,13 @@ function finalizeCharacter() {
         uiKeys: { back: 'Backspace' },
         unlockedSkins: [],
         currentSkin: null,
+        friends: {
+            playerId: '',
+            syncToken: '',
+            friendCode: '',
+            lastSyncAt: 0,
+            cached: []
+        },
         ...baseStats
     };
     

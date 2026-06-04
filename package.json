@@ -10,6 +10,7 @@
     "build:pvp-mqtt-direct": "esbuild js/vendor/pvp-mqtt-direct.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/pvp-mqtt-direct.bundle.mjs",
     "build:pvp-vendor": "npm run build:pvp-mqtt-direct && npm run build:pvp-transport && npm run build:pvp-transport-mqtt && npm run build:pvp-transport-ws",
     "start:relay": "node server/pvp-relay.mjs",
+    "start:friends": "node server/friends-api.mjs",
     "test:crafting": "node scripts/test-crafting-profession.js",
     "test:jewelry": "node scripts/test-jewelry-equip.js",
     "test:craft-batch": "node scripts/test-craft-batch.js",
@@ -21,6 +22,7 @@
     "test:divine-armor": "node scripts/test-divine-armor-craft.js",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
+    "test:friends": "node scripts/test-friends-api.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

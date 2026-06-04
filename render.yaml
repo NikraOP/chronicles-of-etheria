@@ -1,8 +1,15 @@
+# Один раз: Render Dashboard → New → Blueprint → этот репозиторий.
+# API друзей для GitHub Pages: https://etheria-friends-api.onrender.com
 services:
   - type: web
-    name: etheria-pvp-relay
+    name: etheria-friends-api
     runtime: node
     plan: free
-    buildCommand: npm install
-    startCommand: node server/pvp-relay.mjs
+    buildCommand: echo "no build"
+    startCommand: node server/friends-api.mjs
     healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: FRIENDS_CORS
+        value: "*"
