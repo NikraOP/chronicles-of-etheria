@@ -3,8 +3,9 @@
 let battleEnemies = [];
 let battleEnemyFocusIndex = 0;
 let _monsterQueuePhaseActive = false;
-/** Индексы врагов, которые ещё не ходили в текущей фазе монстров */
+/** Индексы врагов, которые ещё должны походить в этой фазе (shift при старте хода) */
 let _monsterQueuePending = [];
+window._monsterTurnBusy = false;
 
 function cloneBattleEnemyFromTemplate(mData, scale, goldMult) {
     const monsterAbilities = mData.abilities || [];
@@ -79,64 +80,61 @@ function clearBattleEnemies() {
     battleEnemyFocusIndex = 0;
     _monsterQueuePhaseActive = false;
     _monsterQueuePending = [];
+    window._monsterTurnBusy = false;
 }
 
-/** В начале фазы монстров — очередь живых (каждый бьёт ровно один раз за фазу). */
+/** Следующий враг из очереди; при старте хода индекс снимается с очереди (каждый бьёт один раз). */
+function takeNextMonsterFromQueue() {
+    const enemies = getBattleEnemies();
+    while (_monsterQueuePending.length > 0) {
+        const idx = _monsterQueuePending.shift();
+        if (enemies[idx] && enemies[idx].health > 0) {
+            setFocusedEnemyIndex(idx);
+            syncCurrentMonsterFromFocus();
+            if (typeof addBattleLog === 'function') {
+                addBattleLog('👹 ' + enemies[idx].name + ' ходит!', 'info');
+            }
+            if (typeof renderBattle === 'function') renderBattle({ force: true });
+            return idx;
+        }
+    }
+    return -1;
+}
+
+/** В начале фазы монстров — очередь живых (без старта хода). */
 function beginMonsterQueuePhase() {
     const enemies = getBattleEnemies();
     _monsterQueuePending = [];
-    if (enemies.length <= 1) {
-        _monsterQueuePhaseActive = false;
-        return;
-    }
+    _monsterQueuePhaseActive = false;
+    if (enemies.length <= 1) return;
     for (let i = 0; i < enemies.length; i++) {
         if (enemies[i] && enemies[i].health > 0) _monsterQueuePending.push(i);
     }
     if (_monsterQueuePending.length <= 1) {
-        _monsterQueuePhaseActive = false;
         _monsterQueuePending = [];
         return;
     }
     _monsterQueuePhaseActive = true;
-    setFocusedEnemyIndex(_monsterQueuePending[0]);
-    syncCurrentMonsterFromFocus();
 }
 
-function startNextMonsterInQueue() {
-    const enemies = getBattleEnemies();
-    if (!_monsterQueuePending.length) return false;
-    const next = _monsterQueuePending[0];
-    if (!enemies[next] || enemies[next].health <= 0) {
-        _monsterQueuePending.shift();
-        return startNextMonsterInQueue();
-    }
-    setFocusedEnemyIndex(next);
-    syncCurrentMonsterFromFocus();
-    if (typeof addBattleLog === 'function') {
-        addBattleLog('👹 ' + enemies[next].name + ' ходит!', 'info');
-    }
-    if (typeof renderBattle === 'function') renderBattle({ force: true });
+function scheduleMonsterTurn(delayMs) {
+    const delay = delayMs != null ? delayMs : 150;
     setTimeout(function () {
         if (typeof monsterTurn === 'function') monsterTurn();
-    }, 150);
-    return true;
+    }, delay);
 }
 
-/** @deprecated Используйте finishMonsterTurnOrQueue */
+/** @deprecated */
 function advanceMonsterQueue() {
     return _monsterQueuePhaseActive && _monsterQueuePending.length > 0;
 }
 
 function finishMonsterTurnOrQueue() {
-    const enemies = getBattleEnemies();
-    const cur = getBattleEnemyFocusIndex();
+    window._monsterTurnBusy = false;
 
-    if (_monsterQueuePhaseActive && _monsterQueuePending.length) {
-        _monsterQueuePending = _monsterQueuePending.filter(function (i) {
-            return i !== cur && enemies[i] && enemies[i].health > 0;
-        });
-        if (_monsterQueuePending.length > 0) {
-            startNextMonsterInQueue();
+    if (_monsterQueuePhaseActive && _monsterQueuePending.length > 0) {
+        if (takeNextMonsterFromQueue() >= 0) {
+            scheduleMonsterTurn(150);
             return;
         }
     }
@@ -146,6 +144,16 @@ function finishMonsterTurnOrQueue() {
     if (typeof finishMonsterPhase === 'function') finishMonsterPhase();
     if (typeof onPlayerTurnStart === 'function') onPlayerTurnStart();
     if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
+}
+
+/** Запуск фазы монстров после хода игрока */
+function startMonsterPhaseAfterPlayer() {
+    beginMonsterQueuePhase();
+    if (_monsterQueuePhaseActive) {
+        if (takeNextMonsterFromQueue() >= 0) scheduleMonsterTurn(60);
+        return;
+    }
+    scheduleMonsterTurn(60);
 }
 
 /** @returns {boolean} true — бой продолжается; false — вызвана victory() или враг ещё жив */
@@ -186,3 +194,4 @@ window.tryVictoryAfterEnemyDown = tryVictoryAfterEnemyDown;
 window.beginMonsterQueuePhase = beginMonsterQueuePhase;
 window.advanceMonsterQueue = advanceMonsterQueue;
 window.finishMonsterTurnOrQueue = finishMonsterTurnOrQueue;
+window.startMonsterPhaseAfterPlayer = startMonsterPhaseAfterPlayer;

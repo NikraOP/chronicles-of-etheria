@@ -162,20 +162,21 @@ function getPackMult(table, enemyCount, fallback) {
     return table[n] != null ? table[n] : fallback;
 }
 
-function getDungeonLevelHpMult(dungeon, floorIndex) {
+function getDungeonLevelHpMult(dungeon, floorIndex, isBoss) {
     if (!dungeon) return 1;
     const minLv = dungeon.minLevel || 1;
     const plv = (typeof player !== 'undefined' && player && player.level) ? player.level : minLv;
     const lv = Math.max(minLv, plv);
     const floor = 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorThreatStep || 0.12);
     if (lv < 12) return Math.max(1, (0.35 + lv * 0.05) * floor);
-    return (2.0 + lv * 0.9) * floor;
+    if (isBoss) return (0.55 + lv * 0.09) * floor;
+    return (0.38 + lv * 0.58) * floor;
 }
 
 function floorStatMults(floorIndex, enemyCount, mode, dungeon) {
     const isDuo = mode === 'duo';
     const floorMult = 1 + floorIndex * (DUNGEON_BALANCE.floorThreatStep || 0.12);
-    const levelHp = getDungeonLevelHpMult(dungeon, floorIndex);
+    const levelHp = getDungeonLevelHpMult(dungeon, floorIndex, false);
     const packHpTable = isDuo ? DUNGEON_BALANCE.packHp.duo : DUNGEON_BALANCE.packHp.solo;
     const packAtkTable = isDuo ? DUNGEON_BALANCE.packAtk.duo : DUNGEON_BALANCE.packAtk.solo;
     const modeHp = isDuo ? DUNGEON_BALANCE.modeHp.duo : DUNGEON_BALANCE.modeHp.solo;
@@ -208,8 +209,11 @@ function buildFinalBossEnemy(dungeon, floorIndex, mults, runMode) {
     if (!bossId) return null;
     const template = findMonsterTemplateByName(bossId);
     if (!template) return null;
+    const normalHp = getDungeonLevelHpMult(dungeon, floorIndex, false);
+    const bossHp = getDungeonLevelHpMult(dungeon, floorIndex, true);
+    const bossHpRatio = normalHp > 0 ? bossHp / normalHp : 1;
     const bossMults = {
-        hp: mults.hp * 1.4,
+        hp: mults.hp * bossHpRatio * 1.35,
         atk: mults.atk * 1.12,
         def: mults.def * 1.18,
         exp: mults.exp * 1.65

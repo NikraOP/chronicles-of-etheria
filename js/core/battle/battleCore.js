@@ -211,6 +211,10 @@ function endPlayerActionChain() {
         onDungeonDuoPlayerActionEnded();
         return;
     }
+    if (typeof startMonsterPhaseAfterPlayer === 'function') {
+        startMonsterPhaseAfterPlayer();
+        return;
+    }
     if (typeof beginMonsterQueuePhase === 'function') beginMonsterQueuePhase();
     setTimeout(() => monsterTurn(), 60);
 }

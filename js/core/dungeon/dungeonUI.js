@@ -342,10 +342,23 @@ function getActiveDungeonSession() {
     if (typeof ensureFloorGenerated === 'function') ensureFloorGenerated(raw.run, fi);
     const dungeon = typeof getDungeonById === 'function' ? getDungeonById(raw.dungeonId) : null;
     const totalFloors = typeof getRunFloorCount === 'function' ? getRunFloorCount(raw.run) : 0;
+    const rp = dungeon && dungeon.roomsPerFloor;
+    const estimatedRooms = rp
+        ? Math.round(((rp.min || 5) + (rp.max || 7)) / 2)
+        : 6;
     const floorsArr = [];
     for (let i = 0; i < totalFloors; i++) {
         const f = typeof getFloorFromRun === 'function' ? getFloorFromRun(raw.run, i) : raw.run.floors[i];
-        if (f) floorsArr.push(f);
+        if (f) {
+            floorsArr.push(f);
+        } else {
+            floorsArr.push({
+                index: i,
+                placeholder: true,
+                estimatedRooms: estimatedRooms,
+                rooms: null
+            });
+        }
     }
     return {
         dungeonId: raw.dungeonId,
@@ -372,6 +385,37 @@ function resolveRoomArchetypeIcon(room) {
  * Полоса комнат текущего этажа активного dungeonSession.
  * @returns {string} HTML или пустая строка
  */
+function renderDungeonFloorTower(session) {
+    const totalFloors = session.totalFloors || session.floors.length;
+    if (!totalFloors) return '';
+    const floorIndex = typeof session.floorIndex === 'number' ? session.floorIndex : 0;
+    const roomIndex = typeof session.roomIndex === 'number' ? session.roomIndex : 0;
+    let chips = '';
+    for (let fi = 0; fi < totalFloors; fi++) {
+        const floor = session.floors[fi];
+        let state = 'locked';
+        if (fi < floorIndex) state = 'cleared';
+        else if (fi === floorIndex) state = 'current';
+        const roomTotal = floor && floor.rooms && floor.rooms.length
+            ? floor.rooms.length
+            : (floor && floor.estimatedRooms ? floor.estimatedRooms : '?');
+        const progress = fi < floorIndex
+            ? 'пройден'
+            : (fi === floorIndex
+                ? 'комн. ' + (roomIndex + 1) + ' / ' + roomTotal
+                : '~' + roomTotal + ' комн.');
+        chips += '<div class="dungeon-tower__floor dungeon-tower__floor--' + state + '">' +
+            '<span class="dungeon-tower__num">' + (fi + 1) + '</span>' +
+            '<span class="dungeon-tower__label">Этаж ' + (fi + 1) + '</span>' +
+            '<span class="dungeon-tower__meta">' + escapeDungeonText(String(progress)) + '</span>' +
+            '</div>';
+        if (fi < totalFloors - 1) {
+            chips += '<div class="dungeon-tower__link' + (fi < floorIndex ? ' dungeon-tower__link--done' : '') + '" aria-hidden="true"></div>';
+        }
+    }
+    return '<div class="dungeon-tower" role="list" aria-label="Этажи подземелья">' + chips + '</div>';
+}
+
 function renderDungeonFloorMap() {
     const session = getActiveDungeonSession();
     if (!session || !session.floors || !session.floors.length) return '';
@@ -379,17 +423,33 @@ function renderDungeonFloorMap() {
     const floorIndex = typeof session.floorIndex === 'number' ? session.floorIndex : 0;
     const roomIndex = typeof session.roomIndex === 'number' ? session.roomIndex : 0;
     const floor = session.floors[floorIndex];
-    if (!floor || !Array.isArray(floor.rooms) || floor.rooms.length === 0) return '';
+    if (!floor) return '';
+    const rawSession = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (floor.placeholder && !floor.rooms && rawSession && rawSession.run && typeof ensureFloorGenerated === 'function') {
+        ensureFloorGenerated(rawSession.run, floorIndex);
+        const regen = typeof getFloorFromRun === 'function'
+            ? getFloorFromRun(rawSession.run, floorIndex)
+            : null;
+        if (regen) session.floors[floorIndex] = regen;
+    }
+    const resolvedFloor = session.floors[floorIndex];
+    if (!resolvedFloor || !Array.isArray(resolvedFloor.rooms) || resolvedFloor.rooms.length === 0) {
+        const towerOnly = renderDungeonFloorTower(session);
+        return '<div class="dungeon-run-map">' + towerOnly +
+            '<p class="dungeon-floor-map__legend">Этаж загружается при входе в комнату.</p></div>';
+    }
+    const floorRooms = resolvedFloor;
 
     const floorNum = floorIndex + 1;
     const totalFloors = session.totalFloors || session.floors.length;
-    const roomTotal = floor.rooms.length;
+    const roomTotal = floorRooms.rooms.length;
+    const towerHtml = renderDungeonFloorTower(session);
     let nodes = '';
 
     let listHtml = '';
-    const currentRoom = floor.rooms[roomIndex];
+    const currentRoom = floorRooms.rooms[roomIndex];
 
-    floor.rooms.forEach(function (room, i) {
+    floorRooms.rooms.forEach(function (room, i) {
         let state = 'upcoming';
         if (i < roomIndex || room.cleared) state = 'cleared';
         else if (i === roomIndex) state = 'current';
@@ -403,7 +463,7 @@ function renderDungeonFloorMap() {
             '<span class="dungeon-floor-room__icon" aria-hidden="true">' + escapeDungeonText(icon) + '</span>' +
             '<span class="dungeon-floor-room__idx">' + (i + 1) + '</span>' +
             '</div>';
-        if (i < floor.rooms.length - 1) {
+        if (i < floorRooms.rooms.length - 1) {
             nodes += '<div class="dungeon-floor-map__connector' + (i < roomIndex ? ' dungeon-floor-map__connector--done' : '') + '" aria-hidden="true"></div>';
         }
 
@@ -426,7 +486,9 @@ function renderDungeonFloorMap() {
         ? currentRoom.desc
         : 'Нажмите «В бой», чтобы начать схватку. В бою выберите цель — над ней появится 🎯.';
 
-    return '<div class="dungeon-floor-map" role="navigation" aria-label="Карта этажа">' +
+    return '<div class="dungeon-run-map">' +
+        towerHtml +
+        '<div class="dungeon-floor-map" role="navigation" aria-label="Карта этажа">' +
         '<div class="dungeon-floor-map__head">' +
         '<span class="dungeon-floor-map__title">' + escapeDungeonText(dungeonName) + '</span>' +
         '<span class="dungeon-floor-map__meta">' +
@@ -441,7 +503,7 @@ function renderDungeonFloorMap() {
         '<p class="dungeon-floor-map__current-desc">' + escapeDungeonText(currentDesc) + '</p>' +
         '</div>' +
         '<ul class="dungeon-floor-list">' + listHtml + '</ul>' +
-        '</div>';
+        '</div></div>';
 }
 
 window.showDungeonsHub = showDungeonsHub;

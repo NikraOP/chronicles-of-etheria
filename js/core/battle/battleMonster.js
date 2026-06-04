@@ -311,11 +311,12 @@ function monsterTurn() {
         const duo = getDuoDungeonState();
         if (duo.role !== 'host') return;
     }
-    if (!currentMonster || currentMonster.health <= 0) { 
-        isPlayerTurn = true; 
-        updateBattleButtons(); 
-        return; 
+    if (window._monsterTurnBusy) return;
+    if (!currentMonster || currentMonster.health <= 0) {
+        if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
+        return;
     }
+    window._monsterTurnBusy = true;
 
     if (typeof setStrikeImpact === 'function') setStrikeImpact(null);
     updateMonsterBuffs();
@@ -515,6 +516,17 @@ function monsterTurn() {
         }
     }
     
+    if (abilityUsed) {
+        if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
+        else if (typeof renderBattle === 'function') renderBattle({ force: true });
+        if (currentMonster.health <= 0) {
+            if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+            return;
+        }
+        finishMonsterTurnOrQueue();
+        return;
+    }
+
     const monsterImpactFn = typeof consumeStrikeImpact === 'function' ? consumeStrikeImpact() : null;
 
     animateEnemyAttack(() => {
