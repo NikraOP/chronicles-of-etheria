@@ -104,15 +104,16 @@ function pickItemVisualFields(source) {
 function renderItemIconHTML(item, options) {
     options = options || {};
     const size = options.size || 40;
-    const fallback = options.fallback || resolveItemIcon(item, '📦');
+    const fallback = resolveItemIcon(item, options.fallback || '📦');
     const extraClass = options.className || 'item-icon';
     const imgSrc = resolveItemImg(item);
     const style = 'width:' + size + 'px;height:' + size + 'px';
 
     if (imgSrc) {
+        const resolvedSrc = typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(imgSrc) : imgSrc;
         const escFb = String(fallback).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return '<div class="' + extraClass + '" style="' + style + '">' +
-            '<img src="' + imgSrc + '" alt="" class="item-icon-img" ' +
+            '<img src="' + resolvedSrc + '" alt="" class="item-icon-img" ' +
             'onerror="this.onerror=null;this.remove();var p=this.parentElement;p.classList.add(\'item-icon--emoji\');p.textContent=\'' + escFb + '\';">' +
             '</div>';
     }
@@ -127,8 +128,8 @@ function syncInventoryItemVisuals(pl) {
         if (!item || !item.name) return;
         const reg = ITEM_IMG_REGISTRY[item.name];
         if (!reg) return;
-        if (!item.img && reg.img) item.img = reg.img;
-        if (!item.icon && reg.icon) item.icon = reg.icon;
+        if (reg.img) item.img = reg.img;
+        if (reg.icon) item.icon = reg.icon;
     }
     if (pl.inventory) {
         ['weapons', 'helmets', 'chests', 'pants', 'boots', 'potions', 'foods', 'elixirs', 'scrolls', 'stones', 'rings', 'necklaces'].forEach(function (key) {
@@ -137,10 +138,16 @@ function syncInventoryItemVisuals(pl) {
         });
     }
     if (pl.equipment) {
-        ['weapon', 'helmet', 'chest', 'pants', 'boots'].forEach(function (slot) {
+        ['weapon', 'helmet', 'chest', 'pants', 'boots', 'ring', 'necklace'].forEach(function (slot) {
             applyDef(pl.equipment[slot]);
         });
     }
+}
+
+function ensureEquipmentScreenVisuals() {
+    if (!player) return;
+    if (typeof buildItemImgRegistry === 'function') buildItemImgRegistry();
+    if (typeof syncInventoryItemVisuals === 'function') syncInventoryItemVisuals(player);
 }
 
 buildItemImgRegistry();
@@ -152,4 +159,5 @@ window.resolveItemImg = resolveItemImg;
 window.resolveItemIcon = resolveItemIcon;
 window.pickItemVisualFields = pickItemVisualFields;
 window.renderItemIconHTML = renderItemIconHTML;
+window.ensureEquipmentScreenVisuals = ensureEquipmentScreenVisuals;
 window.findResourceDefByName = findResourceDefByName;
