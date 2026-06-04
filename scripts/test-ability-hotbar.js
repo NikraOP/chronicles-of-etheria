@@ -87,6 +87,23 @@ assert(settingsHtml.indexOf('data-battle-bind="attack"') !== -1, 'settings attac
 assert(settingsHtml.indexOf('data-battle-bind="abilities"') !== -1, 'settings abilities bind');
 assert(settingsHtml.indexOf('data-battle-bind="continue"') !== -1, 'settings continue bind');
 assert(ctx.getBattleKey('continue') === 'Enter', 'default continue key');
+assert(ctx.setBattleKey('attack', 'Escape') === false, 'Escape not for attack');
+assert(ctx.setBattleKey('continue', 'Escape') === true, 'Escape for continue');
+assert(ctx.getBattleKey('continue') === 'Escape', 'continue bound to Escape');
+assert(ctx.formatAbilityKeyLabel('Escape') === 'Esc', 'Escape label');
+
+ctx.document = { getElementById: () => null, querySelector: () => null };
+ctx.startBattleKeyBind('continue');
+ctx.player.battleKeys.continue = 'Enter';
+const bindEscEvent = {
+    code: 'Escape',
+    target: { tagName: 'DIV', isContentEditable: false, closest: () => null },
+    preventDefault() {},
+    stopPropagation() {},
+    repeat: false
+};
+ctx.handleAbilityHotbarKeydown(bindEscEvent);
+assert(ctx.getBattleKey('continue') === 'Escape', 'bind mode assigns Escape to continue');
 
 ctx.document = {
     querySelector(sel) {
@@ -122,6 +139,13 @@ ctx.closeModal = () => {
         ctx.modalCallback = null;
     }
 };
+ctx.player.battleKeys.continue = 'Escape';
+assert(ctx.tryCloseBattleEndModalByKey('Escape') === true, 'Escape closes battle end modal');
+assert(ctx._modalClosed, 'modal closed by Escape continue bind');
+ctx._battleEndModalOpen = true;
+ctx._modalClosed = false;
+ctx.modalCallback = () => { ctx._modalClosed = true; };
+ctx.player.battleKeys.continue = 'Enter';
 assert(ctx.tryCloseBattleEndModalByKey('Enter') === true, 'Enter closes battle end modal');
 assert(ctx._modalClosed, 'modal callback ran');
 

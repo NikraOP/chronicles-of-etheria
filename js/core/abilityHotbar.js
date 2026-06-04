@@ -54,7 +54,7 @@ function formatAbilityKeyLabel(code) {
     const fixed = {
         Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
         Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
-        Space: 'Пробел', Enter: 'Enter', Backspace: 'Bksp', Delete: 'Del',
+        Space: 'Пробел', Enter: 'Enter', Escape: 'Esc', Backspace: 'Bksp', Delete: 'Del',
         ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
         Numpad0: 'Num0', Numpad1: 'Num1', Numpad2: 'Num2', Numpad3: 'Num3', Numpad4: 'Num4',
         Numpad5: 'Num5', Numpad6: 'Num6', Numpad7: 'Num7', Numpad8: 'Num8', Numpad9: 'Num9',
@@ -68,9 +68,10 @@ function formatAbilityKeyLabel(code) {
     return code;
 }
 
-function isAbilityHotbarBindableKey(code) {
+function isAbilityHotbarBindableKey(code, options) {
+    options = options || {};
     if (!code || HOTBAR_BIND_FORBIDDEN.has(code)) return false;
-    if (code === 'Escape') return false;
+    if (code === 'Escape' && !options.allowEscape) return false;
     return true;
 }
 
@@ -125,7 +126,7 @@ function releaseKeyFromAllBinds(code, except) {
 
 function setBattleKey(action, code) {
     if (!player || BATTLE_KEY_ACTIONS.indexOf(action) < 0) return false;
-    if (!isAbilityHotbarBindableKey(code)) {
+    if (!isAbilityHotbarBindableKey(code, { allowEscape: action === 'continue' })) {
         if (typeof addMessage === 'function') addMessage('Эту клавишу нельзя назначить.', 'error');
         return false;
     }
@@ -142,7 +143,7 @@ function sanitizeBattleKeys() {
     const used = new Map();
     BATTLE_KEY_ACTIONS.forEach(action => {
         let code = player.battleKeys[action];
-        if (!code || !isAbilityHotbarBindableKey(code)) {
+        if (!code || !isAbilityHotbarBindableKey(code, { allowEscape: action === 'continue' })) {
             code = DEFAULT_BATTLE_KEYS[action];
             player.battleKeys[action] = code;
         }
@@ -611,14 +612,25 @@ function handleAbilityHotbarKeydown(e) {
     if (!player) return;
 
     if (_battleBindAction !== null) {
+        if (e.code === 'Escape' && _battleBindAction === 'continue') {
+            e.preventDefault();
+            e.stopPropagation();
+            const action = _battleBindAction;
+            setBattleKey(action, 'Escape');
+            _battleBindAction = null;
+            refreshSettingsBattleKeysUi();
+            if (typeof addMessage === 'function') {
+                addMessage('«' + getBattleKeyActionLabels()[action] + '»: клавиша «Esc».', 'success');
+            }
+            return;
+        }
         if (e.code === 'Escape') {
             e.preventDefault();
-            const action = _battleBindAction;
             cancelAllKeyBindModes();
             if (typeof addMessage === 'function') addMessage('Назначение клавиши отменено.', 'info');
             return;
         }
-        if (!isAbilityHotbarBindableKey(e.code)) return;
+        if (!isAbilityHotbarBindableKey(e.code, { allowEscape: _battleBindAction === 'continue' })) return;
         e.preventDefault();
         e.stopPropagation();
         const action = _battleBindAction;
