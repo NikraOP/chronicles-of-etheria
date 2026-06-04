@@ -10,7 +10,7 @@ function showShop() {
         const isActive = (window.currentShopCategory === categories[i]) || (i === 0 && !window.currentShopCategory);
         html += '<div class="shop-tab' + (isActive ? ' active' : '') + '" data-cat="' + categories[i] + '" onclick="showShopCategory(\'' + categories[i] + '\')">' + t + '</div>';
     });
-    html += '</div><div id="shopItems"></div>';
+    html += '</div><div id="shopItems" class="shop-items"></div>';
     document.getElementById('dynamicContent').innerHTML = html;
     
     if (!window.currentShopCategory) window.currentShopCategory = 'weapons';
@@ -47,7 +47,7 @@ function renderGatherScrollShop() {
     }
     let html = '<h3>📜 Свитки добычи</h3>';
     html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Активируются в меню профессии (сбор ресурсов). Авто-сбор только пока вы в этом меню. Тир свитка ограничивает тир ресурса. Опыт снижен.</p>';
-    html += '<div class="item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+    html += '<div class="shop-items-grid shop-items-grid--buy">';
     GATHER_SCROLL_TIERS.forEach(meta => {
         const canBuy = player.gold >= meta.shopPrice && player.level >= meta.minPlayerLevel;
         const locked = player.level < meta.minPlayerLevel;
@@ -155,9 +155,89 @@ function getItemStatsDescription(item) {
     if (item.crit) stats.push(`💥 Крит: +${item.crit}%`);
     if (item.critDmg) stats.push(`⭐ Крит урон: +${item.critDmg}%`);
     if (item.dodge) stats.push(`💨 Уклонение: +${item.dodge}%`);
+    if (item.mana) stats.push(`🔷 Мана: +${item.mana}`);
+    if (item.effect === 'auto_gather' || item.type === 'gather_scroll') {
+        const st = item.scrollTier || item.tier || 1;
+        stats.push(`📜 Тир ресурсов ≤ ${st} · ${item.maxGathers || '?'} сборов`);
+    }
     
     if (stats.length === 0) return '—';
     return stats.join(' · ');
+}
+
+function resolveItemSellPrice(item) {
+    if (typeof getItemSellPrice === 'function') {
+        return getItemSellPrice(item);
+    }
+    if (item.sellPrice) return item.sellPrice;
+    if (item.price) return Math.floor(item.price * 0.3);
+    if (item.effect === 'heal') return Math.floor((item.value || 50) * 2);
+    if (item.effect === 'atk' || item.effect === 'def') return Math.floor((item.value || 30) * 3);
+    if (item.dmg) return Math.floor((item.dmg || 10) * 8);
+    return 25;
+}
+
+function pushSellInventoryBatch(allItems, list, type, typeName) {
+    if (!list || !list.length) return;
+    list.forEach((item, idx) => {
+        allItems.push({ ...item, type, typeName, idx });
+    });
+}
+
+function collectSellableInventoryItems() {
+    const allItems = [];
+    if (!player.inventory) return allItems;
+
+    pushSellInventoryBatch(allItems, player.inventory.weapons, 'weapon', '⚔️ Оружие');
+    pushSellInventoryBatch(allItems, player.inventory.helmets, 'helmet', '⛑️ Шлемы');
+    pushSellInventoryBatch(allItems, player.inventory.chests, 'chest', '🛡️ Нагрудники');
+    pushSellInventoryBatch(allItems, player.inventory.pants, 'pants', '👖 Поножи');
+    pushSellInventoryBatch(allItems, player.inventory.boots, 'boots', '👢 Сапоги');
+    pushSellInventoryBatch(allItems, player.inventory.rings, 'ring', '💍 Кольца');
+    pushSellInventoryBatch(allItems, player.inventory.necklaces, 'necklace', '📿 Амулеты');
+    pushSellInventoryBatch(allItems, player.inventory.stones, 'stone', '💎 Камни');
+    pushSellInventoryBatch(allItems, player.inventory.potions, 'potion', '🧪 Зелья');
+    pushSellInventoryBatch(allItems, player.inventory.foods, 'food', '🍖 Еда');
+    pushSellInventoryBatch(allItems, player.inventory.elixirs, 'elixir', '💪 Эликсиры');
+    pushSellInventoryBatch(allItems, player.inventory.scrolls, 'scroll', '📜 Свитки');
+    pushSellInventoryBatch(allItems, player.inventory.gatherScrolls, 'gather_scroll', '📜 Свитки добычи');
+
+    if (player.inventory.armor && player.inventory.armor.length > 0) {
+        for (const item of player.inventory.armor) {
+            const name = (item.name || '').toLowerCase();
+            let type = 'chest';
+            let typeName = '🛡️ Нагрудники';
+            if (name.includes('шлем')) { type = 'helmet'; typeName = '⛑️ Шлемы'; }
+            else if (name.includes('понож')) { type = 'pants'; typeName = '👖 Поножи'; }
+            else if (name.includes('сапог')) { type = 'boots'; typeName = '👢 Сапоги'; }
+            const list = player.inventory[type === 'helmet' ? 'helmets' : type === 'pants' ? 'pants' : type === 'boots' ? 'boots' : type === 'chest' ? 'chests' : 'chests'];
+            if (!list) continue;
+            const idx = list.length;
+            list.push(item);
+            allItems.push({ ...item, type, typeName, idx });
+        }
+        player.inventory.armor = [];
+    }
+    return allItems;
+}
+
+function buildShopSellItemCardHtml(item, sellPrice) {
+    const statsText = getItemStatsDescription(item);
+    const rarityColor = getRarityColor(item.rarity);
+    const rarityDisplay = getRarityDisplay(item.rarity);
+    const itemIconHtml = typeof renderItemIconHTML === 'function'
+        ? renderItemIconHTML(item, { size: 40, fallback: item.icon || '📦' })
+        : '<div class="shop-item-card__emoji">' + (item.icon || '📦') + '</div>';
+    return '<div class="item-card shop-item-card" onclick="sellItemKeepOpen(\'' + item.type + '\', ' + item.idx + ', ' + sellPrice + ')">' +
+        '<div class="shop-item-card__row">' +
+        '<div class="shop-item-card__icon">' + itemIconHtml + '</div>' +
+        '<div class="shop-item-card__body">' +
+        '<div class="shop-item-card__name" style="color:' + rarityColor + ';">' + item.name + '</div>' +
+        '<div class="shop-item-card__stats">' + statsText + '</div>' +
+        '<div class="shop-item-card__rarity" style="color:' + rarityColor + ';">' + rarityDisplay + '</div>' +
+        '</div>' +
+        '<div class="shop-item-card__price">💰 +' + sellPrice + '</div>' +
+        '</div></div>';
 }
 
 function renderSellResources() {
@@ -169,7 +249,7 @@ function renderSellResources() {
     
     resources.sort();
     
-    let html = '<h3>💰 Продажа ресурсов</h3><div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
+    let html = '<h3 class="shop-panel-title">💰 Продажа ресурсов</h3><div class="shop-items-grid shop-items-grid--resources">';
     const prices = { 
         'Медная руда':5, 'Железная руда':15, 'Серебряная руда':25, 'Золотая руда':40, 'Мифриловая руда':100, 'Адамантит':250, 'Орихалк':500,
         'Аметист':30, 'Изумруд':50, 'Рубин':80, 'Сапфир':80, 'Алмаз':150, 'Звездный камень':300, 'Камень душ':420,'Элементальный кристалл':500,
@@ -191,142 +271,69 @@ function renderSellResources() {
         const resIcon = typeof renderItemIconHTML === 'function'
             ? renderItemIconHTML(res, { size: 36, fallback: resolveItemIcon(res, '📦') })
             : '<div style="font-size:28px">📦</div>';
-        html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; gap: 12px;" onclick="sellResourceKeepOpen('${res}', ${price})">
+        html += `<div class="item-card shop-item-card" onclick="sellResourceKeepOpen('${res.replace(/'/g, "\\'")}', ${price})">
+            <div class="shop-item-card__row">
             ${resIcon}
-            <div style="flex: 1;">
-                <div style="font-weight: 600; font-size: 14px;">${res}</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">${count} шт.</div>
+            <div class="shop-item-card__body">
+                <div class="shop-item-card__name">${res}</div>
+                <div class="shop-item-card__stats">${count} шт. · ${price} за ед.</div>
             </div>
-            <div style="color: var(--gold); font-weight: 700;">💰 ${totalPrice}</div>
-        </div>`;
+            <div class="shop-item-card__price shop-item-card__price--gold">💰 ${totalPrice}</div>
+            </div></div>`;
     }
     html += '</div>';
     document.getElementById('shopItems').innerHTML = html;
 }
 
 function renderSellItems() {
-    let allItems = [];
-    
-    if (player.inventory.weapons) {
-        player.inventory.weapons.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'weapon', typeName: '⚔️ Оружие', idx: idx });
-        });
-    }
-    if (player.inventory.helmets) {
-        player.inventory.helmets.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'helmet', typeName: '⛑️ Шлемы', idx: idx });
-        });
-    }
-    if (player.inventory.chests) {
-        player.inventory.chests.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'chest', typeName: '🛡️ Нагрудники', idx: idx });
-        });
-    }
-    if (player.inventory.pants) {
-        player.inventory.pants.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'pants', typeName: '👖 Поножи', idx: idx });
-        });
-    }
-    if (player.inventory.boots) {
-        player.inventory.boots.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'boots', typeName: '👢 Сапоги', idx: idx });
-        });
-    }
-    if (player.inventory.potions) {
-        player.inventory.potions.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'potion', typeName: '🧪 Зелья', idx: idx });
-        });
-    }
-    if (player.inventory.foods) {
-        player.inventory.foods.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'food', typeName: '🍖 Еда', idx: idx });
-        });
-    }
-    if (player.inventory.elixirs) {
-        player.inventory.elixirs.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'elixir', typeName: '💪 Эликсиры', idx: idx });
-        });
-    }
-    if (player.inventory.scrolls) {
-        player.inventory.scrolls.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'scroll', typeName: '📜 Свитки', idx: idx });
-        });
-    }
-    if (player.inventory.stones) {
-        player.inventory.stones.forEach((item, idx) => {
-            allItems.push({ ...item, type: 'stone', typeName: '💎 Камни', idx: idx });
-        });
-    }
-    
+    const allItems = collectSellableInventoryItems();
+
     if (allItems.length === 0) {
-        document.getElementById('shopItems').innerHTML = '<p style="color:#666; text-align: center; padding: 20px;">Нет предметов для продажи</p>';
+        document.getElementById('shopItems').innerHTML = '<p class="shop-empty">Нет предметов для продажи</p>';
         return;
     }
-    
+
     const typeOrder = {
         '⚔️ Оружие': 1,
         '⛑️ Шлемы': 2,
         '🛡️ Нагрудники': 3,
         '👖 Поножи': 4,
         '👢 Сапоги': 5,
-        '🧪 Зелья': 6,
-        '🍖 Еда': 7,
-        '💪 Эликсиры': 8,
-        '📜 Свитки': 9,
-        '💎 Камни': 10
+        '💍 Кольца': 6,
+        '📿 Амулеты': 7,
+        '💎 Камни': 8,
+        '🧪 Зелья': 9,
+        '🍖 Еда': 10,
+        '💪 Эликсиры': 11,
+        '📜 Свитки': 12,
+        '📜 Свитки добычи': 13
     };
-    
+
     allItems.sort((a, b) => {
         const typeCompare = (typeOrder[a.typeName] || 99) - (typeOrder[b.typeName] || 99);
         if (typeCompare !== 0) return typeCompare;
         const rarityCompare = getRarityOrder(a.rarity) - getRarityOrder(b.rarity);
         if (rarityCompare !== 0) return rarityCompare;
-        return (a.name || '').localeCompare(b.name || '');
+        return (a.name || '').localeCompare(b.name || '', 'ru');
     });
-    
-    let html = '<h3>💰 Продажа предметов</h3>';
+
+    let html = '<h3 class="shop-panel-title">💰 Продажа предметов</h3>';
     let currentType = '';
-    
-    for (let item of allItems) {
+    let gridOpen = false;
+
+    for (const item of allItems) {
         if (currentType !== item.typeName) {
+            if (gridOpen) html += '</div>';
             currentType = item.typeName;
             const countInType = allItems.filter(i => i.typeName === currentType).length;
-            html += `<h4 style="margin-top: 20px; margin-bottom: 10px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px;">${currentType} (${countInType})</h4>`;
-            html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 15px;">';
+            html += '<h4 class="shop-section-title">' + currentType + ' (' + countInType + ')</h4>';
+            html += '<div class="shop-items-grid shop-items-grid--sell">';
+            gridOpen = true;
         }
-        
-        let sellPrice = 25;
-        if (item.sellPrice) {
-            sellPrice = item.sellPrice;
-        } else if (item.price) {
-            sellPrice = Math.floor(item.price * 0.3);
-        } else if (item.effect === 'heal') {
-            sellPrice = Math.floor((item.value || 50) * 2);
-        } else if (item.effect === 'atk' || item.effect === 'def') {
-            sellPrice = Math.floor((item.value || 30) * 3);
-        } else if (item.dmg) {
-            sellPrice = Math.floor((item.dmg || 10) * 8);
-        }
-        
-        const statsText = getItemStatsDescription(item);
-        const rarityColor = getRarityColor(item.rarity);
-        const rarityDisplay = getRarityDisplay(item.rarity);
-        const itemIconHtml = typeof renderItemIconHTML === 'function'
-            ? renderItemIconHTML(item, { size: 40, fallback: item.icon || '📦' })
-            : '<div style="font-size:36px">' + (item.icon || '📦') + '</div>';
-        
-        html += `<div class="item-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; display: flex; gap: 12px;" onclick="sellItemKeepOpen('${item.type}', ${item.idx}, ${sellPrice})">
-            ${itemIconHtml}
-            <div style="flex: 1;">
-                <div style="font-weight: 700; font-size: 14px; color: ${rarityColor};">${item.name}</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${statsText}</div>
-                <div style="font-size: 10px; color: ${rarityColor}; margin-top: 3px;">${rarityDisplay}</div>
-            </div>
-            <div style="color: #2ecc71; font-weight: 700; white-space: nowrap;">💰 +${sellPrice}</div>
-        </div>`;
+        html += buildShopSellItemCardHtml(item, resolveItemSellPrice(item));
     }
-    
-    html += '</div>';
+    if (gridOpen) html += '</div>';
+
     document.getElementById('shopItems').innerHTML = html;
 }
 
@@ -348,7 +355,7 @@ function renderBuyItems(cat) {
         return getRarityOrder(a.rarity) - getRarityOrder(b.rarity);
     });
     
-    let html = '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">';
+    let html = '<div class="shop-items-grid shop-items-grid--buy">';
     
     for (let item of items) {
         const canBuy = player.gold >= item.price && player.level >= item.lvl;
@@ -366,20 +373,20 @@ function renderBuyItems(cat) {
             levelStatus = `<span style="color: #e74c3c;">🔒 Требуется ${item.lvl} уровень (ещё ${levelDiff})</span>`;
         }
         
-        html += `<div class="item-card" style="${canBuy ? 'cursor: pointer;' : 'opacity:0.7;'} background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; padding: 14px;" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
-            <div style="display: flex; gap: 14px;">
-                ${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(item, { size: 48, fallback: item.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div style="font-size:42px">' + (item.icon || '⚔️') + '</div>'}
-                <div style="flex: 1;">
-                    <div style="font-weight: 700; font-size: 15px; color: ${rarityColor};">${item.name}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 5px 0;">${statsText}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 5px;">
-                        <div style="font-size: 10px; color: ${rarityColor};">${rarityDisplay}</div>
-                        <div style="font-size: 10px;">${levelStatus}</div>
+        html += `<div class="item-card shop-item-card shop-item-card--buy${canBuy ? '' : ' shop-item-card--disabled'}" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
+            <div class="shop-item-card__row">
+                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(item, { size: 48, fallback: item.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (item.icon || '⚔️') + '</div>'}</div>
+                <div class="shop-item-card__body">
+                    <div class="shop-item-card__name" style="color: ${rarityColor};">${item.name}</div>
+                    <div class="shop-item-card__stats">${statsText}</div>
+                    <div class="shop-item-card__meta">
+                        <span class="shop-item-card__rarity" style="color: ${rarityColor};">${rarityDisplay}</span>
+                        <span>${levelStatus}</span>
                     </div>
                 </div>
-                <div style="color: var(--gold); font-weight: 700; font-size: 16px; white-space: nowrap;">💰 ${item.price}</div>
+                <div class="shop-item-card__price shop-item-card__price--gold">💰 ${item.price}</div>
             </div>
-            ${!canBuy && !locked ? '<div style="margin-top: 8px; font-size: 10px; color: #e74c3c; text-align: center;">❌ Не хватает золота</div>' : ''}
+            ${!canBuy && !locked ? '<div class="shop-item-card__warn">❌ Не хватает золота</div>' : ''}
         </div>`;
     }
     
@@ -496,6 +503,9 @@ function sellItemKeepOpen(type, index, price) {
         case 'elixir': itemsList = player.inventory.elixirs; break;
         case 'scroll': itemsList = player.inventory.scrolls; break;
         case 'stone': itemsList = player.inventory.stones; break;
+        case 'ring': itemsList = player.inventory.rings; break;
+        case 'necklace': itemsList = player.inventory.necklaces; break;
+        case 'gather_scroll': itemsList = player.inventory.gatherScrolls; break;
         default: return;
     }
     
@@ -503,6 +513,35 @@ function sellItemKeepOpen(type, index, price) {
     
     const item = itemsList[index];
     if (!item) return;
+
+    if (type === 'ring' && player.equipment && player.equipment.ring === item) {
+        player.equipment.ring = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'necklace' && player.equipment && player.equipment.necklace === item) {
+        player.equipment.necklace = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'weapon' && player.equipment && player.equipment.weapon === item) {
+        player.equipment.weapon = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'helmet' && player.equipment && player.equipment.helmet === item) {
+        player.equipment.helmet = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'chest' && player.equipment && player.equipment.chest === item) {
+        player.equipment.chest = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'pants' && player.equipment && player.equipment.pants === item) {
+        player.equipment.pants = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
+    if (type === 'boots' && player.equipment && player.equipment.boots === item) {
+        player.equipment.boots = null;
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+    }
     
     player.gold += price;
     itemsList.splice(index, 1);
@@ -602,3 +641,7 @@ function sellItemByCategory(category, index, price) {
 function buyItem(cat, name) {
     buyItemKeepOpen(cat, name);
 }
+
+window.collectSellableInventoryItems = collectSellableInventoryItems;
+window.resolveItemSellPrice = resolveItemSellPrice;
+window.buildShopSellItemCardHtml = buildShopSellItemCardHtml;
