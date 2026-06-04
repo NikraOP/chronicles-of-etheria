@@ -92,8 +92,19 @@ function initPlayerCombatState() {
     isPlayerTurn = true;
 }
 
+function getStagingMonsterCandidates() {
+    if (window._stagedFixedMonster && window._stagedFixedMonster.monsterData) {
+        return [window._stagedFixedMonster.monsterData];
+    }
+    const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
+    return (loc && loc.monsters) ? loc.monsters.slice() : [];
+}
+
 function beginEngagedCombatFromStaging() {
-    if (!stagedBattleRoll && !window._stagedFixedMonster) return false;
+    if (!window._stagedFixedMonster) {
+        const candidates = getStagingMonsterCandidates();
+        if (!candidates.length) return false;
+    }
 
     if (typeof prepareBattleState === 'function') prepareBattleState();
 
@@ -102,10 +113,10 @@ function beginEngagedCombatFromStaging() {
         const opts = pack.options || {};
         setupBattleMonster(pack.monsterData, opts.scale || 1, opts.goldMult || pack.monsterData.goldMult || 10);
         window._stagedFixedMonster = null;
-    } else if (stagedBattleRoll) {
-        setupBattleMonster(stagedBattleRoll.mData, stagedBattleRoll.scale, stagedBattleRoll.goldMult);
     } else {
-        return false;
+        const roll = computeRandomBattleRoll();
+        if (!roll) return false;
+        setupBattleMonster(roll.mData, roll.scale, roll.goldMult);
     }
 
     originalMonsterStats.attack = currentMonster.attack;
@@ -124,15 +135,15 @@ function enterBattleZone() {
     if (typeof stopGathering === 'function') stopGathering();
     if (typeof flushPendingCraft === 'function') flushPendingCraft();
 
-    const roll = computeRandomBattleRoll();
-    if (!roll) {
+    const candidates = getStagingMonsterCandidates();
+    if (!candidates.length) {
         if (typeof addMessage === 'function') addMessage('❌ В этой локации нет монстров для боя.', 'error');
         return;
     }
 
     battleZoneActive = true;
     battleEngaged = false;
-    stagedBattleRoll = roll;
+    stagedBattleRoll = null;
     window._stagedFixedMonster = null;
     currentMonster = null;
     battleLogEntries = [];
@@ -173,12 +184,6 @@ function leaveBattleZoneAfterFlee(returnTo) {
     else if (typeof renderGame === 'function') renderGame();
 }
 
-function getStagingPreviewMonster() {
-    if (window._stagedFixedMonster) return window._stagedFixedMonster.monsterData;
-    if (stagedBattleRoll) return stagedBattleRoll.mData;
-    return null;
-}
-
 window.isBattleZoneStaging = isBattleZoneStaging;
 window.isBattleEngaged = isBattleEngaged;
 window.isBattleNavigationBlocked = isBattleNavigationBlocked;
@@ -191,4 +196,4 @@ window.enterBattleZoneWithMonster = enterBattleZoneWithMonster;
 window.commitBattleStart = commitBattleStart;
 window.applyFleePenalty = applyFleePenalty;
 window.leaveBattleZoneAfterFlee = leaveBattleZoneAfterFlee;
-window.getStagingPreviewMonster = getStagingPreviewMonster;
+window.getStagingMonsterCandidates = getStagingMonsterCandidates;

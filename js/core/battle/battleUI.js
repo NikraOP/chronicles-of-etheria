@@ -1,35 +1,45 @@
 // js/core/battle/battleUI.js
 
+function buildStagingMonsterRosterHtml(candidates, isFixed) {
+    if (!candidates || !candidates.length) {
+        return '<p class="battle-staging-roster-empty">В этой локации нет противников.</p>';
+    }
+    let list = '';
+    for (let i = 0; i < candidates.length; i++) {
+        const m = candidates[i];
+        const icon = m.icon || '👹';
+        list += '<li class="battle-staging-roster-item">' +
+            '<span class="battle-staging-roster-icon" aria-hidden="true">' + icon + '</span>' +
+            '<span class="battle-staging-roster-name">' + escapeBattleHtml(m.name || 'Монстр') + '</span>' +
+            '</li>';
+    }
+    const title = isFixed ? '⚠️ Особый противник (бой с добычи)' : '👹 Кто может выйти против вас';
+    const hint = isFixed
+        ? 'Противник определён событием — появится после «В бой».'
+        : 'Конкретный враг выбирается случайно из списка при нажатии «В бой».';
+    return '<div class="battle-staging-roster">' +
+        '<h3 class="battle-staging-roster-title">' + title + '</h3>' +
+        '<ul class="battle-staging-roster-list">' + list + '</ul>' +
+        '<p class="battle-staging-roster-hint">' + hint + '</p>' +
+        '</div>';
+}
+
 function renderBattleStaging() {
     if (!player || typeof isBattleZoneStaging !== 'function' || !isBattleZoneStaging()) return;
     const loc = LOCATIONS.find(l => l.name === player.location) || LOCATIONS[0];
-    const preview = typeof getStagingPreviewMonster === 'function' ? getStagingPreviewMonster() : null;
+    const candidates = typeof getStagingMonsterCandidates === 'function' ? getStagingMonsterCandidates() : [];
+    const isFixed = !!(window._stagedFixedMonster && window._stagedFixedMonster.monsterData);
     const bgStyle = loc.bgColor;
     const av = getAvatar();
-    const monsterIcon = preview ? (preview.icon || '👹') : '❓';
-    const monsterName = preview ? escapeBattleHtml(preview.name) : 'Неизвестный противник';
-    const monsterSrc = preview && preview.img
-        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(preview.img) : preview.img)
-        : '';
-    const monsterImg = monsterSrc
-        ? '<img src="' + monsterSrc + '" class="battle-staging-monster-img" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<span class=sprite-fallback>' + monsterIcon + '</span>\'">'
-        : '<span class="sprite-fallback battle-staging-monster-silhouette">' + monsterIcon + '</span>';
+    const rosterHtml = buildStagingMonsterRosterHtml(candidates, isFixed);
 
     const html = '<div class="battle-wrapper battle-wrapper--staging">' +
         '<div class="battle-staging-header">' +
             '<h2 class="battle-staging-title">⚔️ ' + escapeBattleHtml(loc.name) + '</h2>' +
-            '<p class="battle-staging-sub">Вы на поле боя. Нажмите «В бой», чтобы начать схватку. До этого можно сменить раздел меню.</p>' +
+            '<p class="battle-staging-sub">Поле боя. Противника ещё не видно — только возможные имена. Нажмите «В бой», чтобы начать.</p>' +
         '</div>' +
         '<div class="battle-arena battle-arena--staging" style="background:' + bgStyle + ';" id="battleArena">' +
-            '<div class="combatant-wrapper battle-staging-enemy" id="enemyWrapper">' +
-                '<div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div>' +
-                '<div class="combatant-info">' +
-                    '<div class="combatant-name" style="color:#e74c3c;">' + monsterName + '</div>' +
-                    '<div class="battle-staging-wait">Ожидает начала боя…</div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="vs-badge vs-badge--staging">⚔️ Подготовка ⚔️</div>' +
-            '<div class="combatant-wrapper" id="playerWrapper">' +
+            '<div class="combatant-wrapper battle-staging-player" id="playerWrapper">' +
                 '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
                 '<div class="combatant-info">' +
                     '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
@@ -37,6 +47,8 @@ function renderBattleStaging() {
                         (player.class === 'Маг' ? ' | 💎' + player.mana + '/' + player.maxMana : '') + '</div>' +
                 '</div>' +
             '</div>' +
+            '<div class="vs-badge vs-badge--staging">⚔️ Подготовка ⚔️</div>' +
+            '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
         '</div>' +
         '<div class="battle-staging-commit-wrap">' +
             '<button type="button" class="action-btn battle-commit-btn" id="battleCommitBtn" onclick="commitBattleStart()">⚔️ В бой</button>' +

@@ -34,6 +34,7 @@ function assert(c, m) { if (!c) throw new Error(m); }
 ctx.enterBattleZone();
 assert(ctx.isBattleZoneStaging(), 'staging after enter');
 assert(!ctx.currentMonster, 'no monster until commit');
+assert(ctx.getStagingMonsterCandidates().length === 1, 'roster has monsters');
 assert(ctx._staged, 'staging UI rendered');
 
 ctx.commitBattleStart();
