@@ -17,6 +17,28 @@
             .replace(/"/g, '&quot;');
     }
 
+    function escapeAttr(s) {
+        return escapeAccHtml(s).replace(/'/g, '&#39;');
+    }
+
+    function setAccountGateBody(active) {
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.toggle('account-gate-active', !!active);
+        }
+    }
+
+    function jsOnclickStr(s) {
+        return "'" + String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+    }
+
+    function accountPlayBtnOnclick(charId) {
+        return 'window.playAccountCharacter(' + jsOnclickStr(charId) + ')';
+    }
+
+    function accountDeleteBtnOnclick(charId, name) {
+        return 'window.deleteAccountCharacter(' + jsOnclickStr(charId) + ',' + jsOnclickStr(name || 'персонажа') + ')';
+    }
+
     function getApiBase() {
         if (typeof getFriendsApiBase === 'function') return getFriendsApiBase();
         if (typeof window !== 'undefined' && window.ETHERIA_FRIENDS_HTTP_API) {
@@ -144,41 +166,59 @@
         const tab = window._accountAuthTab || 'login';
         const el = document.getElementById('app');
         if (!el) return;
+        setAccountGateBody(true);
         el.innerHTML =
-            '<div class="account-screen">' +
-            '<div class="account-panel account-panel--auth">' +
-            '<h1 class="account-panel__title">⚔️ Хроники Этерии</h1>' +
-            '<p class="account-panel__sub">Войдите или создайте аккаунт — персонажи хранятся на сервере.</p>' +
-            '<div class="account-tabs">' +
+            '<div class="account-gate">' +
+            '<div class="account-gate__backdrop" aria-hidden="true"></div>' +
+            '<div class="account-gate__card account-panel account-panel--auth">' +
+            '<div class="account-gate__brand">' +
+            '<span class="account-gate__emblem" aria-hidden="true">⚔️</span>' +
+            '<h1 class="account-gate__title">Хроники Этерии</h1>' +
+            '<p class="account-gate__tagline">Облачный аккаунт · до 8 персонажей · синхронизация с сервером</p>' +
+            '</div>' +
+            '<div class="account-tabs account-tabs--auth">' +
             '<button type="button" class="account-tab' + (tab === 'login' ? ' account-tab--active' : '') +
             '" onclick="setAccountAuthTab(\'login\')">Вход</button>' +
             '<button type="button" class="account-tab' + (tab === 'register' ? ' account-tab--active' : '') +
             '" onclick="setAccountAuthTab(\'register\')">Регистрация</button>' +
             '</div>' +
+            '<div class="account-gate__form-wrap">' +
             (tab === 'register' ? renderRegisterForm() : renderLoginForm()) +
-            '<p id="accountAuthError" class="account-auth-error" style="display:none"></p>' +
+            '</div>' +
+            '<p id="accountAuthError" class="account-auth-error" style="display:none" role="alert"></p>' +
             '</div></div>';
     }
 
     function renderLoginForm() {
-        return '<form class="account-form" onsubmit="submitAccountLogin(event)">' +
-            '<label class="account-label">Логин</label>' +
-            '<input id="accountLoginInput" class="hero-input account-input" autocomplete="username" maxlength="20" required>' +
-            '<label class="account-label">Пароль</label>' +
-            '<input id="accountPassInput" type="password" class="hero-input account-input" autocomplete="current-password" maxlength="64" required>' +
-            '<button type="submit" class="action-btn account-submit">Войти</button>' +
+        return '<form class="account-form account-form--auth" onsubmit="submitAccountLogin(event)">' +
+            '<div class="account-field">' +
+            '<label class="account-label" for="accountLoginInput">Логин</label>' +
+            '<input id="accountLoginInput" class="hero-input account-input" autocomplete="username" maxlength="20" placeholder="Ваш логин" required>' +
+            '</div>' +
+            '<div class="account-field">' +
+            '<label class="account-label" for="accountPassInput">Пароль</label>' +
+            '<input id="accountPassInput" type="password" class="hero-input account-input" autocomplete="current-password" maxlength="64" placeholder="••••••••" required>' +
+            '</div>' +
+            '<button type="submit" class="action-btn account-submit account-submit--primary">Войти в аккаунт</button>' +
             '</form>';
     }
 
     function renderRegisterForm() {
-        return '<form class="account-form" onsubmit="submitAccountRegister(event)">' +
-            '<label class="account-label">Логин</label>' +
-            '<input id="accountRegLogin" class="hero-input account-input" autocomplete="username" maxlength="20" required>' +
-            '<label class="account-label">Пароль</label>' +
-            '<input id="accountRegPass" type="password" class="hero-input account-input" autocomplete="new-password" maxlength="64" required>' +
-            '<label class="account-label">Повторите пароль</label>' +
-            '<input id="accountRegPass2" type="password" class="hero-input account-input" autocomplete="new-password" maxlength="64" required>' +
-            '<button type="submit" class="action-btn account-submit">Создать аккаунт</button>' +
+        return '<form class="account-form account-form--auth" onsubmit="submitAccountRegister(event)">' +
+            '<div class="account-field">' +
+            '<label class="account-label" for="accountRegLogin">Логин</label>' +
+            '<input id="accountRegLogin" class="hero-input account-input" autocomplete="username" maxlength="20" placeholder="3–20 символов" required>' +
+            '<span class="account-field-hint">Буквы, цифры, подчёркивание</span>' +
+            '</div>' +
+            '<div class="account-field">' +
+            '<label class="account-label" for="accountRegPass">Пароль</label>' +
+            '<input id="accountRegPass" type="password" class="hero-input account-input" autocomplete="new-password" maxlength="64" placeholder="Минимум 6 символов" required>' +
+            '</div>' +
+            '<div class="account-field">' +
+            '<label class="account-label" for="accountRegPass2">Повторите пароль</label>' +
+            '<input id="accountRegPass2" type="password" class="hero-input account-input" autocomplete="new-password" maxlength="64" placeholder="Ещё раз пароль" required>' +
+            '</div>' +
+            '<button type="submit" class="action-btn account-submit account-submit--primary">Создать аккаунт</button>' +
             '</form>';
     }
 
@@ -248,6 +288,7 @@
     async function openCharacterHub() {
         const el = document.getElementById('app');
         if (!el) return;
+        setAccountGateBody(true);
         const acc = loadAccountState();
         el.innerHTML = '<div class="account-screen account-screen--loading"><p>Загрузка персонажей…</p></div>';
         let chars = [];
@@ -291,9 +332,11 @@
                     '<div class="account-char-card__time">🕐 ' + escapeAccHtml(formatCharTime(c.updatedAt)) + '</div>' +
                     '</div>' +
                     '<div class="account-char-card__actions">' +
-                    '<button type="button" class="action-btn" data-account-play-id="' + escapeAccHtml(c.id) + '">Играть</button>' +
-                    '<button type="button" class="action-btn danger" data-account-delete-id="' + escapeAccHtml(c.id) +
-                    '" data-account-delete-name="' + escapeAccHtml(c.name) + '">Удалить</button>' +
+                    '<button type="button" class="action-btn account-play-btn" data-account-play-id="' + escapeAttr(c.id) +
+                    '" onclick="' + accountPlayBtnOnclick(c.id) + '">▶ Играть</button>' +
+                    '<button type="button" class="action-btn danger account-delete-btn" data-account-delete-id="' + escapeAttr(c.id) +
+                    '" data-account-delete-name="' + escapeAttr(c.name || 'персонажа') +
+                    '" onclick="' + accountDeleteBtnOnclick(c.id, c.name) + '">Удалить</button>' +
                     '</div></article>';
             });
             listHtml += '</div>';
@@ -328,9 +371,15 @@
                 method: 'POST',
                 body: { player: migrated }
             });
-            if (data.character && data.character.id) {
-                setActiveCharId(data.character.id);
-                if (typeof addMessage === 'function') addMessage('✅ Персонаж импортирован в аккаунт', 'success');
+            const charId = data.character && data.character.id;
+            if (!charId) throw new Error('no_char');
+            await accountFetch('/api/v1/characters/' + encodeURIComponent(charId), {
+                method: 'PUT',
+                body: { player: migrated, saveVersion: '3.1' }
+            });
+            setActiveCharId(charId);
+            if (typeof addMessage === 'function') {
+                addMessage('✅ Персонаж импортирован на сервер', 'success');
             }
             await openCharacterHub();
         } catch (e) {
@@ -355,18 +404,43 @@
     }
 
     async function playAccountCharacter(charId) {
-        const id = String(charId || '');
+        const id = String(charId || '').trim();
         if (!id) return;
         setActiveCharId(id);
+        const app = document.getElementById('app');
+        if (app) {
+            app.innerHTML = '<div class="account-screen account-screen--loading"><p>Загрузка персонажа…</p></div>';
+        }
         try {
-            const data = await accountFetch('/api/v1/characters/' + encodeURIComponent(id));
+            let data = await accountFetch('/api/v1/characters/' + encodeURIComponent(id));
+            if (!data.player) {
+                const raw = localStorage.getItem('rpg_save_v21');
+                if (raw) {
+                    try {
+                        const d = JSON.parse(raw);
+                        if (d && d.class) {
+                            const migrated = typeof migrateOldSave === 'function' ? migrateOldSave(d) : d;
+                            await accountFetch('/api/v1/characters/' + encodeURIComponent(id), {
+                                method: 'PUT',
+                                body: { player: migrated, saveVersion: '3.1' }
+                            });
+                            data = await accountFetch('/api/v1/characters/' + encodeURIComponent(id));
+                        }
+                    } catch (_) { /* retry load */ }
+                }
+            }
             if (!data.player) {
                 window._gameAccountCreatingChar = true;
                 window._gameAccountNewCharId = id;
+                setAccountGateBody(true);
                 if (typeof renderCharacterCreation === 'function') renderCharacterCreation();
+                if (typeof addMessage === 'function') {
+                    addMessage('Создайте героя для этого слота (сохранение на сервере пустое).', 'info');
+                }
                 return;
             }
             if (!applyLoadedPlayer(data)) throw new Error('load');
+            setAccountGateBody(false);
             if (typeof renderGame === 'function') renderGame();
             if (typeof startFriendsInvitePolling === 'function') startFriendsInvitePolling();
         } catch (e) {
@@ -395,6 +469,7 @@
             window._gameAccountCreatingChar = true;
             window._gameAccountNewCharId = data.character.id;
             setActiveCharId(data.character.id);
+            setAccountGateBody(true);
             if (typeof renderCharacterCreation === 'function') renderCharacterCreation();
         } catch (e) {
             if (typeof addMessage === 'function') addMessage('❌ ' + accountErrorMessage(e), 'error');
@@ -412,6 +487,7 @@
             window._gameAccountCreatingChar = false;
             window._gameAccountNewCharId = '';
             setActiveCharId(charId);
+            setAccountGateBody(false);
             if (typeof saveGame === 'function') saveGame();
             if (typeof renderGame === 'function') renderGame();
             if (typeof startFriendsInvitePolling === 'function') startFriendsInvitePolling();
@@ -483,6 +559,7 @@
             try {
                 const data = await accountFetch('/api/v1/characters/' + encodeURIComponent(activeId));
                 if (data.player && applyLoadedPlayer(data)) {
+                    setAccountGateBody(false);
                     if (typeof renderGame === 'function') renderGame();
                     if (typeof startFriendsInvitePolling === 'function') startFriendsInvitePolling();
                     return;
@@ -506,25 +583,6 @@
 
     hookSaveGameForCloud();
 
-    function bindAccountHubClickDelegation() {
-        if (window.__accountHubClickBound) return;
-        document.addEventListener('click', function (e) {
-            const playBtn = e.target && e.target.closest ? e.target.closest('[data-account-play-id]') : null;
-            if (playBtn) {
-                const id = playBtn.getAttribute('data-account-play-id');
-                if (id) playAccountCharacter(id);
-                return;
-            }
-            const delBtn = e.target && e.target.closest ? e.target.closest('[data-account-delete-id]') : null;
-            if (delBtn) {
-                const id = delBtn.getAttribute('data-account-delete-id');
-                const name = delBtn.getAttribute('data-account-delete-name') || '';
-                if (id) deleteAccountCharacter(id, name);
-            }
-        });
-        window.__accountHubClickBound = true;
-    }
-    bindAccountHubClickDelegation();
 
     window.bootstrapGameAccount = bootstrapGameAccount;
     window.setAccountAuthTab = setAuthTab;
