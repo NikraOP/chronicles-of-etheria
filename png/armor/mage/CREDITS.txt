@@ -1,0 +1,6 @@
+Mage armor icons (CC0 / public domain):
+
+- Idylwild's Armory — https://opengameart.org/content/idylwilds-armory (CC0)
+- FANTASY-magic-set hat — https://opengameart.org/content/fantasy-magic-set (CC0, Melissa Krautheim)
+
+Installed via scripts/setup-mage-armor-icons.mjs
