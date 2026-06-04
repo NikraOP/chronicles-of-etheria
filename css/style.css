@@ -6273,6 +6273,177 @@ body.account-gate-active #app.account-gate-layout {
     }
 }
 
+/* —— Друзья: вкладки и обмены —— */
+.friends-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+.friends-tab {
+    flex: 1;
+    min-height: 44px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.friends-tab--active {
+    border-color: var(--border-gold);
+    color: var(--gold-light);
+    background: rgba(var(--accent-rgb), 0.14);
+}
+.friend-card__actions .friend-exchange-btn,
+.friend-card__actions .friend-duel-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 120px;
+}
+.exchange-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.exchange-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.3);
+}
+.exchange-card--incoming {
+    border-color: rgba(45, 212, 191, 0.35);
+}
+.exchange-card--outgoing {
+    border-color: rgba(var(--accent-rgb), 0.25);
+}
+.exchange-card__badge {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gold-light);
+    margin-right: 8px;
+}
+.exchange-card__line {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.exchange-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.exchange-card__actions .action-btn {
+    flex: 1 1 120px;
+    min-height: 40px;
+}
+.exchange-card__wait {
+    margin: 10px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.modal-exchange {
+    text-align: center;
+    max-width: min(520px, 92vw);
+    padding: 8px 4px 4px;
+}
+.modal-exchange__title {
+    margin: 0 0 12px;
+    font-family: var(--font-display);
+    color: var(--gold-light);
+}
+.modal-exchange__hint,
+.modal-exchange__msg,
+.modal-exchange__line {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 8px 0;
+}
+.modal-exchange__icon {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+}
+.exchange-kind-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.exchange-kind-tab {
+    flex: 1;
+    min-height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+}
+.exchange-kind-tab--on {
+    border-color: var(--border-gold);
+    color: var(--gold-light);
+    background: rgba(var(--accent-rgb), 0.12);
+}
+.exchange-modal__section {
+    text-align: left;
+    margin: 16px 0;
+    padding-top: 12px;
+    border-top: 1px solid rgba(var(--accent-rgb), 0.15);
+}
+.exchange-modal__section h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--gold-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.exchange-picker__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: min(36vh, 220px);
+    overflow-y: auto;
+    margin-top: 8px;
+}
+.exchange-picker__item {
+    flex: 1 1 calc(50% - 6px);
+    min-height: 38px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px 8px;
+    text-align: left;
+}
+.exchange-picker__item--on {
+    border-color: var(--border-gold);
+    color: var(--gold-light);
+    background: rgba(var(--accent-rgb), 0.14);
+}
+.exchange-picker__hint,
+.exchange-picker__empty {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 6px 0 0;
+}
+.modal-exchange__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 18px;
+}
+.modal-exchange__actions .modal-btn {
+    flex: 1 1 140px;
+    min-height: 44px;
+}
+
 @media (max-width: 600px) {
     .account-gate {
         align-items: flex-start;

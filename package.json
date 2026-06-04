@@ -26,6 +26,7 @@
     "test:friends-profile": "node scripts/test-friends-profile.js",
     "test:pvp-cloud": "node scripts/test-pvp-cloud-api.js",
     "test:pvp-invite": "node scripts/test-pvp-invite-api.js",
+    "test:friend-exchange": "node scripts/test-friend-exchange-api.js",
     "test:game-account": "node scripts/test-game-account-api.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

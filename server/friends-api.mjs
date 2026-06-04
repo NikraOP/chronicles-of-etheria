@@ -10,6 +10,7 @@ import { ensureDir, flushAll } from './lib/jsonFile.mjs';
 import { createAccountsApi } from './lib/accounts.mjs';
 import { createPvPRoomsApi } from './lib/pvpRooms.mjs';
 import { createBattleInvitesApi } from './lib/battleInvites.mjs';
+import { createFriendExchangesApi } from './lib/friendExchanges.mjs';
 import { createGameAccountsApi } from './lib/gameAccounts.mjs';
 import { createHttpHelpers } from './lib/httpUtil.mjs';
 
@@ -24,6 +25,7 @@ const { corsHeaders, json, readJsonBody } = createHttpHelpers(CORS_ORIGINS);
 const accounts = createAccountsApi(DATA_DIR);
 const pvp = createPvPRoomsApi(PVP_DIR);
 const battleInvites = createBattleInvitesApi(DATA_DIR, pvp, accounts);
+const friendExchanges = createFriendExchangesApi(DATA_DIR, accounts);
 const gameAccounts = createGameAccountsApi(DATA_DIR);
 
 async function requireAuth(req, res, origin) {
@@ -329,6 +331,55 @@ const server = createServer(async (req, res) => {
             const since = url.searchParams.get('since') || '0';
             const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
             const result = await battleInvites.pollInvites(account.playerId, since, waitMs);
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/exchanges') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const result = await friendExchanges.listOffers(account.playerId);
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/exchanges/send') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const result = await friendExchanges.sendOffer(account, body.toPlayerId, body);
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error, message: result.message }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const exchangeRespondMatch = url.pathname.match(/^\/api\/v1\/exchanges\/([a-zA-Z0-9_]+)\/respond$/);
+        if (req.method === 'POST' && exchangeRespondMatch) {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const result = await friendExchanges.respondOffer(
+                account.playerId,
+                exchangeRespondMatch[1],
+                !!(body && body.accept)
+            );
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error, message: result.message }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/exchanges/poll') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const since = url.searchParams.get('since') || '0';
+            const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
+            const result = await friendExchanges.pollExchanges(account.playerId, since, waitMs);
             json(res, 200, result, origin);
             return;
         }

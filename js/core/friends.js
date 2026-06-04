@@ -363,6 +363,10 @@ function friendsErrorMessage(err) {
     if (code === 'not_friend') return 'Можно вызывать на бой только друзей из списка.';
     if (code === 'invalid_target') return 'Некорректный игрок для вызова.';
     if (code === 'invite_not_found') return 'Приглашение устарело или уже обработано.';
+    if (code === 'offer_not_found') return 'Обмен устарел или уже обработан.';
+    if (code === 'exchange_limit') return 'Слишком много активных обменов.';
+    if (code === 'empty_offer' || code === 'empty_request') return (err.data && err.data.message) || 'Заполните предложение обмена.';
+    if (code === 'not_friend') return 'Можно обмениваться только с друзьями из списка.';
     if (code === 'not_friend') return 'Можно вызывать только из списка друзей.';
     if (code === 'room_exists') return 'Не удалось создать комнату — попробуйте снова.';
     if (code === 'room_not_found') return 'Комната PvP не найдена (истекла).';
@@ -441,6 +445,7 @@ function stopFriendsLiveUpdates() {
         clearInterval(friendsListPollTimer);
         friendsListPollTimer = null;
     }
+    if (typeof stopFriendsExchangePolling === 'function') stopFriendsExchangePolling();
 }
 
 function startFriendsLiveUpdates() {
@@ -764,7 +769,10 @@ function renderFriendCard(entry) {
         '<footer class="friend-card__footer">' +
         '<div class="friend-card__actions">' +
         (playerId
-            ? '<button type="button" class="action-btn friend-duel-btn" data-pvp-challenge-id="' +
+            ? '<button type="button" class="action-btn friend-exchange-btn" data-exchange-target-id="' +
+                escapeFriendsHtml(playerId) + '" data-exchange-target-name="' +
+                escapeFriendsHtml(p.name || 'Герой') + '">🎁 Обмен</button>' +
+            '<button type="button" class="action-btn friend-duel-btn" data-pvp-challenge-id="' +
                 escapeFriendsHtml(playerId) + '" data-pvp-challenge-name="' +
                 escapeFriendsHtml(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>'
             : '') +
@@ -829,6 +837,7 @@ async function friendsOpenScreen() {
     await refreshFriendsFromServer();
     startFriendsLiveUpdates();
     startFriendsInvitePolling();
+    if (typeof startFriendsExchangePolling === 'function') startFriendsExchangePolling();
     scheduleFriendsProfilePush();
     renderFriendsScreenInner();
 }
@@ -852,6 +861,25 @@ function renderFriendsScreenInner() {
     html += '<p id="friendsLiveStatus" class="friends-live-status">' + escapeFriendsHtml(synced ? 'На сервере' : 'Подключение…') + '</p>';
     html += '<span class="friends-backend-badge">' + escapeFriendsHtml(backendLabel) + '</span>';
     html += '</header>';
+
+    if (typeof buildFriendsTabsHtml === 'function') {
+        html += buildFriendsTabsHtml();
+    }
+
+    if (typeof getFriendsActiveTab === 'function' && getFriendsActiveTab() === 'exchanges') {
+        if (typeof renderExchangesTabHtml === 'function') {
+            html += renderExchangesTabHtml();
+        }
+        html += '</div>';
+        el.innerHTML = html;
+        friendsUpdateLiveStatus(synced ? 'online' : 'loading');
+        if (typeof refreshExchangesList === 'function') refreshExchangesList().then(function () {
+            if (document.querySelector('.friends-screen') && typeof renderFriendsScreenInner === 'function') {
+                renderFriendsScreenInner();
+            }
+        });
+        return;
+    }
 
     html += '<section class="friends-panel friends-panel--me">';
     html += '<div class="friends-me-layout">';
@@ -919,6 +947,7 @@ function friendsHookRenderGame() {
         if (player && player.friends) {
             scheduleFriendsProfilePush();
             startFriendsInvitePolling();
+            if (typeof startFriendsExchangePolling === 'function') startFriendsExchangePolling();
             if (!player.friends.playerId && typeof ensureFriendsOnlineSession === 'function') {
                 ensureFriendsOnlineSession({ silent: true });
             }

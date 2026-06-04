@@ -170,7 +170,7 @@ function computeGiftChecksum(payload) {
     return 'g' + (h >>> 0).toString(16);
 }
 
-function buildGiftPayloadFromDraft() {
+function collectGiftDraftRefs() {
     const refs = [];
     Object.keys(_giftDraftSelected).forEach(invKey => {
         Object.keys(_giftDraftSelected[invKey]).forEach(idx => {
@@ -181,23 +181,42 @@ function buildGiftPayloadFromDraft() {
         if (a.invKey !== b.invKey) return a.invKey.localeCompare(b.invKey);
         return b.index - a.index;
     });
+    return refs;
+}
+
+function peekGiftPayloadFromDraft() {
     const items = [];
-    refs.forEach(ref => {
+    collectGiftDraftRefs().forEach(ref => {
         const list = player.inventory[ref.invKey];
         if (!list || ref.index < 0 || ref.index >= list.length) return;
         if (isGiftItemEquipped(ref.invKey, ref.index)) return;
-        const item = list[ref.index];
         items.push({
             invType: ref.invKey,
-            item: JSON.parse(JSON.stringify(item))
+            item: JSON.parse(JSON.stringify(list[ref.index]))
         });
+    });
+    const gold = Math.min(_giftDraftGold, player.gold || 0);
+    return { gold: gold, items: items };
+}
+
+function deductGiftDraftFromPlayer() {
+    const refs = collectGiftDraftRefs();
+    refs.forEach(ref => {
+        const list = player.inventory[ref.invKey];
+        if (!list || ref.index < 0 || ref.index >= list.length) return;
         list.splice(ref.index, 1);
     });
     const gold = Math.min(_giftDraftGold, player.gold || 0);
     if (gold > 0) player.gold -= gold;
+    resetGiftDraft();
+}
+
+function buildGiftPayloadFromDraft() {
+    const peek = peekGiftPayloadFromDraft();
+    deductGiftDraftFromPlayer();
     const body = {
-        gold: gold,
-        items: items
+        gold: peek.gold,
+        items: peek.items
     };
     const gift = {
         kind: GIFT_MAIL_KIND,
@@ -506,5 +525,15 @@ window.validateGiftObject = validateGiftObject;
 window.markGiftConsumed = markGiftConsumed;
 window.isGiftIdConsumed = isGiftIdConsumed;
 window.buildGiftPayloadFromDraft = buildGiftPayloadFromDraft;
+window.peekGiftPayloadFromDraft = peekGiftPayloadFromDraft;
+window.deductGiftDraftFromPlayer = deductGiftDraftFromPlayer;
+window.grantGiftPayload = grantGiftPayload;
+window.collectGiftableInventoryEntries = collectGiftableInventoryEntries;
+window.resetGiftDraft = resetGiftDraft;
+window.toggleGiftDraftItem = toggleGiftDraftItem;
+window.setGiftDraftGold = setGiftDraftGold;
+window.isGiftItemEquipped = isGiftItemEquipped;
+window.isGiftDraftSelected = isGiftDraftSelected;
+window.GIFT_INVENTORY_TYPES = GIFT_INVENTORY_TYPES;
 window.buildConsumedGiftJson = buildConsumedGiftJson;
 window.unpackGiftObject = unpackGiftObject;
