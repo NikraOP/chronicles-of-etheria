@@ -75,7 +75,8 @@ function buildAbilityProgressionPanelHtml() {
             const focusLabel = rank > 0 && typeof getAbilityUpgradeTrackLabel === 'function'
                 ? getAbilityUpgradeTrackLabel(player, a.name) : '';
             html += '<div class="prog-ability-row' + (a.passive ? ' prog-ability-row--passive' : '') +
-                (multi ? ' prog-ability-row--multi' : '') + '">' +
+                (multi ? ' prog-ability-row--multi' : '') + '" data-ability-name="' +
+                escapeHtml(a.name) + '">' +
                 '<span class="prog-ability-row__icon">' + (a.icon || '✨') + '</span>' +
                 '<div class="prog-ability-row__body">' +
                     '<div class="prog-ability-row__name">' + escapeHtml(a.name) + '</div>' +
@@ -138,7 +139,7 @@ function onAbilityUpgradeTrackClick(abilityName, trackId) {
             ? getAbilityUpgradeTrackLabel(player, abilityName) : trackId;
         addMessage('🎯 Ветка: ' + (label || trackId), 'info');
     }
-    refreshAbilitiesScreen();
+    refreshAbilitiesScreen(abilityName);
 }
 
 function onUpgradeAbilityClick(abilityName) {
@@ -165,7 +166,7 @@ function onUpgradeAbilityClick(abilityName) {
         addMessage('✨ ' + abilityName + ' улучшена! (ранг ' + getAbilityUpgradeRank(player, abilityName) +
             (branchLabel ? ', ' + branchLabel : '') + ')', 'success');
     }
-    refreshAbilitiesScreen();
+    refreshAbilitiesScreen(abilityName);
 }
 
 function onLearnSchoolLessonClick(lessonId) {
@@ -207,8 +208,14 @@ function onProgressionRespecClick() {
     }
 }
 
-function refreshAbilitiesScreen() {
-    if (typeof showAbilities === 'function') showAbilities();
+function refreshAbilitiesScreen(focusAbilityName) {
+    if (typeof showAbilities === 'function') {
+        showAbilities({
+            preserveScroll: true,
+            refreshOnly: true,
+            focusAbilityName: focusAbilityName || ''
+        });
+    }
 }
 
 window.buildAbilityProgressionPanelHtml = buildAbilityProgressionPanelHtml;

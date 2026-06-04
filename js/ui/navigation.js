@@ -120,11 +120,52 @@ function learnProfession(profId) {
     showModal('📚 Профессия изучена!', prof.icon, 'Вы изучили профессию «' + prof.name + '»!\n\n' + prof.desc + '\n\n⭐ 1 тир (всего 6)\n\n📈 Бонусы текущего тира:\n• -5% времени сбора\n• +5% шанс двойной добычи\n• +5% качество крафта', 'Продолжить', () => showProfessions());
 }
 
-function showAbilities() {
+function captureAbilitiesScreenScroll() {
+    const main = document.getElementById('mainContent') || document.querySelector('.main-content');
+    const dc = document.getElementById('dynamicContent');
+    const progList = document.querySelector('.prog-ability-list');
+    return {
+        mainScrollTop: main ? main.scrollTop : 0,
+        dcScrollTop: dc ? dc.scrollTop : 0,
+        progListScrollTop: progList ? progList.scrollTop : 0,
+        windowY: typeof window.scrollY === 'number' ? window.scrollY : 0
+    };
+}
+
+function restoreAbilitiesScreenScroll(state) {
+    if (!state) return;
+    const apply = function () {
+        const main = document.getElementById('mainContent') || document.querySelector('.main-content');
+        const dc = document.getElementById('dynamicContent');
+        const progList = document.querySelector('.prog-ability-list');
+        if (main) main.scrollTop = state.mainScrollTop;
+        if (dc) dc.scrollTop = state.dcScrollTop;
+        if (progList) progList.scrollTop = state.progListScrollTop;
+        if (state.windowY) window.scrollTo(0, state.windowY);
+        if (state.focusAbilityName) {
+            const rows = document.querySelectorAll('.prog-ability-row[data-ability-name]');
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i].getAttribute('data-ability-name') === state.focusAbilityName) {
+                    rows[i].scrollIntoView({ block: 'nearest', behavior: 'auto' });
+                    break;
+                }
+            }
+        }
+    };
+    requestAnimationFrame(function () {
+        requestAnimationFrame(apply);
+    });
+}
+
+function showAbilities(options) {
+    options = options || {};
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
-    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
-    stopGathering();
+    const scrollSnapshot = options.preserveScroll ? captureAbilitiesScreenScroll() : null;
+    if (!options.refreshOnly && typeof uiNavOnScreenOpen === 'function') {
+        uiNavOnScreenOpen('renderGame', []);
+    }
+    if (!options.refreshOnly) stopGathering();
     if (typeof updateAllAbilities === 'function') updateAllAbilities();
     if (typeof ensureAbilityQuickSlots === 'function') ensureAbilityQuickSlots(player);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
@@ -167,7 +208,14 @@ function showAbilities() {
     html += '</div>';
     document.getElementById('dynamicContent').innerHTML = html;
     if (typeof initAbilityHotbarEditor === 'function') initAbilityHotbarEditor();
+    if (scrollSnapshot) {
+        if (options.focusAbilityName) scrollSnapshot.focusAbilityName = options.focusAbilityName;
+        restoreAbilitiesScreenScroll(scrollSnapshot);
+    }
 }
+
+window.captureAbilitiesScreenScroll = captureAbilitiesScreenScroll;
+window.restoreAbilitiesScreenScroll = restoreAbilitiesScreenScroll;
 
 // Функция создания нового персонажа
 window.createNewCharacter = function() {
