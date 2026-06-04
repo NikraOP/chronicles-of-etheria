@@ -144,8 +144,12 @@ function sanitizeProfile(profile) {
         gold: Math.max(0, Math.floor(Number(profile.gold) || 0)),
         victories: Math.max(0, Math.floor(Number(profile.victories) || 0)),
         location: String(profile.location || '').slice(0, 80),
-        schoolImg: String(profile.schoolImg || '').slice(0, 200),
+        gender: String(profile.gender || 'male').slice(0, 12),
+        schoolImg: String(profile.schoolImg || profile.portraitImg || '').slice(0, 200),
+        portraitImg: String(profile.portraitImg || profile.schoolImg || '').slice(0, 200),
         currentSkin: profile.currentSkin != null ? String(profile.currentSkin).slice(0, 80) : null,
+        skinName: String(profile.skinName || '').slice(0, 48),
+        skinIcon: String(profile.skinIcon || '').slice(0, 8),
         stats: {},
         equipment: {}
     };
