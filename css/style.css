@@ -1694,6 +1694,63 @@ body.gather-screen-flash::after {
     gap: 6px;
     width: 100%;
 }
+.ability-hotbar__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: 0;
+}
+.ability-hotbar__bind {
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 6px;
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--gold-light);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.ability-hotbar__bind:hover {
+    border-color: var(--gold);
+    background: rgba(var(--accent-rgb), 0.15);
+}
+.ability-hotbar__bind--listening {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
+    animation: hotbarBindPulse 1s ease-in-out infinite;
+}
+@keyframes hotbarBindPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
+}
+.ability-hotbar__key {
+    display: block;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+}
+.ability-hotbar--battle .ability-hotbar__key {
+    margin-bottom: 0;
+}
+.ability-hotbar-editor__binding {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: var(--gold-light);
+    text-align: center;
+}
+.ability-hotbar-editor--binding .ability-hotbar__slot--editor:not(.drag-over) {
+    opacity: 0.85;
+}
 .ability-hotbar__slot,
 .ability-hotbar__btn {
     position: relative;

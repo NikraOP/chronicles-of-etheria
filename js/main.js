@@ -612,6 +612,11 @@ function migrateOldSave(playerData) {
     } else if (!Array.isArray(playerData.abilityQuickSlots)) {
         playerData.abilityQuickSlots = [null, null, null, null, null];
     }
+    if (typeof ensureAbilityQuickKeys === 'function') {
+        ensureAbilityQuickKeys(playerData);
+    } else if (!Array.isArray(playerData.abilityQuickKeys)) {
+        playerData.abilityQuickKeys = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
+    }
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];

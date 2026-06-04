@@ -178,6 +178,7 @@ function finalizeCharacter() {
         },
         abilities: [],
         abilityQuickSlots: [null, null, null, null, null],
+        abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
         unlockedSkins: [],
         currentSkin: null,
         ...baseStats
@@ -233,6 +234,7 @@ function updateAllAbilities() {
     }));
     console.log(`Загружено способностей: ${player.abilities.length}`);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
+    if (typeof sanitizeAbilityQuickKeys === 'function') sanitizeAbilityQuickKeys();
     applyPassiveAbilityBonuses();
 }
 

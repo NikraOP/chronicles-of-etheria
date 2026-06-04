@@ -118,6 +118,7 @@ function showAbilities() {
     stopGathering();
     if (typeof ensureAbilityQuickSlots === 'function') ensureAbilityQuickSlots(player);
     if (typeof sanitizeAbilityQuickSlots === 'function') sanitizeAbilityQuickSlots();
+    if (typeof sanitizeAbilityQuickKeys === 'function') sanitizeAbilityQuickKeys();
     let html = '<h2>✨ Способности</h2><p>Школа: <strong>' + player.branch + '</strong></p>';
     if (typeof buildAbilityHotbarEditorHtml === 'function') {
         html += buildAbilityHotbarEditorHtml();

@@ -1,5 +1,10 @@
-// Быстрый доступ: 5 активных слотов способностей (настройка + бой)
+// Быстрый доступ: 5 активных слотов способностей (настройка + бой + бинды клавиш)
 const ABILITY_QUICK_SLOT_COUNT = 5;
+const DEFAULT_ABILITY_QUICK_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
+const HOTBAR_BIND_FORBIDDEN = new Set(['Tab', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Unidentified', 'Dead']);
+
+let _hotbarPickName = null;
+let _hotbarBindSlotIndex = null;
 
 function escapeHotbarText(s) {
     if (!s) return '';
@@ -20,6 +25,151 @@ function ensureAbilityQuickSlots(p) {
     if (p.abilityQuickSlots.length > ABILITY_QUICK_SLOT_COUNT) {
         p.abilityQuickSlots = p.abilityQuickSlots.slice(0, ABILITY_QUICK_SLOT_COUNT);
     }
+}
+
+function ensureAbilityQuickKeys(p) {
+    if (!p) return;
+    ensureAbilityQuickSlots(p);
+    if (!Array.isArray(p.abilityQuickKeys)) {
+        p.abilityQuickKeys = DEFAULT_ABILITY_QUICK_KEYS.slice();
+    }
+    while (p.abilityQuickKeys.length < ABILITY_QUICK_SLOT_COUNT) {
+        p.abilityQuickKeys.push(DEFAULT_ABILITY_QUICK_KEYS[p.abilityQuickKeys.length] || null);
+    }
+    if (p.abilityQuickKeys.length > ABILITY_QUICK_SLOT_COUNT) {
+        p.abilityQuickKeys = p.abilityQuickKeys.slice(0, ABILITY_QUICK_SLOT_COUNT);
+    }
+}
+
+function formatAbilityKeyLabel(code) {
+    if (!code) return '—';
+    const fixed = {
+        Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
+        Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+        Space: 'Пробел', Enter: 'Enter', Backspace: 'Bksp', Delete: 'Del',
+        ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+        Numpad0: 'Num0', Numpad1: 'Num1', Numpad2: 'Num2', Numpad3: 'Num3', Numpad4: 'Num4',
+        Numpad5: 'Num5', Numpad6: 'Num6', Numpad7: 'Num7', Numpad8: 'Num8', Numpad9: 'Num9',
+        NumpadAdd: 'Num+', NumpadSubtract: 'Num−', NumpadMultiply: 'Num*', NumpadDivide: 'Num/',
+        Semicolon: ';', Equal: '=', Comma: ',', Minus: '-', Period: '.', Slash: '/',
+        Backquote: '`', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Quote: "'"
+    };
+    if (fixed[code]) return fixed[code];
+    if (code.indexOf('Key') === 0 && code.length === 4) return code.slice(3);
+    if (code.indexOf('F') === 0 && /^F\d+$/.test(code)) return code;
+    return code;
+}
+
+function isAbilityHotbarBindableKey(code) {
+    if (!code || HOTBAR_BIND_FORBIDDEN.has(code)) return false;
+    if (code === 'Escape') return false;
+    return true;
+}
+
+function isAbilityHotbarTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    if (el.isContentEditable) return true;
+    if (el.closest && el.closest('.modal-overlay, #modalOverlay, #nameInput')) return true;
+    return false;
+}
+
+function getAbilityQuickKey(slotIndex) {
+    if (!player || slotIndex < 0 || slotIndex >= ABILITY_QUICK_SLOT_COUNT) return null;
+    ensureAbilityQuickKeys(player);
+    return player.abilityQuickKeys[slotIndex] || null;
+}
+
+function findAbilityHotbarSlotByKeyCode(code) {
+    if (!player || !code) return -1;
+    ensureAbilityQuickKeys(player);
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        if (player.abilityQuickKeys[i] === code) return i;
+    }
+    return -1;
+}
+
+function sanitizeAbilityQuickKeys() {
+    if (!player) return;
+    ensureAbilityQuickKeys(player);
+    const seen = new Set();
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        let code = player.abilityQuickKeys[i];
+        if (!code || !isAbilityHotbarBindableKey(code)) {
+            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
+            code = player.abilityQuickKeys[i];
+        }
+        if (seen.has(code)) {
+            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
+        } else {
+            seen.add(code);
+        }
+    }
+}
+
+function setAbilityQuickKey(slotIndex, code) {
+    if (!player || slotIndex < 0 || slotIndex >= ABILITY_QUICK_SLOT_COUNT) return false;
+    if (!isAbilityHotbarBindableKey(code)) {
+        if (typeof addMessage === 'function') {
+            addMessage('Эту клавишу нельзя назначить.', 'error');
+        }
+        return false;
+    }
+    ensureAbilityQuickKeys(player);
+    for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
+        if (i !== slotIndex && player.abilityQuickKeys[i] === code) {
+            player.abilityQuickKeys[i] = DEFAULT_ABILITY_QUICK_KEYS[i];
+        }
+    }
+    player.abilityQuickKeys[slotIndex] = code;
+    saveGame();
+    return true;
+}
+
+function startAbilityHotbarBind(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= ABILITY_QUICK_SLOT_COUNT) return;
+    _hotbarBindSlotIndex = slotIndex;
+    _hotbarPickName = null;
+    document.querySelectorAll('.ability-hotbar-source--picked').forEach(el => {
+        el.classList.remove('ability-hotbar-source--picked');
+    });
+    refreshAbilityHotbarBindUi();
+    if (typeof addMessage === 'function') {
+        addMessage('Слот ' + (slotIndex + 1) + ': нажмите клавишу (Esc — отмена).', 'info');
+    }
+}
+
+function cancelAbilityHotbarBind() {
+    if (_hotbarBindSlotIndex === null) return;
+    _hotbarBindSlotIndex = null;
+    refreshAbilityHotbarBindUi();
+}
+
+function refreshAbilityHotbarBindUi() {
+    const editor = document.getElementById('abilityHotbarEditor');
+    if (!editor) return;
+    editor.querySelectorAll('[data-bind-slot]').forEach(btn => {
+        const idx = parseInt(btn.dataset.bindSlot, 10);
+        const listening = _hotbarBindSlotIndex === idx;
+        btn.classList.toggle('ability-hotbar__bind--listening', listening);
+        btn.textContent = listening ? '…' : formatAbilityKeyLabel(getAbilityQuickKey(idx));
+    });
+    editor.classList.toggle('ability-hotbar-editor--binding', _hotbarBindSlotIndex !== null);
+}
+
+function buildAbilityHotbarBindBtnHtml(slotIndex) {
+    const listening = _hotbarBindSlotIndex === slotIndex;
+    const label = listening ? '…' : formatAbilityKeyLabel(getAbilityQuickKey(slotIndex));
+    return '<button type="button" class="ability-hotbar__bind' + (listening ? ' ability-hotbar__bind--listening' : '') +
+        '" data-bind-slot="' + slotIndex + '" title="Назначить клавишу для слота ' + (slotIndex + 1) + '">' +
+        escapeHotbarText(label) + '</button>';
+}
+
+function buildAbilityHotbarKeyHintHtml(slotIndex) {
+    const code = getAbilityQuickKey(slotIndex);
+    if (!code) return '';
+    return '<span class="ability-hotbar__key" aria-hidden="true">' + escapeHotbarText(formatAbilityKeyLabel(code)) + '</span>';
 }
 
 function getAbilityMetaByName(name) {
@@ -85,9 +235,13 @@ function setAbilityQuickSlot(slotIndex, abilityName) {
 function swapAbilityQuickSlots(fromIdx, toIdx) {
     if (!player || fromIdx === toIdx) return;
     ensureAbilityQuickSlots(player);
+    ensureAbilityQuickKeys(player);
     const tmp = player.abilityQuickSlots[fromIdx];
     player.abilityQuickSlots[fromIdx] = player.abilityQuickSlots[toIdx];
     player.abilityQuickSlots[toIdx] = tmp;
+    const tk = player.abilityQuickKeys[fromIdx];
+    player.abilityQuickKeys[fromIdx] = player.abilityQuickKeys[toIdx];
+    player.abilityQuickKeys[toIdx] = tk;
     saveGame();
 }
 
@@ -122,14 +276,16 @@ function buildHotbarSlotInnerHtml(slotIndex, mode) {
 function buildSidebarAbilityQuickbarHtml() {
     if (!player) return '';
     ensureAbilityQuickSlots(player);
+    ensureAbilityQuickKeys(player);
     let slots = '';
     for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
         const info = getHotbarSlotMeta(i);
+        const keyHint = buildAbilityHotbarKeyHintHtml(i);
         slots += '<button type="button" class="ability-hotbar__slot ability-hotbar__slot--sidebar' +
             (info ? ' ability-hotbar__slot--filled' : '') +
             '" data-slot="' + i + '" onclick="showAbilities()" title="' +
             (info ? escapeHotbarText(info.name) : 'Слот ' + (i + 1) + ' — настроить') + '">' +
-            buildHotbarSlotInnerHtml(i, 'sidebar') + '</button>';
+            keyHint + buildHotbarSlotInnerHtml(i, 'sidebar') + '</button>';
     }
     return '<div class="ability-hotbar-panel ability-hotbar-panel--sidebar">' +
         '<div class="ability-hotbar-panel__head">' +
@@ -142,29 +298,37 @@ function buildSidebarAbilityQuickbarHtml() {
 
 function buildAbilityHotbarEditorHtml() {
     ensureAbilityQuickSlots(player);
+    ensureAbilityQuickKeys(player);
     let slots = '';
     for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
         const info = getHotbarSlotMeta(i);
-        slots += '<div class="ability-hotbar__slot ability-hotbar__slot--editor' +
+        slots += '<div class="ability-hotbar__cell">' +
+            buildAbilityHotbarBindBtnHtml(i) +
+            '<div class="ability-hotbar__slot ability-hotbar__slot--editor' +
             (info ? ' ability-hotbar__slot--filled' : '') +
             '" data-slot="' + i + '" data-drop-slot="' + i + '" tabindex="0" role="button" aria-label="Слот ' + (i + 1) + '">' +
             buildHotbarSlotInnerHtml(i, 'editor') +
             '<button type="button" class="ability-hotbar__clear" data-clear-slot="' + i + '" aria-label="Очистить слот ' + (i + 1) + '">×</button>' +
-            '</div>';
+            '</div></div>';
     }
-    return '<section class="ability-hotbar-editor" id="abilityHotbarEditor">' +
+    const bindingHint = _hotbarBindSlotIndex !== null
+        ? '<p class="ability-hotbar-editor__binding">Ожидание клавиши для слота ' + (_hotbarBindSlotIndex + 1) + '… (Esc — отмена)</p>'
+        : '';
+    return '<section class="ability-hotbar-editor' + (_hotbarBindSlotIndex !== null ? ' ability-hotbar-editor--binding' : '') + '" id="abilityHotbarEditor">' +
         '<div class="ability-hotbar-panel__head">' +
         '<h3 class="ability-hotbar-panel__title">⚡ Быстрый доступ</h3>' +
-        '<span class="ability-hotbar-panel__hint">5 слотов для боя · перетащите или нажмите</span>' +
+        '<span class="ability-hotbar-panel__hint">5 слотов · перетащите способность · назначьте клавишу</span>' +
         '</div>' +
         '<div class="ability-hotbar ability-hotbar--editor" role="group">' + slots + '</div>' +
-        '<p class="ability-hotbar-editor__help">Перетащите способность в слот. На телефоне: нажмите способность, затем слот. Кнопка «✨ Способности» в бою остаётся для полного списка.</p>' +
+        bindingHint +
+        '<p class="ability-hotbar-editor__help">Над слотом — клавиша боя. Нажмите на неё и задайте любую кнопку. Перетащите способность в слот. На телефоне: тап по способности → тап по слоту. «✨ Способности» в бою — полный список.</p>' +
         '</section>';
 }
 
 function buildBattleAbilityHotbarHtml() {
     if (!player || !currentMonster) return '';
     ensureAbilityQuickSlots(player);
+    ensureAbilityQuickKeys(player);
     let btns = '';
     for (let i = 0; i < ABILITY_QUICK_SLOT_COUNT; i++) {
         const info = getHotbarSlotMeta(i);
@@ -179,10 +343,14 @@ function buildBattleAbilityHotbarHtml() {
                 onclick = 'onclick="useQuickAbility(' + i + ')"';
             }
         }
-        btns += '<button type="button" class="ability-hotbar__btn' + (info ? ' ability-hotbar__btn--filled' : '') +
+        const keyLabel = formatAbilityKeyLabel(getAbilityQuickKey(i));
+        const title = (info ? info.name + ' (' + keyLabel + ')' : 'Пустой слот (' + keyLabel + ')');
+        btns += '<div class="ability-hotbar__cell ability-hotbar__cell--battle">' +
+            buildAbilityHotbarKeyHintHtml(i) +
+            '<button type="button" class="ability-hotbar__btn' + (info ? ' ability-hotbar__btn--filled' : '') +
             extraClass + '" id="hotbarBtn' + i + '" data-hotbar-slot="' + i + '" ' + onclick +
-            (disabled ? ' disabled' : '') + ' title="' + (info ? escapeHotbarText(info.name) : 'Пустой слот') + '">' +
-            buildHotbarSlotInnerHtml(i, 'battle') + '</button>';
+            (disabled ? ' disabled' : '') + ' title="' + escapeHotbarText(title) + '">' +
+            buildHotbarSlotInnerHtml(i, 'battle') + '</button></div>';
     }
     return '<div class="ability-hotbar ability-hotbar--battle" role="group" aria-label="Быстрые способности">' + btns + '</div>';
 }
@@ -210,7 +378,18 @@ function updateAbilityBattleHotbar() {
             }
         }
         btn.onclick = canUse ? function () { useQuickAbility(i); } : null;
-        if (info) btn.title = info.name;
+        const keyLabel = formatAbilityKeyLabel(getAbilityQuickKey(i));
+        btn.title = info ? info.name + ' (' + keyLabel + ')' : 'Пустой слот (' + keyLabel + ')';
+        const cell = btn.closest('.ability-hotbar__cell--battle');
+        if (cell) {
+            let keyEl = cell.querySelector('.ability-hotbar__key');
+            if (!keyEl) {
+                keyEl = document.createElement('span');
+                keyEl.className = 'ability-hotbar__key';
+                cell.insertBefore(keyEl, btn);
+            }
+            keyEl.textContent = keyLabel;
+        }
     }
 }
 
@@ -223,6 +402,46 @@ function useQuickAbility(slotIndex) {
     if (typeof useBattleAbility === 'function') {
         useBattleAbility(info.battleIdx);
     }
+}
+
+function handleAbilityHotbarKeydown(e) {
+    if (!player) return;
+
+    if (_hotbarBindSlotIndex !== null) {
+        if (e.code === 'Escape') {
+            e.preventDefault();
+            cancelAbilityHotbarBind();
+            if (typeof addMessage === 'function') addMessage('Назначение клавиши отменено.', 'info');
+            return;
+        }
+        if (!isAbilityHotbarBindableKey(e.code)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const slot = _hotbarBindSlotIndex;
+        setAbilityQuickKey(slot, e.code);
+        _hotbarBindSlotIndex = null;
+        refreshAbilityHotbarEditor();
+        if (typeof addMessage === 'function') {
+            addMessage('Слот ' + (slot + 1) + ': клавиша «' + formatAbilityKeyLabel(e.code) + '».', 'success');
+        }
+        return;
+    }
+
+    if (!currentMonster || !isPlayerTurn) return;
+    if (isAbilityHotbarTypingTarget(e.target)) return;
+    if (e.repeat) return;
+
+    const slotIndex = findAbilityHotbarSlotByKeyCode(e.code);
+    if (slotIndex < 0) return;
+
+    e.preventDefault();
+    useQuickAbility(slotIndex);
+}
+
+function initAbilityHotbarKeyListener() {
+    if (window._abilityHotbarKeyListenerReady || typeof document === 'undefined') return;
+    document.addEventListener('keydown', handleAbilityHotbarKeydown, true);
+    window._abilityHotbarKeyListenerReady = true;
 }
 
 function refreshAbilityHotbarSidebar() {
@@ -238,28 +457,39 @@ function refreshAbilityHotbarSidebar() {
         btn.className = 'ability-hotbar__slot ability-hotbar__slot--sidebar' + (info ? ' ability-hotbar__slot--filled' : '');
         btn.dataset.slot = String(i);
         btn.onclick = function () { showAbilities(); };
-        btn.title = info ? info.name : 'Слот ' + (i + 1) + ' — настроить';
-        btn.innerHTML = buildHotbarSlotInnerHtml(i, 'sidebar');
+        const keyLabel = formatAbilityKeyLabel(getAbilityQuickKey(i));
+        btn.title = info ? info.name + ' (' + keyLabel + ')' : 'Слот ' + (i + 1) + ' — настроить';
+        btn.innerHTML = buildAbilityHotbarKeyHintHtml(i) + buildHotbarSlotInnerHtml(i, 'sidebar');
         bar.appendChild(btn);
     }
 }
 
 function refreshAbilityHotbarEditor() {
+    const bindSlot = _hotbarBindSlotIndex;
     const editor = document.getElementById('abilityHotbarEditor');
     if (!editor) return;
-    const parent = editor.parentElement;
-    const next = editor.nextElementSibling;
     editor.outerHTML = buildAbilityHotbarEditorHtml();
+    _hotbarBindSlotIndex = bindSlot;
     const newEditor = document.getElementById('abilityHotbarEditor');
     if (newEditor) initAbilityHotbarEditor(newEditor);
     refreshAbilityHotbarSidebar();
 }
 
-let _hotbarPickName = null;
-
 function initAbilityHotbarEditor(root) {
     if (!root) root = document.getElementById('abilityHotbarEditor');
     if (!root) return;
+
+    root.querySelectorAll('[data-bind-slot]').forEach(bindBtn => {
+        const idx = parseInt(bindBtn.dataset.bindSlot, 10);
+        bindBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (_hotbarBindSlotIndex === idx) {
+                cancelAbilityHotbarBind();
+                return;
+            }
+            startAbilityHotbarBind(idx);
+        });
+    });
 
     const slots = root.querySelectorAll('[data-drop-slot]');
     const sources = document.querySelectorAll('.ability-hotbar-source');
@@ -274,6 +504,7 @@ function initAbilityHotbarEditor(root) {
         if (!name) return;
         src.setAttribute('draggable', 'true');
         src.addEventListener('dragstart', function (e) {
+            cancelAbilityHotbarBind();
             _hotbarPickName = name;
             e.dataTransfer.setData('text/plain', name);
             e.dataTransfer.effectAllowed = 'copy';
@@ -284,6 +515,7 @@ function initAbilityHotbarEditor(root) {
             clearDragOver();
         });
         src.addEventListener('click', function () {
+            cancelAbilityHotbarBind();
             _hotbarPickName = (_hotbarPickName === name) ? null : name;
             sources.forEach(s => s.classList.toggle('ability-hotbar-source--picked', s.dataset.abilityName === _hotbarPickName));
             if (_hotbarPickName && typeof addMessage === 'function') {
@@ -315,7 +547,9 @@ function initAbilityHotbarEditor(root) {
             sources.forEach(s => s.classList.remove('ability-hotbar-source--picked'));
             refreshAbilityHotbarEditor();
         });
-        slot.addEventListener('click', function () {
+        slot.addEventListener('click', function (e) {
+            if (e.target.closest('[data-clear-slot]')) return;
+            if (_hotbarBindSlotIndex !== null) return;
             if (_hotbarPickName) {
                 setAbilityQuickSlot(idx, _hotbarPickName);
                 _hotbarPickName = null;
@@ -323,6 +557,7 @@ function initAbilityHotbarEditor(root) {
                 refreshAbilityHotbarEditor();
                 return;
             }
+            startAbilityHotbarBind(idx);
         });
         slot.setAttribute('draggable', 'true');
         slot.addEventListener('dragstart', function (e) {
@@ -330,6 +565,7 @@ function initAbilityHotbarEditor(root) {
                 e.preventDefault();
                 return;
             }
+            cancelAbilityHotbarBind();
             e.dataTransfer.setData('application/x-hotbar-slot', String(idx));
             e.dataTransfer.setData('text/plain', player.abilityQuickSlots[idx]);
             e.dataTransfer.effectAllowed = 'move';
@@ -343,15 +579,26 @@ function initAbilityHotbarEditor(root) {
             });
         }
     });
+
+    refreshAbilityHotbarBindUi();
 }
 
+initAbilityHotbarKeyListener();
+
 window.ABILITY_QUICK_SLOT_COUNT = ABILITY_QUICK_SLOT_COUNT;
+window.DEFAULT_ABILITY_QUICK_KEYS = DEFAULT_ABILITY_QUICK_KEYS;
 window.ensureAbilityQuickSlots = ensureAbilityQuickSlots;
+window.ensureAbilityQuickKeys = ensureAbilityQuickKeys;
 window.sanitizeAbilityQuickSlots = sanitizeAbilityQuickSlots;
+window.sanitizeAbilityQuickKeys = sanitizeAbilityQuickKeys;
+window.formatAbilityKeyLabel = formatAbilityKeyLabel;
 window.buildSidebarAbilityQuickbarHtml = buildSidebarAbilityQuickbarHtml;
 window.buildAbilityHotbarEditorHtml = buildAbilityHotbarEditorHtml;
 window.buildBattleAbilityHotbarHtml = buildBattleAbilityHotbarHtml;
 window.updateAbilityBattleHotbar = updateAbilityBattleHotbar;
 window.useQuickAbility = useQuickAbility;
 window.initAbilityHotbarEditor = initAbilityHotbarEditor;
+window.initAbilityHotbarKeyListener = initAbilityHotbarKeyListener;
 window.refreshAbilityHotbarEditor = refreshAbilityHotbarEditor;
+window.setAbilityQuickKey = setAbilityQuickKey;
+window.findAbilityHotbarSlotByKeyCode = findAbilityHotbarSlotByKeyCode;
