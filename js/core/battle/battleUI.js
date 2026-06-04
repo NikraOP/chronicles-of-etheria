@@ -180,13 +180,27 @@ function buildDungeonAllyCombatantHtml() {
         ? '<div class="combatant-skin-name">' + escapeBattleHtml((portrait.skinIcon ? portrait.skinIcon + ' ' : '') + portrait.skinName) + '</div>'
         : '';
     const defeatedCls = (ally.health || 0) <= 0 ? ' battle-ally--defeated' : '';
+    const allyShield = Array.isArray(ally.temporaryEffects)
+        ? ally.temporaryEffects.find(function (e) { return e && e.shield > 0; })
+        : null;
+    let allyShieldHtml = '';
+    if (allyShield && ally.maxHealth > 0) {
+        const shieldPct = Math.min(100, (allyShield.shield / ally.maxHealth) * 100);
+        allyShieldHtml =
+            '<div class="shield-bar" style="width:100%;height:4px;background:rgba(52,152,219,0.3);border-radius:2px;margin-top:2px;overflow:hidden;">' +
+            '<div class="shield-fill" style="width:' + shieldPct + '%;height:100%;background:#3498db;"></div></div>' +
+            '<div class="shield-hp-label" style="font-size:9px;color:#3498db;margin-top:2px;">🛡️ Щит: ' + allyShield.shield + ' HP</div>';
+    }
+    const allyStatusHtml = buildPlayerTemporaryBuffsHTML(ally.temporaryEffects);
     return '<div class="combatant-wrapper combatant-wrapper--ally' + defeatedCls + '" id="allyWrapper">' +
         '<div class="combatant-sprite" id="allySprite">' + buildDuoAllySpriteInnerHtml(ally) + '</div>' +
         '<div class="combatant-info">' +
         '<div class="combatant-name" style="color:#3498db;">' + escapeBattleHtml(ally.name || 'Союзник') + '</div>' +
         '<div class="health-bar"><div class="health-fill player-hp" style="width:' + aHp + '%;"></div></div>' +
+        allyShieldHtml +
         '<div class="health-text">' + (ally.health || 0) + '/' + (ally.maxHealth || 0) + manaText + '</div>' +
         skinText +
+        '<div class="combatant-status-slot" data-side="ally">' + allyStatusHtml + '</div>' +
         '</div></div>';
 }
 
@@ -445,6 +459,19 @@ function updateBattleVitality() {
                 text.textContent = (ally.health || 0) + '/' + (ally.maxHealth || 0) +
                     (ally.class === 'Маг' && ally.maxMana > 0 ? ' | 💎' + (ally.mana || 0) + '/' + ally.maxMana : '');
             }
+            const allyShieldFx = Array.isArray(ally.temporaryEffects)
+                ? ally.temporaryEffects.find(function (e) { return e && e.shield > 0; })
+                : null;
+            setCombatantShieldDisplay(
+                allyWrap,
+                allyShieldFx ? allyShieldFx.shield : 0,
+                ally.maxHealth,
+                allyShieldFx ? allyShieldFx.dur : 0
+            );
+            const allySlot = allyWrap.querySelector('.combatant-status-slot[data-side="ally"]');
+            if (allySlot) {
+                allySlot.innerHTML = buildPlayerTemporaryBuffsHTML(ally.temporaryEffects);
+            }
         }
     }
 }
@@ -562,6 +589,26 @@ function updateBattleStatusPanels() {
             debuffed = `<div class="debuffed-stats-hint">⚔️ ${displayAtk} · 🛡️ ${displayDef} · 💨 ${displayDodge}%</div>`;
         }
         playerSlot.innerHTML = buildPlayerBattleStatusHTML() + debuffed;
+    }
+
+    if (window.dungeonDuoBattleActive && typeof getDungeonDuoAlly === 'function') {
+        const ally = getDungeonDuoAlly();
+        const allyWrap = document.getElementById('allyWrapper');
+        if (ally && allyWrap) {
+            const allySlot = allyWrap.querySelector('.combatant-status-slot[data-side="ally"]');
+            if (allySlot) {
+                allySlot.innerHTML = buildPlayerTemporaryBuffsHTML(ally.temporaryEffects);
+            }
+            const allyShieldFx = Array.isArray(ally.temporaryEffects)
+                ? ally.temporaryEffects.find(function (e) { return e && e.shield > 0; })
+                : null;
+            setCombatantShieldDisplay(
+                allyWrap,
+                allyShieldFx ? allyShieldFx.shield : 0,
+                ally.maxHealth,
+                allyShieldFx ? allyShieldFx.dur : 0
+            );
+        }
     }
 
     const vs = document.querySelector('.vs-badge');
@@ -1118,6 +1165,54 @@ function buildMonsterAbilitiesHTML(monster) {
 
 const PVP_FIGHTER_CC_DEBUFF_CHIPS = new Set(['debuff_freeze', 'debuff_blind', 'debuff_slow']);
 
+function buildPlayerTemporaryBuffsHTML(effects) {
+    if (!Array.isArray(effects) || !effects.length) return '';
+    const chips = [];
+    effects.forEach(function (e) {
+        if (!e) return;
+        if (e.dur != null && e.dur <= 0) return;
+        if (e.type && String(e.type).startsWith('debuff_')) return;
+        if (e.isDot) return;
+        if (e.shield) {
+            chips.push({ icon: '🛡️', text: 'Щит ' + e.shield, dur: e.dur });
+            return;
+        }
+        if (e.immune) {
+            chips.push({ icon: '✨', text: 'Иммунитет', dur: e.dur });
+            return;
+        }
+        if (e.reflect) {
+            chips.push({ icon: '↩️', text: 'Отраж ' + e.reflect + '%', dur: e.dur });
+            return;
+        }
+        if (e.regen) {
+            chips.push({ icon: '💚', text: 'Реген ' + e.regen + '%', dur: e.dur });
+            return;
+        }
+        if (e.damageReduction) {
+            chips.push({ icon: '🛡️', text: '−урон ' + e.damageReduction + '%', dur: e.dur });
+            return;
+        }
+        if (e.healBonus) {
+            chips.push({ icon: '💚', text: 'Леч +' + e.healBonus + '%', dur: e.dur });
+        }
+        if (e.atk) chips.push({ icon: '⚔️', text: 'АТК +' + e.atk + '%', dur: e.dur });
+        if (e.def) chips.push({ icon: '🛡️', text: 'ЗАЩ +' + e.def + '%', dur: e.dur });
+        if (e.dodge) chips.push({ icon: '💨', text: 'Уклон +' + e.dodge + '%', dur: e.dur });
+        if (e.crit) chips.push({ icon: '💥', text: 'Крит +' + e.crit + '%', dur: e.dur });
+        if (e.critDmg) chips.push({ icon: '💥', text: 'Критур +' + e.critDmg + '%', dur: e.dur });
+    });
+    if (!chips.length) return '';
+    let html = '<div class="active-effects player-buffs">';
+    chips.forEach(function (c) {
+        const dur = c.dur != null ? c.dur : '?';
+        html += '<span class="effect-chip effect-chip-buff" title="' + escapeBattleHtml(c.text) + ' (' + dur + ' ход.)">' +
+            c.icon + ' ' + escapeBattleHtml(c.text) + ' · ' + dur + '</span>';
+    });
+    html += '</div>';
+    return html;
+}
+
 function buildPlayerDebuffsHTML(skipCcChips) {
     const activePlayerEffects = player.temporaryEffects.filter(e => {
         if (!e.type || !e.type.startsWith('debuff_')) return false;
@@ -1204,7 +1299,8 @@ function buildPlayerBattleStatusHTML() {
         html += buildPlayerDebuffsHTML(true);
         return html;
     }
-    return buildPlayerDotsHTML() + buildPlayerDebuffsHTML();
+    return buildPlayerTemporaryBuffsHTML(player.temporaryEffects) +
+        buildPlayerDotsHTML() + buildPlayerDebuffsHTML();
 }
 
 function showReflectEffect(target, value) {

@@ -248,17 +248,35 @@ function playRemoteDungeonDuoVisual(visual) {
     afterAnim();
 }
 
+function clonePartySlotSnapshot(snapshot) {
+    if (!snapshot) return null;
+    return {
+        ...snapshot,
+        temporaryEffects: cloneDungeonDuoEffects(snapshot.temporaryEffects)
+    };
+}
+
 function fillPartyInSnapshot(snap) {
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     const local = buildDungeonDuoPartySnapshot();
     if (!snap.party) snap.party = { host: null, guest: null };
     if (duo && duo.role === 'host') {
         snap.party.host = local;
-        if (dungeonDuoAlly) snap.party.guest = { ...dungeonDuoAlly };
+        if (dungeonDuoAlly) snap.party.guest = clonePartySlotSnapshot(dungeonDuoAlly);
     } else if (duo && duo.role === 'guest') {
         snap.party.guest = local;
-        if (dungeonDuoAlly) snap.party.host = { ...dungeonDuoAlly };
+        if (dungeonDuoAlly) snap.party.host = clonePartySlotSnapshot(dungeonDuoAlly);
     }
+}
+
+/** После баффа/лечения/щита — синхронизация партии и UI у обоих игроков. */
+function syncDungeonDuoPartyAfterSupport(targetKind) {
+    if (!isDungeonDuoBattleActive()) return;
+    if (targetKind === 'ally' && dungeonDuoAlly) {
+        setDungeonDuoAlly(dungeonDuoAlly);
+    }
+    requestDungeonDuoStateSync();
+    if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
 }
 
 function broadcastDungeonDuoRoomState() {
@@ -320,6 +338,7 @@ function applyDungeonDuoRoomSnapshot(payload) {
         playRemoteDungeonDuoVisual(payload.visual);
     }
     if (typeof updateBattleButtons === 'function') updateBattleButtons();
+    if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
     if (typeof renderBattle === 'function') renderBattle({ force: true });
 }
 
@@ -525,6 +544,8 @@ window.getDungeonDuoRoundActs = function () { return Object.assign({}, dungeonDu
 window.onDungeonDuoPlayerActionEnded = onDungeonDuoPlayerActionEnded;
 window.applyRemoteDuoDungeonBattleActionImpl = applyRemoteDuoDungeonBattleActionImpl;
 window.requestDungeonDuoStateSync = requestDungeonDuoStateSync;
+window.syncDungeonDuoPartyAfterSupport = syncDungeonDuoPartyAfterSupport;
+window.clonePartySlotSnapshot = clonePartySlotSnapshot;
 window.onDungeonDuoMonsterPhaseComplete = onDungeonDuoMonsterPhaseComplete;
 window.buildDungeonDuoPartySnapshot = buildDungeonDuoPartySnapshot;
 window.fillPartyInSnapshot = fillPartyInSnapshot;
