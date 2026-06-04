@@ -624,7 +624,7 @@ function migrateOldSave(playerData) {
     if (typeof ensureBattleKeys === 'function') {
         ensureBattleKeys(playerData);
     } else if (!playerData.battleKeys || typeof playerData.battleKeys !== 'object') {
-        playerData.battleKeys = { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE' };
+        playerData.battleKeys = { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' };
     }
     
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть

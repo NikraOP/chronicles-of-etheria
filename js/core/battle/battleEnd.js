@@ -78,7 +78,9 @@ function victory() {
     document.body.classList.remove('low-hp');
     renderGame();
     const rewardText = rewardLines.length ? '\n\n' + rewardLines.join('\n') : '';
+    window._battleEndModalOpen = true;
     showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', () => {
+        window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
         if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
         else renderGame();
@@ -103,7 +105,9 @@ function gameOver() {
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();
+    window._battleEndModalOpen = true;
     showModal('💀 Поражение', '💀', 'Вы погибли!\n💔 Опыт: -' + xpLoss + '\n💰 Золото: -' + goldLoss, 'Продолжить', () => {
+        window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
         renderGame();
     });

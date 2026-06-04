@@ -20,7 +20,7 @@ const ctx = {
         ],
         abilityQuickSlots: [null, null, null, null, null],
         abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
-        battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE' }
+        battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' }
     },
     currentMonster: { name: 'Slime', health: 10, maxHealth: 10 },
     isPlayerTurn: true,
@@ -85,6 +85,8 @@ assert(ctx.player.battleKeys.dodge === 'KeyQ', 'dodge gets KeyQ');
 const settingsHtml = ctx.buildBattleKeysSettingsHtml();
 assert(settingsHtml.indexOf('data-battle-bind="attack"') !== -1, 'settings attack bind');
 assert(settingsHtml.indexOf('data-battle-bind="abilities"') !== -1, 'settings abilities bind');
+assert(settingsHtml.indexOf('data-battle-bind="continue"') !== -1, 'settings continue bind');
+assert(ctx.getBattleKey('continue') === 'Enter', 'default continue key');
 
 ctx.document = {
     querySelector(sel) {
@@ -106,5 +108,21 @@ const escEvent = {
 ctx.handleAbilityHotbarKeydown(escEvent);
 assert(escClosed, 'Escape closes battle abilities menu');
 assert(!ctx._battleAbilitiesMenuOpen, 'menu flag cleared');
+
+ctx._battleEndModalOpen = true;
+ctx.modalCallback = () => { ctx._modalClosed = true; };
+ctx.document.getElementById = (id) => {
+    if (id === 'modalOverlay') return { style: { display: 'flex' } };
+    return null;
+};
+ctx.closeModal = () => {
+    ctx._battleEndModalOpen = false;
+    if (ctx.modalCallback) {
+        ctx.modalCallback();
+        ctx.modalCallback = null;
+    }
+};
+assert(ctx.tryCloseBattleEndModalByKey('Enter') === true, 'Enter closes battle end modal');
+assert(ctx._modalClosed, 'modal callback ran');
 
 console.log('test-ability-hotbar: OK');

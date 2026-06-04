@@ -180,7 +180,7 @@ function finalizeCharacter() {
         abilities: [],
         abilityQuickSlots: [null, null, null, null, null],
         abilityQuickKeys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'],
-        battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE' },
+        battleKeys: { attack: 'KeyA', dodge: 'KeyD', abilities: 'KeyE', continue: 'Enter' },
         unlockedSkins: [],
         currentSkin: null,
         ...baseStats
@@ -383,12 +383,17 @@ function addMessage(msg, type) {
 function showModal(title, icon, message, buttonText, callback) {
     const modal = document.getElementById('modalOverlay');
     const content = document.getElementById('modalContent');
+    let btnLabel = buttonText;
+    if (window._battleEndModalOpen && typeof formatAbilityKeyLabel === 'function' && typeof getBattleKey === 'function') {
+        const keyHint = formatAbilityKeyLabel(getBattleKey('continue'));
+        if (keyHint && keyHint !== '—') btnLabel = buttonText + ' (' + keyHint + ')';
+    }
     content.innerHTML = `
         <div style="text-align: center;">
             <div style="font-size: 48px;">${icon}</div>
             <h3>${title}</h3>
             <p>${message}</p>
-            <button type="button" class="modal-btn" onclick="closeModal()">${buttonText}</button>
+            <button type="button" class="modal-btn" onclick="closeModal()">${btnLabel}</button>
         </div>
     `;
     modal.style.display = 'flex';
@@ -397,6 +402,7 @@ function showModal(title, icon, message, buttonText, callback) {
 
 function closeModal() {
     document.getElementById('modalOverlay').style.display = 'none';
+    window._battleEndModalOpen = false;
     if (window.modalCallback) {
         window.modalCallback();
         window.modalCallback = null;

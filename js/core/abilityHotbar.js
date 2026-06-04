@@ -4,9 +4,10 @@ const DEFAULT_ABILITY_QUICK_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Dig
 const DEFAULT_BATTLE_KEYS = {
     attack: 'KeyA',
     dodge: 'KeyD',
-    abilities: 'KeyE'
+    abilities: 'KeyE',
+    continue: 'Enter'
 };
-const BATTLE_KEY_ACTIONS = ['attack', 'dodge', 'abilities'];
+const BATTLE_KEY_ACTIONS = ['attack', 'dodge', 'abilities', 'continue'];
 const HOTBAR_BIND_FORBIDDEN = new Set(['Tab', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Unidentified', 'Dead']);
 
 let _hotbarPickName = null;
@@ -175,10 +176,28 @@ function startBattleKeyBind(action) {
     _hotbarPickName = null;
     refreshSettingsBattleKeysUi();
     refreshAbilityHotbarBindUi();
-    const labels = { attack: 'Атака', dodge: 'Уклонение', abilities: 'Способности' };
+    const labels = getBattleKeyActionLabels();
     if (typeof addMessage === 'function') {
         addMessage('«' + labels[action] + '»: нажмите клавишу (Esc — отмена).', 'info');
     }
+}
+
+function getBattleKeyActionLabels() {
+    return { attack: 'Атака', dodge: 'Уклонение', abilities: 'Меню способностей', continue: 'Продолжить после боя' };
+}
+
+function isBattleEndModalActive() {
+    if (!window._battleEndModalOpen) return false;
+    const modal = document.getElementById('modalOverlay');
+    return !!(modal && modal.style.display === 'flex' && window.modalCallback);
+}
+
+function tryCloseBattleEndModalByKey(code) {
+    if (!player || !isBattleEndModalActive()) return false;
+    ensureBattleKeys(player);
+    if (player.battleKeys.continue !== code) return false;
+    if (typeof closeModal === 'function') closeModal();
+    return true;
 }
 
 function executeBattleKeyAction(action) {
@@ -191,14 +210,16 @@ function executeBattleKeyAction(action) {
 function buildBattleKeysSettingsHtml() {
     if (!player) return '';
     ensureBattleKeys(player);
+    const labels = getBattleKeyActionLabels();
     const rows = [
-        { action: 'attack', icon: '⚔️', label: 'Атака' },
-        { action: 'dodge', icon: '💨', label: 'Уклонение' },
-        { action: 'abilities', icon: '✨', label: 'Меню способностей' }
+        { action: 'attack', icon: '⚔️', label: labels.attack },
+        { action: 'dodge', icon: '💨', label: labels.dodge },
+        { action: 'abilities', icon: '✨', label: labels.abilities },
+        { action: 'continue', icon: '▶️', label: labels.continue }
     ];
     let html = '<section class="settings-section settings-section-keys" id="settingsBattleKeys">' +
         '<h3 class="settings-section-title">⌨️ Клавиши боя</h3>' +
-        '<p class="theme-editor-desc">Назначьте клавиши для основных действий в бою. Слоты 1–5 настраиваются в разделе «Способности».</p>' +
+        '<p class="theme-editor-desc">Действия в бою и кнопка «Продолжить» на экране победы или поражения. Слоты 1–5 — в разделе «Способности».</p>' +
         '<div class="battle-keybind-list">';
     rows.forEach(row => {
         const listening = _battleBindAction === row.action;
@@ -604,7 +625,7 @@ function handleAbilityHotbarKeydown(e) {
         setBattleKey(action, e.code);
         _battleBindAction = null;
         refreshSettingsBattleKeysUi();
-        const labels = { attack: 'Атака', dodge: 'Уклонение', abilities: 'Способности' };
+        const labels = getBattleKeyActionLabels();
         if (typeof addMessage === 'function') {
             addMessage('«' + labels[action] + '»: клавиша «' + formatAbilityKeyLabel(e.code) + '».', 'success');
         }
@@ -635,6 +656,11 @@ function handleAbilityHotbarKeydown(e) {
     if (e.code === 'Escape' && currentMonster && window._battleAbilitiesMenuOpen) {
         e.preventDefault();
         if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
+        return;
+    }
+
+    if (!e.repeat && tryCloseBattleEndModalByKey(e.code)) {
+        e.preventDefault();
         return;
     }
 
@@ -826,8 +852,10 @@ window.setAbilityQuickKey = setAbilityQuickKey;
 window.findAbilityHotbarSlotByKeyCode = findAbilityHotbarSlotByKeyCode;
 window.DEFAULT_BATTLE_KEYS = DEFAULT_BATTLE_KEYS;
 window.ensureBattleKeys = ensureBattleKeys;
+window.getBattleKey = getBattleKey;
 window.sanitizeBattleKeys = sanitizeBattleKeys;
 window.setBattleKey = setBattleKey;
+window.tryCloseBattleEndModalByKey = tryCloseBattleEndModalByKey;
 window.buildBattleKeysSettingsHtml = buildBattleKeysSettingsHtml;
 window.initBattleKeysSettings = initBattleKeysSettings;
 window.refreshSettingsBattleKeysUi = refreshSettingsBattleKeysUi;
