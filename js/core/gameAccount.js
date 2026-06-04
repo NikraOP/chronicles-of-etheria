@@ -22,9 +22,17 @@
     }
 
     function setAccountGateBody(active) {
-        if (typeof document !== 'undefined' && document.body) {
-            document.body.classList.toggle('account-gate-active', !!active);
-        }
+        if (typeof document === 'undefined') return;
+        if (document.body) document.body.classList.toggle('account-gate-active', !!active);
+        const app = document.getElementById('app');
+        if (app) app.classList.toggle('account-gate-layout', !!active);
+    }
+
+    function accountGateShell(innerHtml, variant) {
+        const mod = variant ? ' account-gate--' + variant : '';
+        return '<div class="account-gate' + mod + '">' +
+            '<div class="account-gate__backdrop" aria-hidden="true"></div>' +
+            '<div class="account-gate__center">' + innerHtml + '</div></div>';
     }
 
     function jsOnclickStr(s) {
@@ -167,9 +175,7 @@
         const el = document.getElementById('app');
         if (!el) return;
         setAccountGateBody(true);
-        el.innerHTML =
-            '<div class="account-gate">' +
-            '<div class="account-gate__backdrop" aria-hidden="true"></div>' +
+        el.innerHTML = accountGateShell(
             '<div class="account-gate__card account-panel account-panel--auth">' +
             '<div class="account-gate__brand">' +
             '<span class="account-gate__emblem" aria-hidden="true">⚔️</span>' +
@@ -186,7 +192,9 @@
             (tab === 'register' ? renderRegisterForm() : renderLoginForm()) +
             '</div>' +
             '<p id="accountAuthError" class="account-auth-error" style="display:none" role="alert"></p>' +
-            '</div></div>';
+            '</div>',
+            'auth'
+        );
     }
 
     function renderLoginForm() {
@@ -290,7 +298,10 @@
         if (!el) return;
         setAccountGateBody(true);
         const acc = loadAccountState();
-        el.innerHTML = '<div class="account-screen account-screen--loading"><p>Загрузка персонажей…</p></div>';
+        el.innerHTML = accountGateShell(
+            '<div class="account-panel account-panel--hub account-panel--loading"><p>Загрузка персонажей…</p></div>',
+            'hub'
+        );
         let chars = [];
         try {
             const data = await accountFetch('/api/v1/characters');
@@ -301,9 +312,12 @@
                 renderAccountAuthScreen();
                 return;
             }
-            el.innerHTML = '<div class="account-screen"><div class="account-panel"><p class="account-auth-error">' +
+            el.innerHTML = accountGateShell(
+                '<div class="account-panel account-panel--hub"><p class="account-auth-error">' +
                 escapeAccHtml(accountErrorMessage(e)) + '</p>' +
-                '<button class="action-btn" onclick="renderAccountAuthScreen()">К входу</button></div></div>';
+                '<button type="button" class="action-btn" onclick="renderAccountAuthScreen()">К входу</button></div>',
+                'hub'
+            );
             return;
         }
 
@@ -342,8 +356,7 @@
             listHtml += '</div>';
         }
 
-        el.innerHTML =
-            '<div class="account-screen">' +
+        el.innerHTML = accountGateShell(
             '<div class="account-panel account-panel--hub">' +
             '<header class="account-hub-head">' +
             '<div><h2 class="account-panel__title">👤 Аккаунт</h2>' +
@@ -355,7 +368,9 @@
             '<div class="account-hub-actions">' +
             '<button type="button" class="action-btn account-submit" onclick="startAccountCharacterCreation()">➕ Новый персонаж</button>' +
             localImportBtn +
-            '</div></div></div>';
+            '</div></div>',
+            'hub'
+        );
     }
 
     window.renderAccountAuthScreen = renderAccountAuthScreen;
@@ -407,9 +422,13 @@
         const id = String(charId || '').trim();
         if (!id) return;
         setActiveCharId(id);
+        setAccountGateBody(true);
         const app = document.getElementById('app');
         if (app) {
-            app.innerHTML = '<div class="account-screen account-screen--loading"><p>Загрузка персонажа…</p></div>';
+            app.innerHTML = accountGateShell(
+                '<div class="account-panel account-panel--hub account-panel--loading"><p>Загрузка персонажа…</p></div>',
+                'hub'
+            );
         }
         try {
             let data = await accountFetch('/api/v1/characters/' + encodeURIComponent(id));
