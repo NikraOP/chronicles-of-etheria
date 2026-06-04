@@ -218,12 +218,58 @@ function resetDungeonDuoConnection() {
         .catch(() => {});
 }
 
+function handleDungeonDuoLobbyError(err) {
+    const msg = typeof dungeonDuoCloudErrorMessage === 'function'
+        ? dungeonDuoCloudErrorMessage(err)
+        : (err && err.message ? err.message : String(err || 'Ошибка комнаты'));
+    duoDungeonState.status = 'idle';
+    duoDungeonState.error = msg;
+    duoDungeonLog(msg, 'error');
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+}
+
 function handleDungeonDuoError(err) {
+    const inLobby = duoDungeonState && duoDungeonState.status === 'lobby' &&
+        !(typeof getDungeonRunSession === 'function' && getDungeonRunSession());
+    if (inLobby) {
+        handleDungeonDuoLobbyError(err);
+        return;
+    }
     duoDungeonState.status = 'idle';
     duoDungeonState.error = err && err.message ? err.message : String(err || 'Ошибка транспорта данжа');
     duoDungeonLog(duoDungeonState.error, 'error');
     if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
     if (typeof abandonDungeonRun === 'function') abandonDungeonRun(false);
+}
+
+function shouldFallbackDungeonDuoFromCloud(err) {
+    if (typeof isDungeonDuoCloudApiMissing === 'function') return isDungeonDuoCloudApiMissing(err);
+    const code = err && err.data && err.data.error;
+    return code === 'not_found' || (err && String(err.message) === 'HTTP 404');
+}
+
+function enterDungeonDuoCloudAsHostWithFallback(dungeonId, roomCode, sessionId) {
+    return (typeof enterDungeonDuoCloudAsHost === 'function'
+        ? enterDungeonDuoCloudAsHost(dungeonId, roomCode)
+        : Promise.reject(new Error('dungeonDuoCloud not loaded'))
+    ).catch(function (err) {
+        if (!shouldFallbackDungeonDuoFromCloud(err)) throw err;
+        duoDungeonLog('Сервер дуо недоступен — подключаемся через MQTT…', 'warning');
+        duoDungeonState.transport = 'mqtt';
+        return joinDungeonDuoTransportRoom(roomCode, sessionId);
+    });
+}
+
+function enterDungeonDuoCloudAsGuestWithFallback(roomCode, sessionId) {
+    return (typeof enterDungeonDuoCloudAsGuest === 'function'
+        ? enterDungeonDuoCloudAsGuest(roomCode)
+        : Promise.reject(new Error('dungeonDuoCloud not loaded'))
+    ).catch(function (err) {
+        if (!shouldFallbackDungeonDuoFromCloud(err)) throw err;
+        duoDungeonLog('Сервер дуо недоступен — подключаемся через MQTT…', 'warning');
+        duoDungeonState.transport = 'mqtt';
+        return joinDungeonDuoTransportRoom(roomCode, sessionId);
+    });
 }
 
 function syncDuoDungeonPartnerId() {
@@ -410,6 +456,7 @@ function setupDungeonDuoTransportRoom(mod, code, sessionId) {
     const actionAdapter = createDungeonDuoActionAdapter(room.makeAction('dungeon-duo'));
     duoDungeonRoom = room;
     duoDungeonSendPacket = actionAdapter.send;
+    if (duoDungeonState) duoDungeonState.transport = 'mqtt';
 
     setDungeonDuoRoomHandler(room, 'onPeerJoin', peerId => {
         if (sessionId !== duoDungeonSessionId) return;
@@ -483,16 +530,15 @@ function createDuoDungeonLobby(dungeonId) {
     duoDungeonState.status = 'lobby';
     if (typeof shouldUseDungeonDuoCloudTransport === 'function' && shouldUseDungeonDuoCloudTransport()) {
         duoDungeonLog('Создание комнаты на сервере…', 'info');
-        return (typeof enterDungeonDuoCloudAsHost === 'function'
-            ? enterDungeonDuoCloudAsHost(id, duoDungeonState.roomCode)
-            : Promise.reject(new Error('dungeonDuoCloud not loaded'))
-        ).then(function () {
-            refreshDuoDungeonLobbyUI();
-            return true;
-        }).catch(function (err) {
-            handleDungeonDuoError(err);
-            return false;
-        });
+        return enterDungeonDuoCloudAsHostWithFallback(id, duoDungeonState.roomCode, sessionId)
+            .then(function () {
+                refreshDuoDungeonLobbyUI();
+                return true;
+            })
+            .catch(function (err) {
+                handleDungeonDuoLobbyError(err);
+                return false;
+            });
     }
     duoDungeonLog(`Комната ${duoDungeonState.roomCode} (данж ${id}, MQTT).`, 'info');
     return joinDungeonDuoTransportRoom(duoDungeonState.roomCode, sessionId).then(function () {
@@ -516,16 +562,15 @@ function joinDuoDungeonLobby(code) {
     duoDungeonState.status = 'lobby';
     if (typeof shouldUseDungeonDuoCloudTransport === 'function' && shouldUseDungeonDuoCloudTransport()) {
         duoDungeonLog('Подключение к серверу…', 'info');
-        return (typeof enterDungeonDuoCloudAsGuest === 'function'
-            ? enterDungeonDuoCloudAsGuest(roomCode)
-            : Promise.reject(new Error('dungeonDuoCloud not loaded'))
-        ).then(function () {
-            refreshDuoDungeonLobbyUI();
-            return true;
-        }).catch(function (err) {
-            handleDungeonDuoError(err);
-            return false;
-        });
+        return enterDungeonDuoCloudAsGuestWithFallback(roomCode, sessionId)
+            .then(function () {
+                refreshDuoDungeonLobbyUI();
+                return true;
+            })
+            .catch(function (err) {
+                handleDungeonDuoLobbyError(err);
+                return false;
+            });
     }
     duoDungeonLog(`Подключение к ${roomCode} (MQTT)…`, 'info');
     return joinDungeonDuoTransportRoom(roomCode, sessionId).then(function () {

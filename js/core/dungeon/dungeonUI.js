@@ -271,8 +271,14 @@ function dungeonUiCreateDuoRoom(dungeonId) {
         dungeonUiDuoSoon();
         return;
     }
-    createDuoDungeonLobby(dungeonId).then(function () {
-        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+    createDuoDungeonLobby(dungeonId).then(function (ok) {
+        if (ok && typeof showDuoDungeonLobbyScreen === 'function') {
+            showDuoDungeonLobbyScreen();
+            return;
+        }
+        if (!ok && typeof addMessage === 'function') {
+            addMessage('Не удалось создать дуо-комнату. Проверьте сеть или обновите API на сервере.', 'error');
+        }
     });
 }
 
@@ -460,10 +466,12 @@ function dungeonUiJoinDuoRoomPrompt() {
         ? prompt('Введите код комнаты дуо-данжа (6 символов):', '')
         : '';
     if (!code) return;
-    joinDuoDungeonLobby(code);
-    setTimeout(function () {
-        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
-    }, 800);
+    joinDuoDungeonLobby(code).then(function (ok) {
+        if (ok && typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+        else if (!ok && typeof addMessage === 'function') {
+            addMessage('Не удалось войти в комнату. Проверьте код и сеть.', 'error');
+        }
+    });
 }
 
 function getActiveDungeonSession() {

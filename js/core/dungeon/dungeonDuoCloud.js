@@ -51,8 +51,19 @@ async function dungeonDuoCloudFetch(path, options) {
     return data;
 }
 
+function isDungeonDuoCloudApiMissing(err) {
+    if (!err) return false;
+    const code = err.data && err.data.error;
+    if (code === 'not_found') return true;
+    const msg = String(err.message || '');
+    return msg === 'HTTP 404' || /\b404\b/.test(msg);
+}
+
 function dungeonDuoCloudErrorMessage(err) {
     const code = err && (err.message || (err.data && err.data.error));
+    if (isDungeonDuoCloudApiMissing(err)) {
+        return 'На сервере нет API дуо-подземелий (404). Обновите friends-api на Timeweb или используется MQTT.';
+    }
     if (code === 'room_not_found') return 'Комната не найдена. Проверьте код.';
     if (code === 'room_full') return 'Комната уже занята.';
     if (code === 'room_exists') return 'Код комнаты занят — создайте снова.';
@@ -224,6 +235,7 @@ function getDungeonDuoTransportLabel() {
 }
 
 window.shouldUseDungeonDuoCloudTransport = shouldUseDungeonDuoCloudTransport;
+window.isDungeonDuoCloudApiMissing = isDungeonDuoCloudApiMissing;
 window.dungeonDuoCloudSendMessage = dungeonDuoCloudSendMessage;
 window.enterDungeonDuoCloudAsHost = enterDungeonDuoCloudAsHost;
 window.enterDungeonDuoCloudAsGuest = enterDungeonDuoCloudAsGuest;
