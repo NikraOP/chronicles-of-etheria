@@ -344,7 +344,8 @@ function setupBattleMonster(mData, scale, goldMult) {
         source: mData.source || '',
         rewards: mData.rewards || null,
         returnTo: mData.returnTo || '',
-        isBoss: !!mData.isBoss
+        isBoss: !!mData.isBoss,
+        aiProfile: mData.aiProfile || ''
     };
 }
 

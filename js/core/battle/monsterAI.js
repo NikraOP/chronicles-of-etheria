@@ -61,6 +61,15 @@ function estimatePlayerAbilityThreat(ability) {
     return Math.min(100, threat);
 }
 
+function detectPlayerAbilityElement(ability) {
+    if (!ability) return '';
+    if (ability.effect && ability.effect.type === 'Горение') return 'fire';
+    if (ability.fireVuln || ability.groundBuff === 'lava' || ability.consumeBurn) return 'fire';
+    if (ability.name && /огн|пламен|инферн|метеор|пекло|армагеддон/i.test(ability.name)) return 'fire';
+    if (ability.effect && (ability.effect.type === 'Заморозка' || ability.effect.type === 'slow')) return 'ice';
+    return '';
+}
+
 function recordPlayerActionForMonsterAi(action) {
     if (!action) return;
     const turn = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
@@ -68,11 +77,15 @@ function recordPlayerActionForMonsterAi(action) {
         monsterAiState.lastPlayerAction = { kind: 'attack', name: 'Атака', threat: 25, turn };
         return;
     }
+    const element = detectPlayerAbilityElement(action);
+    let threat = estimatePlayerAbilityThreat(action);
+    if (element === 'fire') threat = Math.min(100, threat + 22);
     monsterAiState.lastPlayerAction = {
         kind: 'ability',
         name: action.name || 'Способность',
-        type: action.type || '',
-        threat: estimatePlayerAbilityThreat(action),
+        type: action.type || (action.effect && action.effect.type) || '',
+        element: element,
+        threat: threat,
         turn
     };
 }
@@ -279,8 +292,11 @@ function buildMonsterAiContext() {
     const monsterCritBuff = buffs.crit;
     const monsterHasShield = !!(buffs.shield && buffs.shield.value > 0 && buffs.shield.remainingTurns > 0);
 
+    const monsterEffects = monster && monster.effects ? monster.effects : [];
+    const monsterBurning = monsterEffects.some(e => e.type === 'Горение' && (e.dur || 0) > 0);
     const playerEffects = pl && pl.temporaryEffects ? pl.temporaryEffects : [];
     const playerHasDot = playerEffects.some(e => e.isDot && (e.dur || 0) > 0);
+    const playerFireCast = !!(lastPlayer && lastPlayer.element === 'fire' && playerJustActed);
     const playerDebuffedDef = playerEffects.some(e =>
         e.type === 'debuff_def' || e.type === 'debuff_all' || e.type === 'debuff_atk'
     );
@@ -337,7 +353,10 @@ function buildMonsterAiContext() {
         offensivePhase,
         burstPhase,
         lastPlayerAction: lastPlayer,
-        lastMonsterAbility: lastMonster
+        lastMonsterAbility: lastMonster,
+        monsterBurning: monsterBurning,
+        playerFireCast: playerFireCast,
+        isInfinityGod: !!(monster && monster.aiProfile === 'infinity_god')
     };
 }
 
@@ -443,6 +462,10 @@ function scoreMonsterAbility(ability, ctx) {
             break;
         }
         case 'buff': {
+            if (ctx.isInfinityGod && ability.purgeBurn && ctx.monsterBurning) score += 140;
+            if (ctx.isInfinityGod && ability.effect === 'reflect' && (ctx.playerFireCast || ctx.playerThreatHigh)) {
+                score += 95;
+            }
             if (ability.effect === 'reflect' || ability.effect === 'def') {
                 if (ctx.playerThreatHigh) score += 70;
                 if (ctx.monsterHpRatio < 0.5) score += 25;
@@ -460,6 +483,8 @@ function scoreMonsterAbility(ability, ctx) {
             break;
         }
         case 'debuff': {
+            if (ctx.isInfinityGod && ability.effect === 'hp') score += 45;
+            if (ctx.isInfinityGod && ability.effect === 'atk') score += 38;
             if (ctx.playerBuffed) score += 55;
             if (ctx.playerBuffed && (ability.effect === 'def' || ability.effect === 'all' || ability.effect === 'atk')) {
                 score += 35;
@@ -504,8 +529,68 @@ function scoreMonsterAbility(ability, ctx) {
     return score;
 }
 
+function applyInfinityGodAiPriorities(ranked, ctx) {
+    if (!ctx || !ctx.isInfinityGod || !ranked.length) return null;
+    const rest = function (head, tail) {
+        return head ? [head].concat(tail.filter(function (r) { return r !== head; })) : tail;
+    };
+
+    if (ctx.monsterBurning || ctx.playerFireCast) {
+        const purge = ranked.find(function (r) { return r.ability.purgeBurn; });
+        if (purge && ctx.monsterBurning) return rest(purge, ranked);
+        const reflect = ranked.find(function (r) {
+            return r.ability.type === 'buff' && r.ability.effect === 'reflect';
+        });
+        if (reflect && (ctx.playerThreatHigh || ctx.playerFireCast)) return rest(reflect, ranked);
+    }
+
+    if (ctx.monsterHpRatio > 0.68 && !ctx.playerDebuffedDef) {
+        const curse = ranked.find(function (r) {
+            return r.ability.type === 'debuff' && r.ability.effect === 'hp';
+        });
+        if (curse) return rest(curse, ranked);
+    }
+
+    if (ctx.monsterHpRatio > 0.45 && ctx.offensivePhase && !ctx.monsterAtkBuffActive) {
+        const setup = ranked.find(function (r) {
+            const ab = r.ability;
+            return (ab.type === 'debuff' && ab.effect === 'atk')
+                || (ab.type === 'buff' && (ab.effect === 'atk' || ab.effect === 'all'));
+        });
+        if (setup && !ctx.recentMonsterSetup) return rest(setup, ranked);
+    }
+
+    if (ctx.monsterHpRatio < 0.38) {
+        const heal = ranked.find(function (r) { return r.ability.type === 'heal'; });
+        if (heal) return rest(heal, ranked);
+    }
+
+    if (ctx.burstPhase || (ctx.monsterAtkBuffActive && ctx.playerHpRatio > 0.4)) {
+        const finishers = ranked
+            .filter(function (r) { return r.ability.type === 'damage'; })
+            .sort(function (a, b) {
+                return (b.ability.multiplier || 1) - (a.ability.multiplier || 1);
+            });
+        if (finishers.length) {
+            return finishers.concat(ranked.filter(function (r) {
+                return r.ability.type !== 'damage';
+            }));
+        }
+    }
+
+    if (ctx.playerThreatExtreme && !ctx.monsterHasShield) {
+        const shield = ranked.find(function (r) { return r.ability.type === 'shield'; });
+        if (shield) return rest(shield, ranked);
+    }
+
+    return null;
+}
+
 function applyMonsterAiTurnPriorities(ranked, ctx) {
     if (!ranked.length || !ctx) return ranked;
+
+    const godRanked = applyInfinityGodAiPriorities(ranked, ctx);
+    if (godRanked) return godRanked;
 
     if (ctx.monsterHpRatio < 0.32) {
         const healEntry = ranked.find(r => r.ability.type === 'heal');
@@ -612,6 +697,8 @@ function getMonsterTacticalHint(ability, ctx) {
     if (role === 'finisher' && ctx.allyAlive && ctx.playerTanky && ctx.allyLikelySupport) {
         return '🎯 Дуо · срыв хила';
     }
+    if (ctx.isInfinityGod && ability.purgeBurn && ctx.monsterBurning) return '🔥 Снятие горения';
+    if (ctx.isInfinityGod && ability.effect === 'reflect' && ctx.playerFireCast) return '🪞 Ответ на огонь';
     if (role === 'debuff' && ctx.playerBuffed) return '🧠 Снятие баффов';
     if (role === 'debuff' && ctx.playerThreatHigh) return '🧠 Контр';
     if (ctx.allyAlive && ctx.recentTargetBias && ctx.recentTargetBias.playerHits >= 2

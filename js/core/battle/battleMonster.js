@@ -177,6 +177,16 @@ function useMonsterAbility(ability) {
             const buffValue = ability.value || 20;
             const buffDuration = ability.duration || 2;
             
+            if (ability.purgeBurn && currentMonster.effects) {
+                const hadBurn = currentMonster.effects.some(function (e) { return e.type === 'Горение'; });
+                if (hadBurn) {
+                    currentMonster.effects = currentMonster.effects.filter(function (e) {
+                        return e.type !== 'Горение';
+                    });
+                    addBattleLog(`🔥 ${ability.name}: поглощает горение и усиливает атаку!`, 'info');
+                    showBuffEffect('enemy', '🔥');
+                }
+            }
             if (buffType === 'atk') {
                 applyMonsterBuff('atk', buffValue, buffDuration);
             } else if (buffType === 'def') {

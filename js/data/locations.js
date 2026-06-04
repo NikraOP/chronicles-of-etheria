@@ -220,13 +220,19 @@ const LOCATIONS = [
 
         {name:'Место мироздания',icon:'🌌',minLvl:60,maxLvl:61,desc:'Страх всей вселенной',goldMult:18,bgColor:'linear-gradient(135deg, #1a1a3a, #0a0a2a)',
         monsters:[
-            {name:'Бог бесконечности',icon:'👹',img:'./monsters/bogBesk.png',hp:8500,atk:235,exp:530,def:58,
+            {name:'Бог бесконечности',icon:'👹',img:'./monsters/bogBesk.png',hp:16800,atk:332,exp:580,def:78,isBoss:true,aiProfile:'infinity_god',
                 abilities:[
-                    {name:'Пространственный разрыв',type:'damage',multiplier:3.0,chance:45,cooldown:4},
-                    {name:'Проклятие бесконечности',type:'debuff',effect:'hp',value:60,duration:2,chance:55,cooldown:6},
-                    {name:'Щит бесконечности',type:'shield',value:100,duration:2,chance:45,cooldown:7},
-                    {name:'Божественное возмездие',type:'damage',multiplier:1.5,chance:60},
-                    {name:'Возврат',type:'heal',value:70,chance:45,cooldown:10},
+                    {name:'Пространственный разрыв',type:'damage',multiplier:2.6,chance:52,cooldown:3},
+                    {name:'Проклятие бесконечности',type:'debuff',effect:'hp',value:52,duration:3,chance:60,cooldown:5},
+                    {name:'Щит бесконечности',type:'shield',value:58,duration:3,chance:50,cooldown:6},
+                    {name:'Божественное возмездие',type:'damage',multiplier:1.85,chance:68},
+                    {name:'Возврат',type:'heal',value:40,chance:50,cooldown:8},
+                    {name:'Гнев бесконечности',type:'buff',effect:'atk',value:70,duration:2,chance:45,cooldown:5},
+                    {name:'Разрушение воли',type:'debuff',effect:'atk',value:38,duration:2,chance:55,cooldown:4},
+                    {name:'Покров вечности',type:'buff',effect:'all',value:48,duration:2,chance:40,cooldown:6},
+                    {name:'Зеркало бесконечности',type:'buff',effect:'reflect',value:42,duration:2,chance:48,cooldown:5},
+                    {name:'Пожирание пламени',type:'buff',effect:'atk',value:55,duration:2,chance:58,cooldown:4,purgeBurn:true},
+                    {name:'Пепел души',type:'dot',effect:'burn',value:7,duration:3,chance:50,cooldown:4,target:'player'}
                 ]}
         ]}
 ];
