@@ -2,7 +2,11 @@
 
 Игра на **https://nikraop.github.io/chronicles-of-etheria/** обращается к API в интернете (браузер не может писать файлы в GitHub напрямую). Один раз настройте хостинг API — после этого игрокам ничего настраивать не нужно.
 
-## Вариант A — Render (рекомендуется, уже в репозитории)
+## Вариант A — Timeweb Cloud (VPS, стабильно)
+
+Пошагово: **[docs/TIMEWEB_CLOUD.md](TIMEWEB_CLOUD.md)** — Node API на сервере, HTTPS, GitHub Pages без изменений.
+
+## Вариант B — Render (бесплатно, может «засыпать»)
 
 1. Зайдите на [render.com](https://render.com) → **New** → **Blueprint**.
 2. Подключите репозиторий `chronicles-of-etheria` (ветка `main`).
@@ -15,7 +19,7 @@ URL API уже прописан в `js/config/friendsEnv.js` для домена
 
 > На бесплатном Render сервис «засыпает» после простоя; первый запрос после паузы может занять ~30–60 с. В консоли браузера это иногда выглядит как `net::ERR_CONNECTION_RESET` — игра автоматически повторяет запросы; подождите и нажмите «Синхронизировать» ещё раз.
 
-## Вариант B — Supabase (без Render)
+## Вариант C — Supabase (без своего Node)
 
 1. Создайте проект на [supabase.com](https://supabase.com).
 2. **SQL Editor** → вставьте и выполните `supabase/friends_schema.sql`.

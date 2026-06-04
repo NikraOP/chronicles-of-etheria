@@ -9,9 +9,9 @@
     global.ETHERIA_FRIENDS_SUPABASE_URL = '';
     global.ETHERIA_FRIENDS_SUPABASE_ANON_KEY = '';
 
-    // После Blueprint на Render (docs/FRIENDS_GITHUB_PAGES.md)
+    // Timeweb Cloud API (docs/TIMEWEB_CLOUD.md). sslip.io → IP 5.42.103.145
     global.ETHERIA_FRIENDS_HTTP_API = onGitHubPages
-        ? 'https://etheria-friends-api.onrender.com'
+        ? 'https://5-42-103-145.sslip.io'
         : 'http://localhost:8790';
 
     if (onGitHubPages) {
