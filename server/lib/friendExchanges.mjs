@@ -109,7 +109,26 @@ export function createFriendExchangesApi(dataDir, accountsApi) {
             const invType = String(row.invType || 'potions').slice(0, 32);
             row.invType = invType;
         }
-        return { ok: true, payload: { gold, items: JSON.parse(JSON.stringify(items)) } };
+        const resources = Array.isArray(payload.resources) ? payload.resources : [];
+        if (resources.length > MAX_ITEMS) {
+            return { error: 'too_many_items', message: 'Слишком много позиций в обмене' };
+        }
+        const normRes = [];
+        for (const row of resources) {
+            if (!row || !row.name) continue;
+            const name = String(row.name).slice(0, 64);
+            const qty = Math.floor(Number(row.qty) || 0);
+            if (qty <= 0) continue;
+            normRes.push({ name, qty });
+        }
+        return {
+            ok: true,
+            payload: {
+                gold,
+                items: JSON.parse(JSON.stringify(items)),
+                resources: normRes
+            }
+        };
     }
 
     function summarizeOffer(o) {
@@ -164,12 +183,12 @@ export function createFriendExchangesApi(dataDir, accountsApi) {
                 const toV = validatePayload(body && body.toOffer, 'хотите получить');
                 if (toV.error) return toV;
                 toPayload = toV.payload;
-                if (toPayload.gold === 0 && toPayload.items.length === 0) {
+                if (toPayload.gold === 0 && toPayload.items.length === 0 && !toPayload.resources.length) {
                     return { error: 'empty_request', status: 400, message: 'Укажите, что хотите получить в обмен' };
                 }
             }
             const fromPayload = fromV.payload;
-            if (fromPayload.gold === 0 && fromPayload.items.length === 0) {
+            if (fromPayload.gold === 0 && fromPayload.items.length === 0 && !fromPayload.resources.length) {
                 return { error: 'empty_offer', status: 400, message: 'Добавьте золото или предметы' };
             }
 

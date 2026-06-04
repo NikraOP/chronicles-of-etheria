@@ -6,9 +6,30 @@
     let _exchangeTargetId = '';
     let _exchangeTargetName = '';
     let _exchangeKind = 'gift';
-    let _exchangeWantGold = 0;
-    let _exchangeWantSelected = {};
+    let _exchangeGiveDraft = { gold: 0, items: [], resources: [] };
+    let _exchangeWantDraft = { gold: 0, items: [], resources: [] };
+    let _exchangePickerSide = 'give';
+    let _exchangePickerStep = null;
+    let _exchangePickerPending = null;
+    let _exchangePickerQty = 1;
     let _cachedExchanges = [];
+
+    const EX_INV_SLOTS = [
+        { key: 'weapons', label: 'Оружие', icon: '⚔️' },
+        { key: 'helmets', label: 'Шлем', icon: '⛑️' },
+        { key: 'chests', label: 'Нагрудник', icon: '🛡️' },
+        { key: 'pants', label: 'Поножи', icon: '👖' },
+        { key: 'boots', label: 'Сапоги', icon: '👢' },
+        { key: 'rings', label: 'Кольцо', icon: '💍' },
+        { key: 'necklaces', label: 'Амулет', icon: '📿' },
+        { key: 'stones', label: 'Камень', icon: '💎' },
+        { key: 'potions', label: 'Зелье', icon: '🧪' },
+        { key: 'manaPotions', label: 'Мана', icon: '💧' },
+        { key: 'foods', label: 'Еда', icon: '🍖' },
+        { key: 'elixirs', label: 'Эликсир', icon: '💪' },
+        { key: 'scrolls', label: 'Свиток', icon: '📜' },
+        { key: 'gatherScrolls', label: 'Свиток добычи', icon: '📜' }
+    ];
     let _exchangePollSince = 0;
     let _exchangePollActive = false;
     let _exchangePollTimer = null;
@@ -44,160 +65,401 @@
         if (typeof renderFriendsScreenInner === 'function') renderFriendsScreenInner();
     }
 
+    function emptyExchangeDraft() {
+        return { gold: 0, items: [], resources: [] };
+    }
+
+    function getExchangeDraft(side) {
+        return side === 'want' ? _exchangeWantDraft : _exchangeGiveDraft;
+    }
+
+    function resetExchangeDrafts() {
+        _exchangeGiveDraft = emptyExchangeDraft();
+        _exchangeWantDraft = emptyExchangeDraft();
+        _exchangePickerStep = null;
+        _exchangePickerPending = null;
+    }
+
     function resetExchangeWantDraft() {
-        _exchangeWantGold = 0;
-        _exchangeWantSelected = {};
+        _exchangeWantDraft = emptyExchangeDraft();
     }
 
-    function isWantSelected(invKey, index) {
-        const set = _exchangeWantSelected[invKey];
-        return !!(set && set[index]);
+    function draftToPayload(draft) {
+        return {
+            gold: Math.floor(Number(draft.gold) || 0),
+            items: (draft.items || []).map(function (row) {
+                return { invType: row.invKey, item: row.item };
+            }),
+            resources: (draft.resources || []).map(function (r) {
+                return { name: r.name, qty: Math.floor(Number(r.qty) || 0) };
+            }).filter(function (r) { return r.qty > 0; })
+        };
     }
 
-    function toggleExchangeWantItem(invKey, index) {
-        if (typeof isGiftItemEquipped === 'function' && isGiftItemEquipped(invKey, index)) {
-            if (typeof addMessage === 'function') {
-                addMessage('Снимите предмет с экипировки перед выбором.', 'error');
-            }
-            return;
-        }
-        if (!_exchangeWantSelected[invKey]) _exchangeWantSelected[invKey] = {};
-        if (_exchangeWantSelected[invKey][index]) {
-            delete _exchangeWantSelected[invKey][index];
-            if (!Object.keys(_exchangeWantSelected[invKey]).length) delete _exchangeWantSelected[invKey];
-        } else {
-            _exchangeWantSelected[invKey][index] = true;
-        }
-        refreshExchangeModalBody();
+    function draftIsEmpty(draft) {
+        const p = draftToPayload(draft);
+        return p.gold <= 0 && !p.items.length && !p.resources.length;
     }
 
-    function setExchangeWantGold(value) {
-        const n = Math.max(0, Math.floor(Number(value) || 0));
-        _exchangeWantGold = Math.min(n, player ? player.gold || 0 : 0);
-        refreshExchangeModalBody();
+    function getResourceAvailable(name, side) {
+        if (side === 'want') return 99999;
+        if (!player || !player.resources) return 0;
+        const total = Math.floor(Number(player.resources[name]) || 0);
+        const draft = getExchangeDraft(side);
+        const used = (draft.resources || []).filter(function (r) { return r.name === name; })
+            .reduce(function (s, r) { return s + (r.qty || 0); }, 0);
+        return Math.max(0, total - used);
     }
 
-    function peekWantPayloadFromDraft() {
-        const items = [];
-        Object.keys(_exchangeWantSelected).forEach(invKey => {
-            Object.keys(_exchangeWantSelected[invKey]).forEach(idx => {
-                const index = parseInt(idx, 10);
-                const list = player.inventory[invKey];
-                if (!list || index < 0 || index >= list.length) return;
-                if (typeof isGiftItemEquipped === 'function' && isGiftItemEquipped(invKey, index)) return;
-                items.push({
-                    invType: invKey,
-                    item: JSON.parse(JSON.stringify(list[index]))
+    function getExchangeResourceNamesForPicker(side) {
+        const names = new Set();
+        if (side === 'want' && typeof RESOURCES_DB === 'object') {
+            Object.keys(RESOURCES_DB).forEach(function (cat) {
+                (RESOURCES_DB[cat] || []).forEach(function (r) {
+                    if (r && r.name) names.add(r.name);
                 });
             });
-        });
-        return { gold: _exchangeWantGold, items: items };
-    }
-
-    function deductWantPayloadFromPlayer(payload) {
-        const byKey = {};
-        (payload.items || []).forEach(row => {
-            const k = row.invType;
-            if (!byKey[k]) byKey[k] = [];
-            byKey[k].push(row.item);
-        });
-        Object.keys(byKey).forEach(invKey => {
-            const list = player.inventory[invKey] || [];
-            byKey[invKey].forEach(wantItem => {
-                const wi = JSON.stringify(wantItem);
-                for (let i = list.length - 1; i >= 0; i--) {
-                    if (JSON.stringify(list[i]) === wi) {
-                        list.splice(i, 1);
-                        break;
-                    }
+        }
+        if (player && player.resources) {
+            Object.keys(player.resources).forEach(function (k) {
+                if (side === 'give') {
+                    if (getResourceAvailable(k, 'give') > 0) names.add(k);
+                } else {
+                    names.add(k);
                 }
             });
+        }
+        return Array.from(names).sort(function (a, b) { return a.localeCompare(b, 'ru'); });
+    }
+
+    function isItemIndexInDraft(side, invKey, index) {
+        return getExchangeDraft(side).items.some(function (row) {
+            return row.invKey === invKey && row.index === index;
         });
-        const gold = Math.floor(Number(payload.gold) || 0);
-        if (gold > 0) player.gold = Math.max(0, (player.gold || 0) - gold);
     }
 
     function summarizePayload(payload) {
         const gold = Math.floor(Number(payload && payload.gold) || 0);
         const n = payload && payload.items ? payload.items.length : 0;
+        const rn = payload && payload.resources ? payload.resources.length : 0;
         const parts = [];
         if (gold > 0) parts.push('💰 ' + gold);
         if (n > 0) parts.push('📦 ' + n + ' предм.');
+        if (rn > 0) parts.push('💎 ' + rn + ' рес.');
         return parts.length ? parts.join(' · ') : 'пусто';
     }
 
-    function buildExchangeGivePickerHtml() {
-        return buildExchangePickerBlock('give', true);
-    }
-
-    function buildExchangeWantPickerHtml() {
-        return buildExchangePickerBlock('want', false);
-    }
-
-    function buildExchangePickerBlock(mode, isGive) {
-        if (!player) return '';
-        const entries = typeof collectGiftableInventoryEntries === 'function'
-            ? collectGiftableInventoryEntries()
-            : [];
-        const goldVal = isGive
-            ? (typeof getGiftDraftGold === 'function' ? getGiftDraftGold() : 0)
-            : _exchangeWantGold;
-        let html = '<div class="exchange-picker" data-ex-picker="' + (isGive ? 'give' : 'want') + '">';
-        html += '<label class="account-label">Золото</label>';
-        html += '<input type="number" min="0" class="hero-input exchange-gold-input" data-ex-gold="' +
-            (isGive ? 'give' : 'want') + '" value="' + goldVal + '">';
-        html += '<p class="exchange-picker__hint">Выберите предметы (не в экипировке):</p>';
-        html += '<div class="exchange-picker__grid">';
-        if (!entries.length) {
-            html += '<p class="exchange-picker__empty">Нет доступных предметов</p>';
+    function buildExchangeDraftListHtml(side, title) {
+        const draft = getExchangeDraft(side);
+        let html = '<div class="exchange-draft" data-ex-draft="' + side + '">';
+        html += '<h4 class="exchange-draft__title">' + escapeExHtml(title) + '</h4>';
+        html += '<div class="exchange-draft__list">';
+        if (draft.gold > 0) {
+            html += '<span class="exchange-draft-chip">💰 ' + draft.gold +
+                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="gold" data-ex-side="' + side +
+                '">×</button></span>';
         }
-        entries.forEach(function (ent) {
-            const sel = isGive
-                ? (typeof isGiftDraftSelected === 'function' && isGiftDraftSelected(ent.invKey, ent.index))
-                : isWantSelected(ent.invKey, ent.index);
-            html += '<button type="button" class="exchange-picker__item' + (sel ? ' exchange-picker__item--on' : '') +
-                '" data-ex-side="' + (isGive ? 'give' : 'want') + '" data-ex-inv="' + escapeExHtml(ent.invKey) +
-                '" data-ex-idx="' + ent.index + '">' + escapeExHtml(ent.typeMeta.icon) + ' ' +
-                escapeExHtml(ent.item.name) + '</button>';
+        (draft.resources || []).forEach(function (r, i) {
+            html += '<span class="exchange-draft-chip">' + escapeExHtml(r.name) + ' ×' + r.qty +
+                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="res" data-ex-side="' + side +
+                '" data-ex-idx="' + i + '">×</button></span>';
         });
+        (draft.items || []).forEach(function (row, i) {
+            const label = (row.item && row.item.name) || 'Предмет';
+            html += '<span class="exchange-draft-chip">📦 ' + escapeExHtml(label) +
+                ' <button type="button" class="exchange-draft-chip__x" data-ex-rm="item" data-ex-side="' + side +
+                '" data-ex-idx="' + i + '">×</button></span>';
+        });
+        if (draftIsEmpty(draft)) {
+            html += '<span class="exchange-draft__empty">Пока ничего не добавлено</span>';
+        }
+        html += '</div>';
+        html += '<div class="exchange-draft__actions">';
+        html += '<button type="button" class="action-btn" data-ex-open-inv="' + side + '">➕ Добавить к обмену</button>';
+        html += '<button type="button" class="action-btn exchange-draft__gold-btn" data-ex-open-gold="' + side +
+            '">💰 Золото</button>';
         html += '</div></div>';
         return html;
     }
 
+    function buildExchangeInventoryPickerHtml() {
+        if (!player) return '<p>Нет персонажа</p>';
+        if (typeof ensureGiftInventoryLists === 'function') ensureGiftInventoryLists();
+        if (!player.resources) player.resources = {};
+
+        let html = '<div class="exchange-inv-picker">';
+        html += '<h3 class="exchange-inv-picker__title">🎒 Инвентарь</h3>';
+        html += '<p class="exchange-inv-picker__hint">Нажмите на ресурс или предмет. Для ресурсов укажите количество.</p>';
+
+        const resKeys = getExchangeResourceNamesForPicker(_exchangePickerSide);
+        if (resKeys.length) {
+            html += '<h4 class="exchange-inv-picker__section">💎 Ресурсы</h4><div class="exchange-inv-grid">';
+            resKeys.forEach(function (name) {
+                const qty = _exchangePickerSide === 'give'
+                    ? getResourceAvailable(name, 'give')
+                    : 99999;
+                if (_exchangePickerSide === 'give' && qty <= 0) return;
+                const resDef = typeof findResourceDefByName === 'function' ? findResourceDefByName(name) : null;
+                const iconItem = resDef || { name: name, icon: '📦' };
+                const iconHtml = typeof renderItemIconHTML === 'function'
+                    ? renderItemIconHTML(iconItem, { size: 40, fallback: '📦' })
+                    : '<span>📦</span>';
+                html += '<button type="button" class="exchange-inv-card" data-pick-type="resource" data-pick-name="' +
+                    escapeExHtml(name) + '"><div class="exchange-inv-card__icon">' + iconHtml + '</div>' +
+                    '<div class="exchange-inv-card__body"><div class="exchange-inv-card__name">' + escapeExHtml(name) +
+                    '</div><div class="exchange-inv-card__qty">×' + qty + '</div></div></button>';
+            });
+            html += '</div>';
+        }
+
+        EX_INV_SLOTS.forEach(function (slot) {
+            const list = player.inventory[slot.key] || [];
+            const rows = [];
+            list.forEach(function (item, index) {
+                if (!item) return;
+                if (_exchangePickerSide === 'give' && typeof isGiftItemEquipped === 'function' &&
+                    isGiftItemEquipped(slot.key, index)) return;
+                if (_exchangePickerSide === 'give' && isItemIndexInDraft('give', slot.key, index)) return;
+                rows.push({ item: item, index: index });
+            });
+            if (!rows.length) return;
+            html += '<h4 class="exchange-inv-picker__section">' + slot.icon + ' ' + slot.label + '</h4>';
+            html += '<div class="exchange-inv-grid">';
+            rows.forEach(function (row) {
+                const iconHtml = typeof renderItemIconHTML === 'function'
+                    ? renderItemIconHTML(row.item, { size: 40, fallback: slot.icon })
+                    : '<span>' + slot.icon + '</span>';
+                html += '<button type="button" class="exchange-inv-card" data-pick-type="item" data-pick-inv="' +
+                    escapeExHtml(slot.key) + '" data-pick-idx="' + row.index + '">' +
+                    '<div class="exchange-inv-card__icon">' + iconHtml + '</div>' +
+                    '<div class="exchange-inv-card__body"><div class="exchange-inv-card__name">' +
+                    escapeExHtml(row.item.name) + '</div></div></button>';
+            });
+            html += '</div>';
+        });
+
+        html += '<div class="exchange-inv-picker__footer">';
+        html += '<button type="button" class="modal-btn modal-btn--primary" data-ex-picker-done>Готово</button>';
+        html += '<button type="button" class="modal-btn modal-btn--ghost" data-ex-picker-back>Назад</button>';
+        html += '</div></div>';
+        return html;
+    }
+
+    function buildExchangeQuantityHtml() {
+        const p = _exchangePickerPending;
+        if (!p) return '';
+        let title = '';
+        let maxQ = 1;
+        if (p.type === 'gold') {
+            title = '💰 Золото';
+            maxQ = p.maxQty;
+        } else if (p.type === 'resource') {
+            title = '💎 ' + (p.name || '');
+            maxQ = p.maxQty;
+        } else {
+            title = '📦 ' + ((p.item && p.item.name) || 'Предмет');
+            maxQ = 1;
+        }
+        _exchangePickerQty = Math.min(Math.max(1, _exchangePickerQty), maxQ);
+        let html = '<div class="exchange-qty-step">';
+        html += '<h3 class="exchange-qty-step__title">' + escapeExHtml(title) + '</h3>';
+        html += '<p class="exchange-qty-step__hint">Доступно: ' + maxQ + '</p>';
+        html += '<div class="exchange-qty-step__controls">';
+        html += '<button type="button" class="action-btn" data-ex-qty-delta="-1">−</button>';
+        html += '<input type="number" id="exchangeQtyInput" class="hero-input exchange-qty-input" min="1" max="' +
+            maxQ + '" value="' + _exchangePickerQty + '">';
+        html += '<button type="button" class="action-btn" data-ex-qty-delta="1">+</button>';
+        html += '</div>';
+        html += '<div class="exchange-inv-picker__footer">';
+        html += '<button type="button" class="modal-btn modal-btn--primary" data-ex-qty-confirm>Готово</button>';
+        html += '<button type="button" class="modal-btn modal-btn--ghost" data-ex-picker-back>Назад</button>';
+        html += '</div></div>';
+        return html;
+    }
+
+    function openExchangeInventoryPicker(side) {
+        _exchangePickerSide = side === 'want' ? 'want' : 'give';
+        _exchangePickerStep = 'inventory';
+        _exchangePickerPending = null;
+        refreshExchangeModalBody();
+    }
+
+    function openExchangeGoldPicker(side) {
+        _exchangePickerSide = side === 'want' ? 'want' : 'give';
+        const draft = getExchangeDraft(_exchangePickerSide);
+        let maxQ = 999999999;
+        if (_exchangePickerSide === 'give' && player) {
+            maxQ = Math.max(0, (player.gold || 0) - (draft.gold || 0));
+        }
+        if (maxQ <= 0 && _exchangePickerSide === 'give') {
+            if (typeof addMessage === 'function') addMessage('Нет золота для добавления.', 'error');
+            return;
+        }
+        _exchangePickerPending = { type: 'gold', maxQty: maxQ };
+        _exchangePickerStep = 'quantity';
+        _exchangePickerQty = Math.min(1, maxQ);
+        refreshExchangeModalBody();
+    }
+
+    function exchangePickerBack() {
+        if (_exchangePickerStep === 'quantity') {
+            _exchangePickerStep = 'inventory';
+            _exchangePickerPending = null;
+        } else {
+            _exchangePickerStep = null;
+            _exchangePickerPending = null;
+        }
+        refreshExchangeModalBody();
+    }
+
+    function exchangePickerDone() {
+        _exchangePickerStep = null;
+        _exchangePickerPending = null;
+        refreshExchangeModalBody();
+    }
+
+    function readExchangePickerQty() {
+        const input = document.getElementById('exchangeQtyInput');
+        const maxQ = (_exchangePickerPending && _exchangePickerPending.maxQty) || 1;
+        let n = input ? parseInt(input.value, 10) : _exchangePickerQty;
+        if (!Number.isFinite(n) || n < 1) n = 1;
+        return Math.min(n, maxQ);
+    }
+
+    function confirmExchangePickerQty() {
+        const p = _exchangePickerPending;
+        if (!p || !player) return;
+        const qty = readExchangePickerQty();
+        const draft = getExchangeDraft(_exchangePickerSide);
+
+        if (p.type === 'gold') {
+            draft.gold = (draft.gold || 0) + qty;
+        } else if (p.type === 'resource') {
+            const existing = (draft.resources || []).find(function (r) { return r.name === p.name; });
+            if (existing) existing.qty += qty;
+            else draft.resources.push({ name: p.name, qty: qty });
+        } else if (p.type === 'item') {
+            draft.items.push({
+                invKey: p.invKey,
+                index: p.index,
+                item: JSON.parse(JSON.stringify(p.item))
+            });
+        }
+        exchangePickerDone();
+    }
+
+    function onPickInventoryCard(btn) {
+        const type = btn.getAttribute('data-pick-type');
+        if (type === 'resource') {
+            const name = btn.getAttribute('data-pick-name');
+            const maxQty = getResourceAvailable(name, _exchangePickerSide);
+            if (maxQty <= 0) return;
+            _exchangePickerPending = { type: 'resource', name: name, maxQty: maxQty };
+            _exchangePickerStep = 'quantity';
+            _exchangePickerQty = 1;
+            refreshExchangeModalBody();
+            return;
+        }
+        if (type === 'item') {
+            const invKey = btn.getAttribute('data-pick-inv');
+            const index = parseInt(btn.getAttribute('data-pick-idx'), 10);
+            const list = player.inventory[invKey];
+            if (!list || !list[index]) return;
+            if (_exchangePickerSide === 'give' && typeof isGiftItemEquipped === 'function' &&
+                isGiftItemEquipped(invKey, index)) {
+                if (typeof addMessage === 'function') addMessage('Снимите предмет с экипировки.', 'error');
+                return;
+            }
+            const draft = getExchangeDraft(_exchangePickerSide);
+            draft.items.push({
+                invKey: invKey,
+                index: index,
+                item: JSON.parse(JSON.stringify(list[index]))
+            });
+            _exchangePickerStep = 'inventory';
+            refreshExchangeModalBody();
+        }
+    }
+
+    function removeExchangeDraftEntry(side, kind, idx) {
+        const draft = getExchangeDraft(side);
+        if (kind === 'gold') draft.gold = 0;
+        else if (kind === 'res' && draft.resources) draft.resources.splice(idx, 1);
+        else if (kind === 'item' && draft.items) draft.items.splice(idx, 1);
+        refreshExchangeModalBody();
+    }
+
     function bindExchangeModalPanel() {
         const root = document.getElementById('exchangeModalBody');
-        if (!root) return;
-        root.querySelectorAll('.exchange-gold-input[data-ex-gold]').forEach(function (input) {
-            const side = input.getAttribute('data-ex-gold');
-            const handler = function () {
-                if (side === 'give') {
-                    if (typeof setGiftDraftGold === 'function') setGiftDraftGold(input.value);
-                } else {
-                    setExchangeWantGold(input.value);
-                }
-            };
-            input.addEventListener('input', handler);
-            input.addEventListener('change', handler);
-        });
-        root.querySelectorAll('.exchange-picker__item[data-ex-inv]').forEach(function (btn) {
-            btn.addEventListener('click', function (ev) {
+        if (!root || root.__exchangeClickBound) return;
+        root.__exchangeClickBound = true;
+        root.addEventListener('click', function (ev) {
+            const t = ev.target;
+            const openInv = t.closest && t.closest('[data-ex-open-inv]');
+            if (openInv) {
                 ev.preventDefault();
-                const side = btn.getAttribute('data-ex-side');
-                const inv = btn.getAttribute('data-ex-inv');
-                const idx = parseInt(btn.getAttribute('data-ex-idx'), 10);
-                if (side === 'want') {
-                    toggleExchangeWantItem(inv, idx);
-                } else if (typeof toggleGiftDraftItem === 'function') {
-                    toggleGiftDraftItem(inv, idx);
-                }
-            });
+                openExchangeInventoryPicker(openInv.getAttribute('data-ex-open-inv'));
+                return;
+            }
+            const openGold = t.closest && t.closest('[data-ex-open-gold]');
+            if (openGold) {
+                ev.preventDefault();
+                openExchangeGoldPicker(openGold.getAttribute('data-ex-open-gold'));
+                return;
+            }
+            const rm = t.closest && t.closest('[data-ex-rm]');
+            if (rm) {
+                ev.preventDefault();
+                removeExchangeDraftEntry(
+                    rm.getAttribute('data-ex-side'),
+                    rm.getAttribute('data-ex-rm'),
+                    parseInt(rm.getAttribute('data-ex-idx'), 10)
+                );
+                return;
+            }
+            const card = t.closest && t.closest('.exchange-inv-card[data-pick-type]');
+            if (card) {
+                ev.preventDefault();
+                onPickInventoryCard(card);
+                return;
+            }
+            if (t.closest && t.closest('[data-ex-picker-done]')) {
+                ev.preventDefault();
+                exchangePickerDone();
+                return;
+            }
+            if (t.closest && t.closest('[data-ex-picker-back]')) {
+                ev.preventDefault();
+                exchangePickerBack();
+                return;
+            }
+            if (t.closest && t.closest('[data-ex-qty-confirm]')) {
+                ev.preventDefault();
+                confirmExchangePickerQty();
+                return;
+            }
+            const deltaBtn = t.closest && t.closest('[data-ex-qty-delta]');
+            if (deltaBtn) {
+                ev.preventDefault();
+                const d = parseInt(deltaBtn.getAttribute('data-ex-qty-delta'), 10);
+                const maxQ = (_exchangePickerPending && _exchangePickerPending.maxQty) || 1;
+                _exchangePickerQty = Math.min(maxQ, Math.max(1, readExchangePickerQty() + d));
+                const input = document.getElementById('exchangeQtyInput');
+                if (input) input.value = String(_exchangePickerQty);
+            }
         });
     }
 
     function refreshExchangeModalBody() {
         const body = document.getElementById('exchangeModalBody');
         if (!body) return;
-        body.innerHTML = buildExchangeModalInner();
+        if (_exchangePickerStep === 'inventory') {
+            body.innerHTML = buildExchangeInventoryPickerHtml();
+        } else if (_exchangePickerStep === 'quantity') {
+            body.innerHTML = buildExchangeQuantityHtml();
+        } else {
+            body.innerHTML = buildExchangeModalInner();
+        }
         bindExchangeModalPanel();
     }
 
@@ -213,16 +475,12 @@
         html += '</div>';
         html += '<p class="modal-exchange__hint">' +
             (_exchangeKind === 'gift'
-                ? 'Отправьте золото и предметы без условий — друг примет в разделе «Обмены».'
-                : 'Укажите, что отдаёте и что хотите получить взамен.') +
+                ? 'Нажмите «Добавить к обмену» — откроется инвентарь. Выберите предмет или ресурс и количество.'
+                : 'Укажите, что отдаёте и что хотите получить взамен (через инвентарь).') +
             '</p>';
-        html += '<div class="exchange-modal__section"><h4>Вы отдаёте</h4>';
-        html += buildExchangeGivePickerHtml();
-        html += '</div>';
+        html += buildExchangeDraftListHtml('give', 'Вы отдаёте');
         if (_exchangeKind === 'trade') {
-            html += '<div class="exchange-modal__section"><h4>Хотите получить</h4>';
-            html += buildExchangeWantPickerHtml();
-            html += '</div>';
+            html += buildExchangeDraftListHtml('want', 'Хотите получить');
         }
         html += '<div class="modal-exchange__actions">';
         html += '<button type="button" class="modal-btn modal-btn--primary" onclick="submitFriendExchange()">Отправить</button>';
@@ -234,7 +492,64 @@
     function setExchangeKind(kind) {
         _exchangeKind = kind === 'trade' ? 'trade' : 'gift';
         if (_exchangeKind === 'gift') resetExchangeWantDraft();
+        _exchangePickerStep = null;
         refreshExchangeModalBody();
+    }
+
+    function deductExchangeDraft(draft) {
+        if (!player || !draft) return;
+        if (draft.gold > 0) player.gold = Math.max(0, (player.gold || 0) - draft.gold);
+        (draft.resources || []).forEach(function (r) {
+            if (!player.resources) player.resources = {};
+            player.resources[r.name] = Math.max(0, (Number(player.resources[r.name]) || 0) - r.qty);
+        });
+        const byKey = {};
+        (draft.items || []).forEach(function (row) {
+            if (!byKey[row.invKey]) byKey[row.invKey] = [];
+            byKey[row.invKey].push(row.index);
+        });
+        Object.keys(byKey).forEach(function (invKey) {
+            const list = player.inventory[invKey] || [];
+            byKey[invKey].sort(function (a, b) { return b - a; }).forEach(function (idx) {
+                if (idx >= 0 && idx < list.length) list.splice(idx, 1);
+            });
+        });
+    }
+
+    function grantExchangePayload(payload) {
+        if (!player || !payload) return;
+        if (typeof grantGiftPayload === 'function') {
+            grantGiftPayload({ gold: payload.gold || 0, items: payload.items || [] });
+        } else {
+            const gold = Math.floor(Number(payload.gold) || 0);
+            if (gold > 0) player.gold = (player.gold || 0) + gold;
+        }
+        if (!player.resources) player.resources = {};
+        (payload.resources || []).forEach(function (r) {
+            const name = r.name;
+            const qty = Math.floor(Number(r.qty) || 0);
+            if (name && qty > 0) {
+                player.resources[name] = (Number(player.resources[name]) || 0) + qty;
+            }
+        });
+    }
+
+    function deductPayloadFromPlayer(payload) {
+        const draft = {
+            gold: payload.gold || 0,
+            items: [],
+            resources: (payload.resources || []).slice()
+        };
+        (payload.items || []).forEach(function (row) {
+            const list = player.inventory[row.invType] || [];
+            for (let i = 0; i < list.length; i++) {
+                if (JSON.stringify(list[i]) === JSON.stringify(row.item)) {
+                    draft.items.push({ invKey: row.invType, index: i });
+                    break;
+                }
+            }
+        });
+        deductExchangeDraft(draft);
     }
 
     function openExchangeModal(targetPlayerId, targetName) {
@@ -247,8 +562,7 @@
         _exchangeTargetId = String(targetPlayerId || '');
         _exchangeTargetName = String(targetName || 'друг');
         _exchangeKind = 'gift';
-        resetExchangeWantDraft();
-        if (typeof resetGiftDraft === 'function') resetGiftDraft();
+        resetExchangeDrafts();
         const modal = document.getElementById('modalOverlay');
         const content = document.getElementById('modalContent');
         if (!modal || !content) return;
@@ -267,17 +581,15 @@
 
     async function submitFriendExchange() {
         if (!player || !_exchangeTargetId) return;
-        const fromOffer = typeof peekGiftPayloadFromDraft === 'function'
-            ? peekGiftPayloadFromDraft()
-            : { gold: 0, items: [] };
-        if (fromOffer.gold <= 0 && !fromOffer.items.length) {
-            if (typeof addMessage === 'function') addMessage('Добавьте золото или предметы.', 'error');
+        const fromOffer = draftToPayload(_exchangeGiveDraft);
+        if (fromOffer.gold <= 0 && !fromOffer.items.length && !fromOffer.resources.length) {
+            if (typeof addMessage === 'function') addMessage('Добавьте к обмену золото, предметы или ресурсы.', 'error');
             return;
         }
-        let toOffer = { gold: 0, items: [] };
+        let toOffer = { gold: 0, items: [], resources: [] };
         if (_exchangeKind === 'trade') {
-            toOffer = peekWantPayloadFromDraft();
-            if (toOffer.gold <= 0 && !toOffer.items.length) {
+            toOffer = draftToPayload(_exchangeWantDraft);
+            if (toOffer.gold <= 0 && !toOffer.items.length && !toOffer.resources.length) {
                 if (typeof addMessage === 'function') addMessage('Укажите, что хотите получить в обмен.', 'error');
                 return;
             }
@@ -297,7 +609,7 @@
                     toOffer: toOffer
                 }
             });
-            if (typeof deductGiftDraftFromPlayer === 'function') deductGiftDraftFromPlayer();
+            deductExchangeDraft(_exchangeGiveDraft);
             if (typeof resetBaseStats === 'function') resetBaseStats();
             if (typeof saveGame === 'function') saveGame();
             if (typeof renderGame === 'function') renderGame();
@@ -391,13 +703,13 @@
     function applyExchangeAccepted(offer, asRecipient) {
         if (!offer || !player) return;
         if (asRecipient) {
-            if (typeof grantGiftPayload === 'function') grantGiftPayload(offer.fromOffer);
+            grantExchangePayload(offer.fromOffer);
             if (offer.kind === 'trade' && offer.toOffer) {
-                deductWantPayloadFromPlayer(offer.toOffer);
+                deductPayloadFromPlayer(offer.toOffer);
             }
         } else {
-            if (offer.kind === 'trade' && offer.toOffer && typeof grantGiftPayload === 'function') {
-                grantGiftPayload(offer.toOffer);
+            if (offer.kind === 'trade' && offer.toOffer) {
+                grantExchangePayload(offer.toOffer);
             }
         }
         if (typeof resetBaseStats === 'function') resetBaseStats();
@@ -575,8 +887,6 @@
     window.openExchangeModal = openExchangeModal;
     window.closeExchangeModal = closeExchangeModal;
     window.setExchangeKind = setExchangeKind;
-    window.setExchangeWantGold = setExchangeWantGold;
-    window.toggleExchangeWantItem = toggleExchangeWantItem;
     window.submitFriendExchange = submitFriendExchange;
     window.respondFriendExchange = respondFriendExchange;
     window.refreshExchangesList = refreshExchangesList;
