@@ -26,6 +26,7 @@ function getBattleAbilityTargeting(ability) {
     if (ability.targeting) return ability.targeting;
     const fromDb = lookupAbilityTargetingInDb(ability);
     if (fromDb) return fromDb;
+    if (ability.aoe) return 'all_enemies';
     if ((ability.heal || ability.maxHpShield) && !(ability.dmg || ability.aoe || ability.doubleHit)) {
         return 'self';
     }
@@ -62,8 +63,11 @@ function isDungeonBattleContext() {
     return !!(session && session.state === 'battle');
 }
 
-function getAutoResolveTarget(validKinds) {
+function getAutoResolveTarget(validKinds, targetingMode) {
     if (!validKinds || !validKinds.length) return null;
+    if (targetingMode === 'all_enemies' && validKinds.indexOf('enemy') >= 0 && getBattleEnemySlotCount() >= 1) {
+        return { targetKind: 'enemy', targetIndex: 0 };
+    }
     if (isDungeonBattleContext()) return null;
     if (validKinds.indexOf('self') >= 0 && validKinds.length === 1) {
         return { targetKind: 'self', targetIndex: 0 };
@@ -196,8 +200,9 @@ function beginBattleTargeting(opts) {
     opts = opts || {};
     if (_targetingMode) cancelBattleTargeting();
 
-    const validKinds = opts.validKinds || targetingModeToValidKinds(opts.targeting || 'enemy');
-    const auto = opts.skipAutoResolve === true ? null : getAutoResolveTarget(validKinds);
+    const targetingMode = opts.targeting || 'enemy';
+    const validKinds = opts.validKinds || targetingModeToValidKinds(targetingMode);
+    const auto = opts.skipAutoResolve === true ? null : getAutoResolveTarget(validKinds, targetingMode);
     if (auto) {
         if (auto.targetKind === 'enemy') focusBattleEnemyAtIndex(auto.targetIndex);
         if (typeof opts.handler === 'function') {

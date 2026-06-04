@@ -24,6 +24,98 @@ function applyLessonHealMult(amount) {
     return amount;
 }
 
+function applyAoeMonsterSideEffects(m, a, doubleThisCast) {
+    if (!m || m.health <= 0) return;
+    if (a.effect) {
+        let effectDur = a.effect.dur;
+        let effectVal = a.effect.val ?? a.effect.value;
+        if (effectVal != null && typeof getLessonEffectMultiplier === 'function') {
+            effectVal = Math.floor(effectVal * getLessonEffectMultiplier(player, a.effect.type));
+        }
+        if (doubleThisCast) {
+            effectDur = Math.floor(effectDur * 1.5);
+            effectVal = Math.floor(effectVal * 1.5);
+        }
+        if (a.effect.type === 'Смертельный яд') {
+            m.damageAmp = 2;
+        } else {
+            if (!m.effects) m.effects = [];
+            m.effects.push({
+                type: a.effect.type,
+                dur: effectDur,
+                val: effectVal,
+                spread: a.effect.spread,
+                manaRegen: a.effect.manaRegen
+            });
+        }
+    }
+    if (a.enemyDebuff) {
+        m.armorShred = (m.armorShred || 0) + a.enemyDebuff.value;
+        if (a.enemyDebuff.dur) {
+            m.armorShredTurns = Math.max(m.armorShredTurns || 0, a.enemyDebuff.dur);
+        }
+    }
+    if (a.dotOverTime) {
+        m.dotOverTime = { remaining: a.dotOverTime.dur, dmgPercent: a.dotOverTime.dmgPerTurn };
+    }
+    if (a.groundBuff === 'lava') m.fireVuln = a.value;
+    if (a.fireVuln) m.fireVuln = a.fireVuln;
+    if (a.armorShred) m.armorShred = (m.armorShred || 0) + a.armorShred;
+    if (a.freezeExtend && m.effects) {
+        m.effects.forEach(function (e) {
+            if (e.type === 'Заморозка') e.dur *= 2;
+        });
+    }
+    if (a.markAll) {
+        m.marked = true;
+        m.markBonus = a.mark || 40;
+    }
+}
+
+function spreadAoeMonsterEffects(a, doubleThisCast) {
+    if (!a.aoe || typeof forEachLivingBattleEnemy !== 'function') return;
+    const primaryIdx = typeof getBattleEnemyFocusIndex === 'function' ? getBattleEnemyFocusIndex() : 0;
+    forEachLivingBattleEnemy(function (m, idx) {
+        if (idx === primaryIdx) return;
+        applyAoeMonsterSideEffects(m, a, doubleThisCast);
+    });
+}
+
+function resolveHitDamageForFocusedMonster(baseDmg, a) {
+    let hitDmg = baseDmg;
+    const defenseAlreadyApplied = a.ignoreDef || a.armorShred || a.ignoreAll;
+    if (currentMonster.damageAmp > 1) {
+        hitDmg = Math.floor(hitDmg * currentMonster.damageAmp);
+        currentMonster.damageAmp = 1;
+    }
+    if (hitDmg > 0 && !defenseAlreadyApplied) {
+        hitDmg = calculateDamageWithShred(hitDmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+    } else if (hitDmg > 0 && a.pierce) {
+        hitDmg = calculateDamage(hitDmg, 0);
+    } else if (hitDmg > 0 && a.ignoreDef) {
+        const effDef = Math.floor(getMonsterCurrentDefense() * (1 - a.ignoreDef / 100));
+        hitDmg = calculateDamage(hitDmg, effDef);
+    }
+    return hitDmg;
+}
+
+function applyAbilityDamageAtTargets(a, baseDmg, ignoreShields) {
+    if (a.aoe && typeof forEachLivingBattleEnemy === 'function' && getBattleEnemySlotCount() > 0) {
+        let totalApplied = 0;
+        forEachLivingBattleEnemy(function () {
+            const hitDmg = resolveHitDamageForFocusedMonster(baseDmg, a);
+            const applied = applyDamageToMonster(hitDmg, ignoreShields);
+            totalApplied += applied;
+            applyMonsterReflectDamage(applied);
+        });
+        return totalApplied;
+    }
+    const hitDmg = resolveHitDamageForFocusedMonster(baseDmg, a);
+    const applied = applyDamageToMonster(hitDmg, ignoreShields);
+    applyMonsterReflectDamage(applied);
+    return applied;
+}
+
 function requireBattleEngaged() {
     if (typeof isBattleEngaged === 'function' && !isBattleEngaged()) {
         if (typeof addMessage === 'function') addMessage('⚔️ Сначала нажмите «В бой» на поле сражения.', 'error');
@@ -420,8 +512,15 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.markAll) {
-        currentMonster.marked = true;
-        currentMonster.markBonus = a.mark || 40;
+        if (typeof forEachLivingBattleEnemy === 'function') {
+            forEachLivingBattleEnemy(function (m) {
+                m.marked = true;
+                m.markBonus = a.mark || 40;
+            });
+        } else {
+            currentMonster.marked = true;
+            currentMonster.markBonus = a.mark || 40;
+        }
         markedTarget = true;
         addBattleLog(`🎯 Все враги отмечены!`, 'info');
     }
@@ -477,10 +576,19 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.hpLoss) {
-        const hpLossDmg = Math.floor(currentMonster.maxHealth * a.hpLoss / 100);
-        if (hpLossDmg > 0) {
-            applyDamageToMonster(hpLossDmg, ignoreShieldsThisHit);
-            addBattleLog(`💀 Потеря ${a.hpLoss}% HP цели (-${hpLossDmg})!`, 'dmg');
+        const applyHpLossToFocused = function () {
+            const hpLossDmg = Math.floor(currentMonster.maxHealth * a.hpLoss / 100);
+            if (hpLossDmg > 0) applyDamageToMonster(hpLossDmg, ignoreShieldsThisHit);
+        };
+        if (a.aoe && typeof forEachLivingBattleEnemy === 'function') {
+            forEachLivingBattleEnemy(applyHpLossToFocused);
+            addBattleLog(`💀 Потеря ${a.hpLoss}% HP всех целей!`, 'dmg');
+        } else {
+            const hpLossDmg = Math.floor(currentMonster.maxHealth * a.hpLoss / 100);
+            if (hpLossDmg > 0) {
+                applyDamageToMonster(hpLossDmg, ignoreShieldsThisHit);
+                addBattleLog(`💀 Потеря ${a.hpLoss}% HP цели (-${hpLossDmg})!`, 'dmg');
+            }
         }
     }
     
@@ -577,8 +685,10 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         if (a.enemyDebuff.dur) {
             currentMonster.armorShredTurns = Math.max(currentMonster.armorShredTurns || 0, a.enemyDebuff.dur);
         }
-        addBattleLog(`🛡️ Защита врага снижена на ${a.enemyDebuff.value}%!`, 'info');
+        addBattleLog(a.aoe ? `🛡️ Защита всех врагов снижена на ${a.enemyDebuff.value}%!` : `🛡️ Защита врага снижена на ${a.enemyDebuff.value}%!`, 'info');
     }
+
+    spreadAoeMonsterEffects(a, doubleThisCast);
     
     if (a.partyBuff) {
         const pbDur = a.partyBuff.dur || 3;
@@ -620,9 +730,18 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     if (a.skipNextTurn) addBattleLog(`💫 Следующий ход пропускается...`, 'info');
     
     if (a.bleedPercent) {
-        const bleedDamage = Math.floor(currentMonster.maxHealth * a.bleedPercent / 100);
-        applyDamageToMonster(bleedDamage);
-        addBattleLog(`🩸 Кровотечение: -${bleedDamage} урона!`, 'dmg');
+        const applyBleed = function () {
+            const bleedDamage = Math.floor(currentMonster.maxHealth * a.bleedPercent / 100);
+            if (bleedDamage > 0) applyDamageToMonster(bleedDamage);
+        };
+        if (a.aoe && typeof forEachLivingBattleEnemy === 'function') {
+            forEachLivingBattleEnemy(applyBleed);
+            addBattleLog(`🩸 Кровотечение по всем врагам!`, 'dmg');
+        } else {
+            const bleedDamage = Math.floor(currentMonster.maxHealth * a.bleedPercent / 100);
+            applyDamageToMonster(bleedDamage);
+            addBattleLog(`🩸 Кровотечение: -${bleedDamage} урона!`, 'dmg');
+        }
     }
     
     if (a.heal) {
@@ -781,13 +900,13 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     dmg = Math.floor(dmg * getWeakspotDamageMultiplier());
-    if (currentMonster.damageAmp > 1) {
+    if (!a.aoe && currentMonster.damageAmp > 1) {
         dmg = Math.floor(dmg * currentMonster.damageAmp);
         currentMonster.damageAmp = 1;
     }
     
     const defenseAlreadyApplied = a.ignoreDef || a.armorShred || a.ignoreAll;
-    if (dmg > 0 && !defenseAlreadyApplied) {
+    if (!a.aoe && dmg > 0 && !defenseAlreadyApplied) {
         dmg = calculateDamageWithShred(dmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
     }
     
@@ -843,9 +962,8 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     if (a.aoe) addBattleLog(`🌪️ Урон наносится по всем врагам!`, 'info');
     if (a.chain) addBattleLog(`⚡ Цепная молния!`, 'info');
     
-    const appliedDamage = applyDamageToMonster(dmg, ignoreShieldsThisHit);
+    const appliedDamage = applyAbilityDamageAtTargets(a, dmg, ignoreShieldsThisHit);
     ignoreShieldsThisHit = false;
-    applyMonsterReflectDamage(appliedDamage);
     if (appliedDamage > 0) addBattleLog(`✨ ${a.name}: ${appliedDamage} урона!`, 'dmg');
     else addBattleLog(`✨ ${a.name}!`, 'info');
     

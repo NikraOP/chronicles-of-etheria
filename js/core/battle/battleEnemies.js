@@ -58,6 +58,34 @@ function getFocusedEnemy() {
     return battleEnemies[battleEnemyFocusIndex] || null;
 }
 
+function getBattleEnemyFocusIndex() {
+    return battleEnemyFocusIndex;
+}
+
+/**
+ * Выполняет callback для каждого живого врага, временно переключая currentMonster.
+ */
+function forEachLivingBattleEnemy(callback) {
+    if (typeof callback !== 'function') return;
+    const enemies = getBattleEnemies();
+    const list = enemies.length ? enemies : (typeof currentMonster !== 'undefined' && currentMonster ? [currentMonster] : []);
+    if (!list.length) return;
+    const savedFocus = battleEnemyFocusIndex;
+    for (let i = 0; i < list.length; i++) {
+        const m = list[i];
+        if (!m || m.health <= 0) continue;
+        if (enemies.length) {
+            setFocusedEnemyIndex(i);
+            syncCurrentMonsterFromFocus();
+        }
+        callback(m, i);
+    }
+    if (enemies.length) {
+        setFocusedEnemyIndex(savedFocus);
+        syncCurrentMonsterFromFocus();
+    }
+}
+
 function setFocusedEnemyIndex(i) {
     if (!battleEnemies.length) {
         battleEnemyFocusIndex = 0;
@@ -241,6 +269,8 @@ function getBattleEnemyFocusIndex() {
 }
 
 window.getBattleEnemies = getBattleEnemies;
+window.getBattleEnemyFocusIndex = getBattleEnemyFocusIndex;
+window.forEachLivingBattleEnemy = forEachLivingBattleEnemy;
 window.getBattleEnemyFocusIndex = getBattleEnemyFocusIndex;
 window.setBattleEnemies = setBattleEnemies;
 window.getFocusedEnemy = getFocusedEnemy;
