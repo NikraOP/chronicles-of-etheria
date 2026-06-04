@@ -284,6 +284,111 @@ function dungeonUiJoinDuoRoom(_dungeonId) {
     dungeonUiJoinDuoRoomPrompt();
 }
 
+function buildDuoLobbyPortraitHtml(snapshot) {
+    if (!snapshot) return '<div class="dungeon-duo-lobby__avatar dungeon-duo-lobby__avatar--empty">👤</div>';
+    if (snapshot.schoolImg && typeof resolveGameAssetUrl === 'function') {
+        const src = resolveGameAssetUrl(snapshot.schoolImg);
+        const fb = escapeDungeonText(snapshot.class || '⚔️');
+        return '<div class="dungeon-duo-lobby__avatar"><img src="' + src + '" alt="" onerror="this.remove();this.parentElement.classList.add(\'dungeon-duo-lobby__avatar--emoji\');this.parentElement.textContent=\'' + fb + '\'"></div>';
+    }
+    return '<div class="dungeon-duo-lobby__avatar dungeon-duo-lobby__avatar--emoji">' + escapeDungeonText(snapshot.class ? snapshot.class.charAt(0) : '👤') + '</div>';
+}
+
+function renderDuoLobbyPlayerCard(label, snapshot, ready, opts) {
+    opts = opts || {};
+    const readyCls = ready ? ' dungeon-duo-lobby__slot--ready' : '';
+    const waitingCls = opts.waiting ? ' dungeon-duo-lobby__slot--waiting' : '';
+    const readyText = ready ? '✓ Готов' : 'Не готов';
+    const readyBadgeCls = ready ? ' dungeon-duo-lobby__ready-badge--on' : '';
+    let body = '';
+    if (opts.waiting) {
+        body = '<p class="dungeon-duo-lobby__slot-hint">Друг ещё не вошёл по коду комнаты</p>';
+    } else if (snapshot) {
+        body = '<div class="dungeon-duo-lobby__slot-name">' + escapeDungeonText(snapshot.name) + '</div>' +
+            '<div class="dungeon-duo-lobby__slot-meta">' + escapeDungeonText(snapshot.class) +
+            (snapshot.branch ? ' · ' + escapeDungeonText(snapshot.branch) : '') +
+            ' · ур. ' + (snapshot.level || 1) + '</div>';
+    }
+    return '<article class="dungeon-duo-lobby__slot' + readyCls + waitingCls + '">' +
+        '<div class="dungeon-duo-lobby__slot-head">' +
+        '<span class="dungeon-duo-lobby__slot-role">' + escapeDungeonText(label) + '</span>' +
+        '<span class="dungeon-duo-lobby__ready-badge' + readyBadgeCls + '">' + readyText + '</span>' +
+        '</div>' +
+        buildDuoLobbyPortraitHtml(snapshot) +
+        body +
+        '</article>';
+}
+
+function renderDuoLobbyConnectionBanner(duo) {
+    if (duo.status === 'sync') {
+        return '<div class="dungeon-duo-lobby__banner dungeon-duo-lobby__banner--sync">' +
+            '<span class="dungeon-duo-lobby__banner-icon">✨</span>' +
+            '<div><strong>Забег синхронизирован</strong><p>Оба готовы — можно начинать прохождение</p></div></div>';
+    }
+    if (!duo.partnerConnected) {
+        const hint = duo.role === 'host'
+            ? 'Отправьте другу код комнаты — он появится здесь после входа'
+            : 'Подключение к комнате… если долго нет хоста — проверьте код';
+        return '<div class="dungeon-duo-lobby__banner dungeon-duo-lobby__banner--wait">' +
+            '<span class="dungeon-duo-lobby__banner-icon">⏳</span>' +
+            '<div><strong>Ждём друга</strong><p>' + hint + '</p></div></div>';
+    }
+    if (duo.localReady && duo.remoteReady) {
+        return '<div class="dungeon-duo-lobby__banner dungeon-duo-lobby__banner--ok">' +
+            '<span class="dungeon-duo-lobby__banner-icon">✅</span>' +
+            '<div><strong>Друг в комнате</strong><p>Оба отметили готовность — генерируем забег…</p></div></div>';
+    }
+    return '<div class="dungeon-duo-lobby__banner dungeon-duo-lobby__banner--ok">' +
+        '<span class="dungeon-duo-lobby__banner-icon">👥</span>' +
+        '<div><strong>Друг в комнате</strong><p>' +
+        (duo.remoteReady ? 'Партнёр готов — нажмите «Готов», если ещё не отметились' : 'Партнёр подключился, ждёт вашей готовности') +
+        '</p></div></div>';
+}
+
+function renderDuoLobbyLogHtml(log) {
+    if (!log || !log.length) return '';
+    let rows = '';
+    for (let i = 0; i < Math.min(log.length, 6); i++) {
+        const row = log[i];
+        rows += '<li class="dungeon-duo-lobby__log-item dungeon-duo-lobby__log-item--' +
+            escapeDungeonText(row.type || 'info') + '">' +
+            '<span class="dungeon-duo-lobby__log-time">' + escapeDungeonText(row.time) + '</span> ' +
+            escapeDungeonText(row.message) + '</li>';
+    }
+    return '<ul class="dungeon-duo-lobby__log">' + rows + '</ul>';
+}
+
+function dungeonUiToggleReady() {
+    if (typeof toggleDuoDungeonLobbyReady !== 'function') return;
+    const before = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    toggleDuoDungeonLobbyReady();
+    const after = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (typeof addMessage === 'function' && after && after.status === 'lobby') {
+        if (after.localReady && !after.partnerConnected) {
+            addMessage('✅ Вы готовы. Ждём друга по коду ' + after.roomCode, 'success');
+        } else if (!after.localReady) {
+            addMessage('Готовность снята', 'info');
+        } else if (after.localReady && after.partnerConnected && !after.remoteReady) {
+            addMessage('✅ Вы готовы. Ждём готовности друга', 'info');
+        }
+    }
+    if (!before || !after) return;
+}
+
+function dungeonUiCopyDuoCode(code) {
+    const text = String(code || '').trim();
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+            if (typeof addMessage === 'function') addMessage('📋 Код скопирован: ' + text, 'success');
+        }).catch(function () {
+            if (typeof addMessage === 'function') addMessage('Код: ' + text, 'info');
+        });
+    } else if (typeof addMessage === 'function') {
+        addMessage('Код комнаты: ' + text, 'info');
+    }
+}
+
 function showDuoDungeonLobbyScreen() {
     if (!dungeonUiPrepareScreen('showDungeonsHub', [])) return;
     const el = document.getElementById('dynamicContent');
@@ -294,23 +399,49 @@ function showDuoDungeonLobbyScreen() {
         return;
     }
     const dungeon = duo.dungeonId && typeof getDungeonById === 'function' ? getDungeonById(duo.dungeonId) : null;
-    const dungeonName = dungeon ? dungeon.name : (duo.dungeonId || '—');
-    const readyYou = duo.localReady ? '✅' : '⏳';
-    const readyPartner = duo.remoteReady ? '✅' : '⏳';
-    let actions = '<button type="button" class="action-btn" onclick="toggleDuoDungeonLobbyReady()">' +
-        (duo.localReady ? 'Снять готовность' : 'Готов') + '</button>';
-    actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="leaveDuoDungeonLobby();showDungeonsHub()">Выйти</button>';
-    if (duo.status === 'sync') {
-        actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartDuoRun()">В забег</button>';
+    const dungeonName = dungeon ? dungeon.name : (duo.dungeonId || 'определяется хостом');
+    const localSnap = typeof buildDuoLobbyPlayerSnapshot === 'function'
+        ? buildDuoLobbyPlayerSnapshot()
+        : (typeof player !== 'undefined' && player
+            ? { name: player.name, class: player.class, branch: player.branch, level: player.level, schoolImg: player.schoolImg }
+            : null);
+    const partnerSnap = duo.partnerConnected ? duo.remoteSnapshot : null;
+
+    let actions = '';
+    if (duo.status === 'lobby') {
+        const readyCls = duo.localReady ? ' dungeon-duo-lobby__btn-ready--active' : '';
+        actions += '<button type="button" class="action-btn dungeon-duo-lobby__btn-ready' + readyCls +
+            '" onclick="dungeonUiToggleReady()">' +
+            (duo.localReady ? '✓ Вы готовы (нажмите, чтобы снять)' : 'Готов — ждать друга') + '</button>';
     }
+    if (duo.status === 'sync') {
+        actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartDuoRun()">▶ Начать забег</button>';
+    }
+    actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="leaveDuoDungeonLobby();showDungeonsHub()">Выйти из комнаты</button>';
+
+    const roleLabel = duo.role === 'host' ? 'Хост' : 'Гость';
+
     el.innerHTML =
         '<section class="dungeon-hub dungeon-duo-lobby">' +
-        '<h2>👥 Дуо-комната</h2>' +
-        '<p class="dungeon-duo-lobby__code">Код: <strong>' + escapeDungeonText(duo.roomCode) + '</strong> · ' +
-        escapeDungeonText(dungeonName) + ' · роль: ' + escapeDungeonText(duo.role || '') + '</p>' +
-        '<p class="dungeon-duo-lobby__ready">Вы ' + readyYou + ' · Партнёр ' + readyPartner +
-        (duo.runSeed != null ? ' · seed ' + duo.runSeed : '') + '</p>' +
-        '<div class="dungeon-detail__actions">' + actions + '</div>' +
+        '<header class="dungeon-duo-lobby__header">' +
+        '<h2 class="dungeon-duo-lobby__title">👥 Дуо-комната</h2>' +
+        '<p class="dungeon-duo-lobby__subtitle">' + escapeDungeonText(dungeonName) +
+        ' · ' + escapeDungeonText(roleLabel) + '</p>' +
+        '</header>' +
+        renderDuoLobbyConnectionBanner(duo) +
+        '<div class="dungeon-duo-lobby__code-block">' +
+        '<span class="dungeon-duo-lobby__code-label">Код для друга</span>' +
+        '<div class="dungeon-duo-lobby__code-row">' +
+        '<strong class="dungeon-duo-lobby__code-value">' + escapeDungeonText(duo.roomCode) + '</strong>' +
+        '<button type="button" class="action-btn dungeon-duo-lobby__copy" onclick="dungeonUiCopyDuoCode(\'' +
+        escapeDungeonText(duo.roomCode).replace(/'/g, "\\'") + '\')">Копировать</button>' +
+        '</div></div>' +
+        '<div class="dungeon-duo-lobby__roster">' +
+        renderDuoLobbyPlayerCard('Вы', localSnap, duo.localReady, {}) +
+        renderDuoLobbyPlayerCard('Друг', partnerSnap, duo.remoteReady, { waiting: !duo.partnerConnected }) +
+        '</div>' +
+        renderDuoLobbyLogHtml(duo.log) +
+        '<div class="dungeon-detail__actions dungeon-duo-lobby__actions">' + actions + '</div>' +
         '</section>';
 }
 
@@ -516,5 +647,7 @@ window.dungeonUiJoinDuoRoom = dungeonUiJoinDuoRoom;
 window.dungeonUiStartRoomBattle = dungeonUiStartRoomBattle;
 window.dungeonUiAbandonRun = dungeonUiAbandonRun;
 window.showDuoDungeonLobbyScreen = showDuoDungeonLobbyScreen;
+window.dungeonUiToggleReady = dungeonUiToggleReady;
+window.dungeonUiCopyDuoCode = dungeonUiCopyDuoCode;
 window.dungeonUiStartDuoRun = dungeonUiStartDuoRun;
 window.dungeonUiJoinDuoRoomPrompt = dungeonUiJoinDuoRoomPrompt;

@@ -43,11 +43,40 @@ function createEmptyDuoDungeonState() {
         dungeonId: '',
         localReady: false,
         remoteReady: false,
+        remoteSnapshot: null,
         runSeed: null,
         run: null,
         error: '',
         log: []
     };
+}
+
+function buildDuoLobbyPlayerSnapshot() {
+    if (typeof player === 'undefined' || !player) return null;
+    return {
+        name: player.name || 'Игрок',
+        class: player.class || '',
+        branch: player.branch || '',
+        level: player.level || 1,
+        schoolImg: player.schoolImg || ''
+    };
+}
+
+function refreshDuoDungeonLobbyUI() {
+    if (typeof showDuoDungeonLobbyScreen !== 'function') return;
+    if (!duoDungeonState || duoDungeonState.status === 'idle') return;
+    if (duoDungeonState.status === 'battle' || duoDungeonState.status === 'run') return;
+    showDuoDungeonLobbyScreen();
+}
+
+function broadcastDuoDungeonLobbyPresence() {
+    if (!duoDungeonSendPacket || !duoDungeonPartnerId) return false;
+    const snap = buildDuoLobbyPlayerSnapshot();
+    return sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, {
+        ready: duoDungeonState.localReady,
+        dungeonId: duoDungeonState.dungeonId,
+        snapshot: snap || undefined
+    });
 }
 
 function duoDungeonLog(message, type) {
@@ -218,8 +247,12 @@ function applyRemoteDuoDungeonLobbyReady(payload) {
     if (payload.dungeonId && duoDungeonState.role === 'guest' && !duoDungeonState.dungeonId) {
         duoDungeonState.dungeonId = String(payload.dungeonId);
     }
+    if (payload.snapshot && typeof payload.snapshot === 'object') {
+        duoDungeonState.remoteSnapshot = payload.snapshot;
+    }
     duoDungeonLog(`Партнёр ${duoDungeonState.remoteReady ? 'готов' : 'не готов'}.`, 'info');
     maybeStartDuoDungeonSync();
+    refreshDuoDungeonLobbyUI();
 }
 
 function applyRemoteDuoDungeonRunSeed(payload) {
@@ -355,10 +388,8 @@ function setupDungeonDuoTransportRoom(mod, code, sessionId) {
         syncDuoDungeonPartnerId();
         duoDungeonState.status = 'lobby';
         duoDungeonLog('Партнёр подключился.', 'success');
-        sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, {
-            ready: duoDungeonState.localReady,
-            dungeonId: duoDungeonState.dungeonId
-        });
+        broadcastDuoDungeonLobbyPresence();
+        refreshDuoDungeonLobbyUI();
     });
 
     setDungeonDuoRoomHandler(room, 'onPeerLeave', peerId => {
@@ -366,6 +397,7 @@ function setupDungeonDuoTransportRoom(mod, code, sessionId) {
         duoDungeonPartnerId = '';
         syncDuoDungeonPartnerId();
         duoDungeonState.remoteReady = false;
+        duoDungeonState.remoteSnapshot = null;
         if (duoDungeonState.status === 'battle') {
             applyRemoteDuoDungeonForfeit({});
         } else if (duoDungeonState.role === 'host') {
@@ -375,14 +407,17 @@ function setupDungeonDuoTransportRoom(mod, code, sessionId) {
             duoDungeonState.status = 'idle';
             duoDungeonLog('Хост отключился.', 'error');
         }
+        refreshDuoDungeonLobbyUI();
     });
 
     actionAdapter.receive((incoming, peerId) => {
         if (sessionId !== duoDungeonSessionId) return;
         if (duoDungeonPartnerId && duoDungeonPartnerId !== peerId) return;
+        const wasNewPeer = !duoDungeonPartnerId;
         duoDungeonPartnerId = peerId;
         syncDuoDungeonPartnerId();
         handleDungeonDuoMessage(incoming);
+        if (wasNewPeer && duoDungeonState.localReady) broadcastDuoDungeonLobbyPresence();
     });
 
     duoDungeonLog('Сигналинг данжа (MQTT) готов. Ждём партнёра.', 'success');
@@ -414,7 +449,10 @@ function createDuoDungeonLobby(dungeonId) {
     duoDungeonState.roomCode = generateDuoDungeonCode();
     duoDungeonState.status = 'lobby';
     duoDungeonLog(`Комната ${duoDungeonState.roomCode} (данж ${id}).`, 'info');
-    return joinDungeonDuoTransportRoom(duoDungeonState.roomCode, sessionId).then(() => true);
+    return joinDungeonDuoTransportRoom(duoDungeonState.roomCode, sessionId).then(function () {
+        refreshDuoDungeonLobbyUI();
+        return true;
+    });
 }
 
 function joinDuoDungeonLobby(code) {
@@ -431,7 +469,10 @@ function joinDuoDungeonLobby(code) {
     duoDungeonState.roomCode = roomCode;
     duoDungeonState.status = 'lobby';
     duoDungeonLog(`Подключение к ${roomCode}…`, 'info');
-    return joinDungeonDuoTransportRoom(roomCode, sessionId).then(() => true);
+    return joinDungeonDuoTransportRoom(roomCode, sessionId).then(function () {
+        refreshDuoDungeonLobbyUI();
+        return true;
+    });
 }
 
 function leaveDuoDungeonLobby() {
@@ -441,18 +482,17 @@ function leaveDuoDungeonLobby() {
 }
 
 function setDuoDungeonLobbyReady(ready) {
-    if (duoDungeonState.status !== 'lobby' && duoDungeonState.status !== 'sync') return false;
+    if (duoDungeonState.status !== 'lobby') return false;
     duoDungeonState.localReady = !!ready;
-    sendDuoDungeonMessage(DUNGEON_DUO_MSG.LOBBY_READY, {
-        ready: duoDungeonState.localReady,
-        dungeonId: duoDungeonState.dungeonId
-    });
+    broadcastDuoDungeonLobbyPresence();
     maybeStartDuoDungeonSync();
+    refreshDuoDungeonLobbyUI();
     return true;
 }
 
 function toggleDuoDungeonLobbyReady() {
-    return setDuoDungeonLobbyReady(!duoDungeonState.localReady);
+    const next = !duoDungeonState.localReady;
+    return setDuoDungeonLobbyReady(next);
 }
 
 function sendDuoDungeonRoomState(state) {
@@ -470,7 +510,10 @@ function forfeitDuoDungeon() {
 }
 
 function getDuoDungeonState() {
-    return { ...duoDungeonState, partnerId: duoDungeonPartnerId };
+    return Object.assign({}, duoDungeonState, {
+        partnerId: duoDungeonPartnerId,
+        partnerConnected: !!duoDungeonPartnerId
+    });
 }
 
 window.DUNGEON_ROOM_PREFIX = DUNGEON_ROOM_PREFIX;
@@ -488,3 +531,5 @@ window.sendDuoDungeonMessage = sendDuoDungeonMessage;
 window.applyRemoteDuoDungeonRoomState = applyRemoteDuoDungeonRoomState;
 window.applyRemoteDuoDungeonBattleAction = applyRemoteDuoDungeonBattleAction;
 window.setDuoDungeonRunStatus = setDuoDungeonRunStatus;
+window.buildDuoLobbyPlayerSnapshot = buildDuoLobbyPlayerSnapshot;
+window.refreshDuoDungeonLobbyUI = refreshDuoDungeonLobbyUI;
