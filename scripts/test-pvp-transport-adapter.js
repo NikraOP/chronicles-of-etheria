@@ -101,7 +101,25 @@ function testConnackIsSignalingError() {
     assert(context.isPvPSignalingError({ error: 'connack timeout' }), 'connack timeout is signaling');
 }
 
+function testWsRelayUrls() {
+    context.window.ETHERIA_PVP_RELAY_URLS = ['wss://etheria-pvp-relay.onrender.com', 'invalid'];
+    const urls = context.getPvPWsRelayUrls();
+    assert(urls.length === 1 && urls[0].includes('onrender.com'), 'ws relay urls from window');
+    delete context.window.ETHERIA_PVP_RELAY_URLS;
+    context.localStorage.setItem('etheria_pvp_ws_relay_url', 'wss://custom.example/ws');
+    const saved = context.getPvPWsRelayUrls();
+    assert(saved[0] === 'wss://custom.example/ws', 'ws relay from localStorage');
+    context.localStorage.removeItem('etheria_pvp_ws_relay_url');
+}
+
 function testTransportConfigRelays() {
+    context.setPvPSignalingBackend('ws');
+    context.window.ETHERIA_PVP_RELAY_URLS = ['wss://etheria-pvp-relay.onrender.com'];
+    const wsCfg = context.getPvPTransportConfig();
+    assert(wsCfg.relayConfig.urls[0].includes('onrender.com'), 'ws relayConfig must use configured url');
+    assert(wsCfg.relayConfig.redundancy >= 1, 'ws redundancy');
+    delete context.window.ETHERIA_PVP_RELAY_URLS;
+
     context.setPvPSignalingBackend('mqtt');
     const mqttCfg = context.getPvPTransportConfig();
     const mqttJson = JSON.stringify(mqttCfg);
@@ -252,6 +270,7 @@ function testCompressPvPIceServers() {
     testSignalingErrorDetection();
     testMeteredCredentialsUrlOrder();
     testConnackIsSignalingError();
+    testWsRelayUrls();
     testTransportConfigRelays();
     testFirewallTurnUrls();
     testCompressPvPIceServers();

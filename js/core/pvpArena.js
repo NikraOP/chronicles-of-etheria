@@ -1,7 +1,10 @@
-// PvP Arena: Trystero MQTT/Nostr signaling + WebRTC TURN (Яндекс/Chrome, static hosting).
+// PvP Arena: свой WebSocket relay + Nostr fallback + WebRTC TURN.
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 2;
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v4';
+const PVP_WS_MODULE_URL = '../vendor/trystero-ws.bundle.mjs?v=1';
+const PVP_WS_RELAY_LS_KEY = 'etheria_pvp_ws_relay_url';
+const PVP_WS_PROBE_MS = 12000;
 const PVP_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=12';
 const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=13';
 const PVP_MQTT_PROBE_MS = 4500;
@@ -56,7 +59,7 @@ let pvpRoom = null;
 let pvpSendPacket = null;
 let pvpRemotePeerId = '';
 let pvpSessionId = 0;
-let pvpSignalingBackend = 'nostr';
+let pvpSignalingBackend = 'ws';
 let pvpTrysteroModuleCache = {};
 let pvpIceServersPromise = null;
 let pvpTransportIdlePromise = Promise.resolve();
@@ -691,7 +694,7 @@ function detachPvPTransportRoom() {
 
 function resetPvPConnection() {
     pvpSessionId++;
-    pvpSignalingBackend = 'nostr';
+    pvpSignalingBackend = 'ws';
     pvpIceBuildPreferTurnOnly = false;
     pvpIceServersPromise = null;
     pvpTransportIdlePromise = pvpTransportIdlePromise
@@ -1122,7 +1125,9 @@ function describePvPJoinError(details) {
     const err = details && details.error ? String(details.error) : 'ошибка P2P';
     const lower = err.toLowerCase();
     if (/websocket|closing|closed state|mqtt|nostr|relay failure|eclipseprojects|hivemq/i.test(lower)) {
-        const sig = pvpSignalingBackend === 'mqtt' ? 'MQTT' : 'Nostr';
+        const sig = pvpSignalingBackend === 'ws'
+            ? 'WebSocket relay'
+            : (pvpSignalingBackend === 'mqtt' ? 'MQTT' : 'Nostr');
         return `Сигналинг PvP (${sig}): обрыв WebSocket. Подождите 5 с, «Отключиться», Ctrl+Shift+R — оба в новую комнату.`;
     }
     if (/turn|unreachable|could not connect to peer after exchanging sdp/i.test(lower)) {
@@ -1221,7 +1226,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP: Nostr + TURN (хост и гость в одной сети сигналинга). Ключ Metered опционален; при pk_live_… укажите slug. Ctrl+Shift+R. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">openrelay</a></p>
+            <p class="pvp-hint">PvP: свой WebSocket relay + TURN (резерв Nostr). Ctrl+Shift+R у обоих. Ключ Metered опционален. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">openrelay</a></p>
             <div class="pvp-metered-key-row">
                 <label class="pvp-room-label" for="pvpMeteredApiKey">Credential API Key (не Secret Key sk_…)</label>
                 <input id="pvpMeteredApiKey" class="hero-input pvp-code-input" type="password" autocomplete="off" placeholder="Show API Key у TURN credential в Metered">
@@ -1293,7 +1298,33 @@ function getPvPNostrRelayUrlsFiltered() {
     return PVP_NOSTR_RELAY_URLS.filter(url => !isPvPNostrRelayDenied(url));
 }
 
+function getPvPWsRelayUrls() {
+    const urls = [];
+    const fromWindow = typeof window !== 'undefined' && window.ETHERIA_PVP_RELAY_URLS;
+    if (Array.isArray(fromWindow)) {
+        fromWindow.forEach(u => {
+            const s = String(u || '').trim();
+            if (/^wss?:\/\//i.test(s)) urls.push(s);
+        });
+    }
+    if (!urls.length) {
+        try {
+            const saved = localStorage.getItem(PVP_WS_RELAY_LS_KEY);
+            const s = saved ? String(saved).trim() : '';
+            if (/^wss?:\/\//i.test(s)) urls.push(s);
+        } catch (e) {}
+    }
+    return urls;
+}
+
 function getPvPSignalingRelayConfig() {
+    if (pvpSignalingBackend === 'ws') {
+        const urls = getPvPWsRelayUrls();
+        return {
+            urls: [...urls],
+            redundancy: Math.min(2, Math.max(1, urls.length))
+        };
+    }
     if (pvpSignalingBackend === 'nostr') {
         const urls = getPvPNostrRelayUrlsFiltered();
         return {
@@ -1309,7 +1340,9 @@ function getPvPSignalingRelayConfig() {
 
 function loadPvPTransport(backend) {
     const kind = backend || pvpSignalingBackend;
-    const moduleUrl = kind === 'nostr' ? PVP_NOSTR_MODULE_URL : PVP_MQTT_MODULE_URL;
+    const moduleUrl = kind === 'ws'
+        ? PVP_WS_MODULE_URL
+        : (kind === 'nostr' ? PVP_NOSTR_MODULE_URL : PVP_MQTT_MODULE_URL);
     if (!pvpTrysteroModuleCache[kind]) {
         pvpTrysteroModuleCache[kind] = import(moduleUrl).catch(err => {
             delete pvpTrysteroModuleCache[kind];
@@ -1399,7 +1432,51 @@ function isPvPSignalingError(details) {
     return /websocket|mqtt|nostr|relay failure|failed to parse|connack timeout|connection closed|kind \d+ is not allowed|blocked: kind|restricted:|sign up at/i.test(lower);
 }
 
-/** Быстрая проверка: доступен ли MQTT WebSocket (иначе сразу Nostr — меньше connack timeout у гостя). */
+/** Проверка нашего PvP relay (WebSocket, не MQTT). */
+function probeWsRelayAvailable(url, timeoutMs) {
+    const relayUrl = String(url || '').trim();
+    const waitMs = timeoutMs || PVP_WS_PROBE_MS;
+    if (typeof WebSocket === 'undefined' || !relayUrl) return Promise.resolve(false);
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = ok => {
+            if (settled) return;
+            settled = true;
+            resolve(!!ok);
+        };
+        let ws;
+        try {
+            ws = new WebSocket(relayUrl);
+        } catch (e) {
+            finish(false);
+            return;
+        }
+        const timer = setTimeout(() => {
+            try { ws.close(); } catch (e) {}
+            finish(false);
+        }, waitMs);
+        ws.onopen = () => {
+            clearTimeout(timer);
+            try { ws.close(); } catch (e) {}
+            finish(true);
+        };
+        ws.onerror = () => {
+            clearTimeout(timer);
+            finish(false);
+        };
+    });
+}
+
+function probeAnyWsRelayAvailable() {
+    const urls = getPvPWsRelayUrls();
+    if (!urls.length) return Promise.resolve(false);
+    return urls.reduce(
+        (chain, url) => chain.then(ok => (ok ? true : probeWsRelayAvailable(url))),
+        Promise.resolve(false)
+    );
+}
+
+/** Быстрая проверка: доступен ли MQTT WebSocket (резерв). */
 function probeMqttSignalingAvailable(timeoutMs) {
     const url = PVP_MQTT_RELAY_URLS[0];
     const waitMs = timeoutMs || PVP_MQTT_PROBE_MS;
@@ -1434,17 +1511,25 @@ function probeMqttSignalingAvailable(timeoutMs) {
     });
 }
 
-/** Один транспорт у хоста и гостя (иначе комнаты не совпадут). Nostr стабильнее MQTT из РФ. */
+/** Один транспорт у хоста и гостя: сначала свой WS relay, иначе Nostr. */
 function resolvePvPSignalingBackend() {
-    pvpSignalingBackend = 'nostr';
-    return probeMqttSignalingAvailable().then(mqttOk => {
-        if (mqttOk) {
-            pvpLog('MQTT доступен, но для PvP используем Nostr — так хост и гость в одной комнате.', 'info');
+    const wsUrls = getPvPWsRelayUrls();
+    if (!wsUrls.length) {
+        pvpSignalingBackend = 'nostr';
+        pvpLog('Сигналинг: Nostr (адрес WS relay не задан).', 'info');
+        renderPvPArena();
+        return Promise.resolve('nostr');
+    }
+    return probeAnyWsRelayAvailable().then(wsOk => {
+        pvpSignalingBackend = 'ws';
+        const host = wsUrls[0].replace(/^wss?:\/\//, '').split('/')[0];
+        if (wsOk) {
+            pvpLog(`Сигналинг: relay ${host}.`, 'success');
         } else {
-            pvpLog('Сигналинг: Nostr (MQTT у вас недоступен — нормально для гостя из другого района).', 'info');
+            pvpLog(`Сигналинг: relay ${host} (пробуждение сервера — подождите до 1 мин).`, 'info');
         }
         renderPvPArena();
-        return 'nostr';
+        return 'ws';
     });
 }
 
@@ -1540,7 +1625,9 @@ function setupPvPTransportRoom(mod, iceServers, code, sessionId, joinOpts) {
     } else if (iceJson.includes('freeturn.net')) {
         pvpLog('ICE: freeTURN (резерв).', 'info');
     }
-    const sigLabel = pvpSignalingBackend === 'nostr' ? 'Nostr' : 'MQTT';
+    const sigLabel = pvpSignalingBackend === 'ws'
+        ? 'WebSocket relay'
+        : (pvpSignalingBackend === 'nostr' ? 'Nostr' : 'MQTT');
     const room = mod.joinRoom(getPvPTransportConfig(iceServers, opts), pvpRoomId(code), {
         handshakeTimeoutMs: PVP_HANDSHAKE_TIMEOUT_MS,
         onJoinError(details) {
@@ -1549,6 +1636,10 @@ function setupPvPTransportRoom(mod, iceServers, code, sessionId, joinOpts) {
                 pvpLog(`Технически: ${String(details.error).slice(0, 220)}`, 'error');
             }
             const signalingFail = isPvPSignalingError(details);
+            if (signalingFail && !opts.triedNostr && pvpSignalingBackend === 'ws') {
+                retryPvPSignalingNostr(code, sessionId, { ...opts, triedWs: true });
+                return;
+            }
             if (signalingFail && !opts.triedMqtt && pvpSignalingBackend === 'nostr') {
                 retryPvPSignalingMqtt(code, sessionId, opts);
                 return;
@@ -1627,11 +1718,12 @@ function joinPvPTransportRoom(code, sessionId) {
             const [mod, iceServers] = result;
             return ensurePvPRelayProbe(iceServers, sessionId).then(() => {
                 if (sessionId !== pvpSessionId) return;
-                const triedMqtt = pvpSignalingBackend === 'mqtt';
+                const backend = pvpSignalingBackend;
                 setupPvPTransportRoom(mod, iceServers, code, sessionId, {
                     iceTransportPolicy: 'all',
-                    triedMqtt,
-                    triedNostr: !triedMqtt
+                    triedWs: backend === 'ws',
+                    triedMqtt: backend === 'mqtt',
+                    triedNostr: backend === 'nostr'
                 });
             });
         })
@@ -2095,4 +2187,7 @@ window.isPvPSignalingError = isPvPSignalingError;
 window.classifyMeteredApiKey = classifyMeteredApiKey;
 window.getPvPMeteredCredentialsUrls = getPvPMeteredCredentialsUrls;
 window.probeMqttSignalingAvailable = probeMqttSignalingAvailable;
+window.getPvPWsRelayUrls = getPvPWsRelayUrls;
+window.probeWsRelayAvailable = probeWsRelayAvailable;
+window.probeAnyWsRelayAvailable = probeAnyWsRelayAvailable;
 window.resolvePvPSignalingBackend = resolvePvPSignalingBackend;

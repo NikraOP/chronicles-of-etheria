@@ -6,6 +6,9 @@
   "scripts": {
     "build:pvp-transport": "esbuild js/vendor/trystero-nostr.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-nostr.bundle.mjs",
     "build:pvp-transport-mqtt": "esbuild js/vendor/trystero-mqtt.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-mqtt.bundle.mjs",
+    "build:pvp-transport-ws": "esbuild js/vendor/trystero-ws.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-ws.bundle.mjs",
+    "build:pvp-vendor": "npm run build:pvp-transport && npm run build:pvp-transport-mqtt && npm run build:pvp-transport-ws",
+    "start:relay": "node server/pvp-relay.mjs",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -24,7 +27,8 @@
   "homepage": "https://github.com/NikraOP/chronicles-of-etheria#readme",
   "dependencies": {
     "@trystero-p2p/mqtt": "^0.25.1",
-    "@trystero-p2p/nostr": "^0.25.1"
+    "@trystero-p2p/nostr": "^0.25.1",
+    "@trystero-p2p/ws-relay": "^0.25.1"
   },
   "devDependencies": {
     "esbuild": "^0.28.0"

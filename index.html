@@ -46,7 +46,17 @@
     <script src="js/core/craftingSystem.js"></script>
     <script src="js/core/shop.js"></script>
     <script src="js/core/inventory.js"></script>
-    <script src="js/core/pvpArena.js?v=22"></script>
+    <script>
+        (function () {
+            var h = location.hostname;
+            if (h === 'localhost' || h === '127.0.0.1') {
+                window.ETHERIA_PVP_RELAY_URLS = ['ws://localhost:8787'];
+            } else {
+                window.ETHERIA_PVP_RELAY_URLS = ['wss://etheria-pvp-relay.onrender.com'];
+            }
+        })();
+    </script>
+    <script src="js/core/pvpArena.js?v=23"></script>
     
     <!-- ===== ЗАГРУЗКА UI ===== -->
     <script src="js/ui/itemIcons.js"></script>
