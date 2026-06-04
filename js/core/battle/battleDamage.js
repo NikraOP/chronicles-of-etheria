@@ -184,7 +184,12 @@ function applyDamageToPlayer(damage) {
             addBattleLog(`🛡️ Ваш щит разрушен!`, 'info');
         }
     }
-    if (remainingDamage > 0) player.health -= remainingDamage;
+    if (remainingDamage > 0) {
+        player.health = Math.max(0, player.health - remainingDamage);
+        if (player.health <= 0 && typeof resolvePlayerDefeatInBattle === 'function') {
+            resolvePlayerDefeatInBattle();
+        }
+    }
     return remainingDamage;
 }
 

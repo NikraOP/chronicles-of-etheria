@@ -46,6 +46,8 @@ function claimSpecialBattleRewards(monster) {
 }
 
 function victory() {
+    if (typeof clearMonsterQueueState === 'function') clearMonsterQueueState();
+    window._monsterTurnBusy = false;
     if (window.pvpBattleActive && typeof window.pvpBroadcastMatchEnd === 'function') {
         window.pvpBroadcastMatchEnd(true);
         return;
@@ -152,7 +154,38 @@ function dungeonVictoryApplyAndModal() {
 
 window.dungeonVictoryApplyAndModal = dungeonVictoryApplyAndModal;
 
+/** @returns {'alive'|'revived'|'defeated'} */
+function resolvePlayerDefeatInBattle() {
+    if (!player || player.health > 0) return 'alive';
+    player.health = 0;
+    if (typeof deathSaveActive !== 'undefined' && deathSaveActive) {
+        player.health = Math.max(1, Math.floor(player.maxHealth * 0.1));
+        deathSaveActive = false;
+        if (typeof addBattleLog === 'function') {
+            addBattleLog('🛡️ Инстинкт выживания! Вы выжили с 10% HP!', 'success');
+        }
+        return 'revived';
+    }
+    const reviveAb = player.abilities && player.abilities.find(function (a) {
+        return (a.reviveOnDeath || a.reviveOnce) && !reviveUsed;
+    });
+    if (reviveAb && !reviveUsed) {
+        reviveUsed = true;
+        const hpPct = reviveAb.reviveHp || reviveAb.revive || 50;
+        player.health = Math.max(1, Math.floor(player.maxHealth * hpPct / 100));
+        if (typeof addBattleLog === 'function') {
+            addBattleLog('✨ ' + reviveAb.name + '! Вы воскресли с ' + hpPct + '% HP!', 'success');
+        }
+        return 'revived';
+    }
+    if (typeof gameOver === 'function') gameOver();
+    return 'defeated';
+}
+
+window.resolvePlayerDefeatInBattle = resolvePlayerDefeatInBattle;
+
 function gameOver() {
+    if (typeof clearMonsterQueueState === 'function') clearMonsterQueueState();
     if (window.pvpBattleActive && typeof window.pvpBroadcastMatchEnd === 'function') {
         window.pvpBroadcastMatchEnd(false);
         return;
@@ -167,6 +200,7 @@ function gameOver() {
     currentMonster = null;
     isPlayerTurn = true;
     window._strikeAnimActive = false;
+    window._monsterTurnBusy = false;
     if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
     saveGame();
     document.body.classList.remove('low-hp');

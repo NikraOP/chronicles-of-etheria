@@ -81,10 +81,37 @@ function syncCurrentMonsterFromFocus() {
 function clearBattleEnemies() {
     battleEnemies = [];
     battleEnemyFocusIndex = 0;
+    clearMonsterQueueState();
+}
+
+/** Сброс очереди фазы монстров (победа / поражение / выход из боя). */
+function clearMonsterQueueState() {
     _monsterQueuePhaseActive = false;
     _monsterQueueOrder = [];
     _monsterQueueActed = {};
     window._monsterTurnBusy = false;
+}
+
+/**
+ * После урона по монстру или игроку: победа, поражение или продолжение.
+ * @returns {'stop'|'continue'}
+ */
+function afterMonsterHitResolution() {
+    if (typeof resolvePlayerDefeatInBattle === 'function' && player && player.health <= 0) {
+        resolvePlayerDefeatInBattle();
+        window._monsterTurnBusy = false;
+        return 'stop';
+    }
+    if (!currentMonster || currentMonster.health <= 0) {
+        const cont = typeof tryVictoryAfterEnemyDown === 'function' ? tryVictoryAfterEnemyDown() : false;
+        if (!cont) {
+            window._monsterTurnBusy = false;
+            return 'stop';
+        }
+        if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
+        return 'stop';
+    }
+    return 'continue';
 }
 
 function getNextUnactedMonsterIndex() {
@@ -147,6 +174,12 @@ function advanceMonsterQueue() {
 
 function finishMonsterTurnOrQueue() {
     window._monsterTurnBusy = false;
+    if (!currentMonster && !window.pvpBattleActive && !window.dungeonDuoBattleActive) {
+        _monsterQueuePhaseActive = false;
+        _monsterQueueOrder = [];
+        _monsterQueueActed = {};
+        return;
+    }
 
     if (_monsterQueuePhaseActive) {
         const next = getNextUnactedMonsterIndex();
@@ -197,6 +230,7 @@ function tryVictoryAfterEnemyDown() {
             return true;
         }
     }
+    window._monsterTurnBusy = false;
     if (typeof victory === 'function') victory();
     return false;
 }
@@ -219,3 +253,5 @@ window.advanceMonsterQueue = advanceMonsterQueue;
 window.finishMonsterTurnOrQueue = finishMonsterTurnOrQueue;
 window.startMonsterPhaseAfterPlayer = startMonsterPhaseAfterPlayer;
 window.scheduleMonsterTurn = scheduleMonsterTurn;
+window.clearMonsterQueueState = clearMonsterQueueState;
+window.afterMonsterHitResolution = afterMonsterHitResolution;

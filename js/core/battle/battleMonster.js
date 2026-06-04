@@ -307,6 +307,75 @@ function useMonsterAbility(ability) {
     return true;
 }
 
+/** Тики конца хода монстра (DoT на враге, реген, проверка победы/поражения). @returns {boolean} true — бой остановлен */
+function applyMonsterTurnEndTicks() {
+    if (!currentMonster) return true;
+    if (currentMonster.effects && currentMonster.effects.length > 0) {
+        currentMonster.effects = currentMonster.effects.filter(e => {
+            if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
+            if (e.val && typeof isMonsterDotEffectType === 'function' && isMonsterDotEffectType(e.type)) {
+                let dotDamage = Math.floor(currentMonster.maxHealth * e.val / 100);
+                if (e.type === 'Горение' && currentMonster.fireVuln) dotDamage = Math.floor(dotDamage * (1 + currentMonster.fireVuln / 100));
+                const appliedDamage = applyDamageToMonster(dotDamage);
+                addBattleLog(`🔥 ${e.type}: -${appliedDamage} урона`, 'dmg');
+                if (e.manaRegen && player.class === 'Маг') {
+                    player.mana = Math.min(player.maxMana, player.mana + e.manaRegen);
+                    addBattleLog(`💎 +${e.manaRegen} маны от горения`, 'heal');
+                }
+                if (e.spread && currentMonster.health > 0 && Math.random() < 0.3) addBattleLog(`🔥 Горение распространяется!`, 'info');
+            }
+            e.dur--;
+            return e.dur > 0;
+        });
+    }
+    player.temporaryEffects = player.temporaryEffects.filter(e => {
+        if (e.dur && !(e.type && e.type.startsWith('debuff_'))) e.dur--;
+        if (e.regen) {
+            const regenHeal = Math.floor(player.maxHealth * e.regen / 100);
+            player.health = Math.min(player.maxHealth, player.health + regenHeal);
+            addBattleLog(`💚 Регенерация +${regenHeal} HP`, 'heal');
+        }
+        if (e.regenMana) {
+            const regenMana = Math.floor(player.maxMana * e.regenMana / 100);
+            player.mana = Math.min(player.maxMana, player.mana + regenMana);
+            addBattleLog(`💎 Регенерация +${regenMana} маны`, 'heal');
+        }
+        if (e.manaBurn && currentMonster) {
+            const burnDamage = applyDamageToMonster(e.manaBurn);
+            addBattleLog(`💀 Эффект маны: -${burnDamage} урона`, 'dmg');
+        }
+        if (e.type === 'maxManaBonus' && e.dur <= 0) {
+            player.maxMana = e.oldMaxMana;
+            player.mana = Math.min(player.maxMana, player.mana);
+            addBattleLog(`💎 Бонус максимальной маны закончился!`, 'info');
+            return false;
+        }
+        if (e.type && e.type.startsWith('debuff_')) return true;
+        return (e.dur || 0) > 0 || e.immune || e.shield || e.reflect || e.atk || e.def || e.dodge || e.crit || e.counterChance || e.freezeOnHit || e.freeOnDodge;
+    });
+    if (player.class === 'Маг') player.mana = Math.min(player.maxMana, player.mana + Math.floor(player.maxMana * 0.08));
+    if (player.class === 'Воин') {
+        const warriorRegen = Math.floor(player.maxHealth * 0.02);
+        player.health = Math.min(player.maxHealth, player.health + warriorRegen);
+        addBattleLog(`💪 Регенерация здоровья: +${warriorRegen} HP`, 'heal');
+    }
+    if (rageStack > 0) {
+        rageStack = 0;
+        addBattleLog(`💢 Накопление ярости сброшено!`, 'info');
+    }
+    if (currentMonster.health <= 0) {
+        return !tryVictoryAfterEnemyDown();
+    }
+    if (typeof resolvePlayerDefeatInBattle === 'function') {
+        return resolvePlayerDefeatInBattle() === 'defeated';
+    }
+    if (player.health <= 0) {
+        gameOver();
+        return true;
+    }
+    return false;
+}
+
 function monsterTurn() {
     if (window.pvpBattleActive) return;
     if (window.dungeonDuoBattleActive && typeof getDuoDungeonState === 'function') {
@@ -314,6 +383,11 @@ function monsterTurn() {
         if (duo.role !== 'host') return;
     }
     if (window._monsterTurnBusy) {
+        if (!currentMonster || currentMonster.health <= 0) {
+            window._monsterTurnBusy = false;
+            if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
+            return;
+        }
         if (typeof scheduleMonsterTurn === 'function') scheduleMonsterTurn(120);
         return;
     }
@@ -336,8 +410,7 @@ function monsterTurn() {
         const applied = applyDamageToMonster(dotDmg);
         addBattleLog(`🌪️ Продолжительный урон: ${applied}!`, 'dmg');
         currentMonster.dotOverTime.remaining--;
-        if (currentMonster.health <= 0) {
-            if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+        if (typeof afterMonsterHitResolution === 'function' && afterMonsterHitResolution() === 'stop') {
             return;
         }
     }
@@ -398,6 +471,9 @@ function monsterTurn() {
             const used = useMonsterAbility(ability);
             if (used === true) {
                 abilityUsed = true;
+                if (typeof afterMonsterHitResolution === 'function' && afterMonsterHitResolution() === 'stop') {
+                    return;
+                }
                 break;
             }
             if (used === 'chance_fail' && ability.type === 'damage') damageChanceMissed = true;
@@ -410,16 +486,28 @@ function monsterTurn() {
             if (e.isDot && e.value) {
                 const dotDamage = Math.floor(player.maxHealth * e.value / 100);
                 if (dotDamage > 0) {
-                    player.health -= dotDamage;
+                    player.health = Math.max(0, player.health - dotDamage);
                     const icon = e.dotIcon || '🔥';
                     addBattleLog(`${icon} ${e.type}: -${dotDamage} урона!`, 'dmg');
                     floatDamage('player', dotDamage, false);
+                    if (player.health <= 0 && typeof resolvePlayerDefeatInBattle === 'function') {
+                        resolvePlayerDefeatInBattle();
+                    }
                 }
                 e.dur--;
                 return e.dur > 0;
             }
             return true;
         });
+        if (!currentMonster) {
+            window._monsterTurnBusy = false;
+            return;
+        }
+        if (player.health <= 0) {
+            if (typeof resolvePlayerDefeatInBattle === 'function') resolvePlayerDefeatInBattle();
+            window._monsterTurnBusy = false;
+            return;
+        }
     }
     
     if (!abilityUsed) {
@@ -465,8 +553,7 @@ function monsterTurn() {
                 const counterDmg = Math.floor(getPlayerEffectiveAttack() * (counter.counterDmg || 80) / 100);
                 const appliedCounter = applyDamageToMonster(counterDmg);
                 addBattleLog(`↩️ Контратака! ${appliedCounter} урона!`, 'dmg');
-                if (currentMonster.health <= 0) {
-                    if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+                if (typeof afterMonsterHitResolution === 'function' && afterMonsterHitResolution() === 'stop') {
                     return;
                 }
             }
@@ -479,8 +566,7 @@ function monsterTurn() {
                 addBattleLog(`↩️ Отражено ${reflectedDmg} урона!`, 'dmg');
                 reflectEffect.dur--;
                 if (reflectEffect.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== reflectEffect);
-                if (currentMonster.health <= 0) {
-                    if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+                if (typeof afterMonsterHitResolution === 'function' && afterMonsterHitResolution() === 'stop') {
                     return;
                 }
             }
@@ -511,21 +597,20 @@ function monsterTurn() {
                     currentMonster.health = Math.min(currentMonster.maxHealth, currentMonster.health + healAmount);
                     addBattleLog(`🩸 Монстр восстанавливает ${healAmount} HP!`, 'heal');
                 }
-                
-                if (player.health <= 0 && deathSaveActive) {
-                    player.health = Math.floor(player.maxHealth * 0.1);
-                    deathSaveActive = false;
-                    addBattleLog(`🛡️ Инстинкт выживания! Вы выжили с 10% HP!`, 'success');
-                }
             }
         }
+    }
+
+    if (!currentMonster) {
+        window._monsterTurnBusy = false;
+        return;
     }
     
     if (abilityUsed) {
         if (typeof syncBattleDisplayAfterAnim === 'function') syncBattleDisplayAfterAnim();
         else if (typeof renderBattle === 'function') renderBattle({ force: true });
-        if (currentMonster.health <= 0) {
-            if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+        if (applyMonsterTurnEndTicks()) {
+            window._monsterTurnBusy = false;
             return;
         }
         finishMonsterTurnOrQueue();
@@ -535,20 +620,13 @@ function monsterTurn() {
     const monsterImpactFn = typeof consumeStrikeImpact === 'function' ? consumeStrikeImpact() : null;
 
     animateEnemyAttack(() => {
-        if (player.health <= 0) { 
-            const reviveAb = player.abilities && player.abilities.find(a => (a.reviveOnDeath || a.reviveOnce) && !reviveUsed);
-            if (reviveAb && !reviveUsed) {
-                reviveUsed = true;
-                const hpPct = reviveAb.reviveHp || reviveAb.revive || 50;
-                player.health = Math.floor(player.maxHealth * hpPct / 100);
-                addBattleLog(`✨ ${reviveAb.name}! Вы воскресли с ${hpPct}% HP!`, 'success');
-                finishMonsterTurnOrQueue();
-                if (typeof safeRenderBattle === 'function') safeRenderBattle();
-                else renderBattle({ force: true });
-                return;
-            }
-            gameOver(); 
-            return; 
+        if (!currentMonster) {
+            window._monsterTurnBusy = false;
+            return;
+        }
+        if (applyMonsterTurnEndTicks()) {
+            window._monsterTurnBusy = false;
+            return;
         }
         finishMonsterTurnOrQueue();
     }, {
@@ -558,82 +636,4 @@ function monsterTurn() {
             if (typeof updateBattleStatusPanels === 'function') updateBattleStatusPanels();
         }
     });
-    
-    if (currentMonster.effects && currentMonster.effects.length > 0) {
-        currentMonster.effects = currentMonster.effects.filter(e => { 
-            if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
-            if (e.val && typeof isMonsterDotEffectType === 'function' && isMonsterDotEffectType(e.type)) {
-                let dotDamage = Math.floor(currentMonster.maxHealth * e.val / 100);
-                if (e.type === 'Горение' && currentMonster.fireVuln) dotDamage = Math.floor(dotDamage * (1 + currentMonster.fireVuln / 100));
-                const appliedDamage = applyDamageToMonster(dotDamage);
-                addBattleLog(`🔥 ${e.type}: -${appliedDamage} урона`, 'dmg');
-                if (e.manaRegen && player.class === 'Маг') {
-                    player.mana = Math.min(player.maxMana, player.mana + e.manaRegen);
-                    addBattleLog(`💎 +${e.manaRegen} маны от горения`, 'heal');
-                }
-                if (e.spread && currentMonster.health > 0 && Math.random() < 0.3) addBattleLog(`🔥 Горение распространяется!`, 'info');
-            }
-            e.dur--; 
-            return e.dur > 0; 
-        });
-    }
-    
-    player.temporaryEffects = player.temporaryEffects.filter(e => {
-        // Дебаффы тикают после хода игрока (tickPlayerDebuffsAfterPlayerTurn), не здесь
-        if (e.dur && !(e.type && e.type.startsWith('debuff_'))) e.dur--;
-        if (e.regen) {
-            const regenHeal = Math.floor(player.maxHealth * e.regen / 100);
-            player.health = Math.min(player.maxHealth, player.health + regenHeal);
-            addBattleLog(`💚 Регенерация +${regenHeal} HP`, 'heal');
-        }
-        if (e.regenMana) {
-            const regenMana = Math.floor(player.maxMana * e.regenMana / 100);
-            player.mana = Math.min(player.maxMana, player.mana + regenMana);
-            addBattleLog(`💎 Регенерация +${regenMana} маны`, 'heal');
-        }
-        if (e.manaBurn && currentMonster) {
-            const burnDamage = applyDamageToMonster(e.manaBurn);
-            addBattleLog(`💀 Эффект маны: -${burnDamage} урона`, 'dmg');
-        }
-        if (e.type === 'maxManaBonus' && e.dur <= 0) {
-            player.maxMana = e.oldMaxMana;
-            player.mana = Math.min(player.maxMana, player.mana);
-            addBattleLog(`💎 Бонус максимальной маны закончился!`, 'info');
-            return false;
-        }
-        if (e.type && e.type.startsWith('debuff_')) return true;
-        return (e.dur || 0) > 0 || e.immune || e.shield || e.reflect || e.atk || e.def || e.dodge || e.crit || e.counterChance || e.freezeOnHit || e.freeOnDodge;
-    });
-    
-    if (player.class === 'Маг') player.mana = Math.min(player.maxMana, player.mana + Math.floor(player.maxMana * 0.08));
-    if (player.class === 'Воин') {
-        const warriorRegen = Math.floor(player.maxHealth * 0.02);
-        player.health = Math.min(player.maxHealth, player.health + warriorRegen);
-        addBattleLog(`💪 Регенерация здоровья: +${warriorRegen} HP`, 'heal');
-    }
-    
-    if (rageStack > 0) {
-        rageStack = 0;
-        addBattleLog(`💢 Накопление ярости сброшено!`, 'info');
-    }
-    
-    if (currentMonster.health <= 0) {
-        if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
-        return;
-    }
-    if (player.health <= 0) {
-        const reviveAb2 = player.abilities && player.abilities.find(a => (a.reviveOnDeath || a.reviveOnce) && !reviveUsed);
-        if (reviveAb2 && !reviveUsed) {
-            reviveUsed = true;
-            const hpPct2 = reviveAb2.reviveHp || reviveAb2.revive || 50;
-            player.health = Math.floor(player.maxHealth * hpPct2 / 100);
-            addBattleLog(`✨ ${reviveAb2.name}! Вы воскресли с ${hpPct2}% HP!`, 'success');
-            onPlayerTurnStart();
-            renderBattle();
-            return;
-        }
-        gameOver();
-        return;
-    }
-    
 }

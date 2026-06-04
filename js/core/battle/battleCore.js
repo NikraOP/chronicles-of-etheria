@@ -111,8 +111,17 @@ function updateBattleButtons() {
     if (typeof updateBattleActionKeyHints === 'function') updateBattleActionKeyHints();
 }
 
+function sanitizePlayerHealthInBattle() {
+    if (!player) return;
+    if (player.health < 0) player.health = 0;
+    if (player.maxHealth > 0 && player.health > player.maxHealth) {
+        player.health = player.maxHealth;
+    }
+}
+
 /** Вызывать, когда ход переходит к игроку после хода монстра */
 function onPlayerTurnStart() {
+    sanitizePlayerHealthInBattle();
     if (window.pvpBattleActive && typeof window.pvpOnTurnStart === 'function') {
         return window.pvpOnTurnStart(false);
     }
