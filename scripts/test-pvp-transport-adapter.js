@@ -72,11 +72,15 @@ function testLegacyFunctionRoomHandlers() {
 
 function testNostrRelayDenylist() {
     assert(context.isPvPNostrRelayDenied('wss://purplepag.es/'), 'purplepag must be denied');
-    assert(context.isPvPNostrRelayDenied('wss://purplerelay.com'), 'purplerelay must be denied');
+    assert(context.isPvPNostrRelayDenied('wss://nostr.wine/'), 'nostr.wine must be denied');
+    assert(context.isPvPNostrRelayDenied('wss://relay.nostr.band/'), 'relay.nostr.band must be denied');
     const filtered = context.getPvPNostrRelayUrlsFiltered();
     assert(!filtered.some(u => u.includes('purplepag.es')), 'filtered list must exclude purplepag');
+    assert(!filtered.some(u => u.includes('nostr.wine')), 'filtered list must exclude nostr.wine');
+    assert(!filtered.some(u => u.includes('nostr.band')), 'filtered list must exclude nostr.band');
     assert(filtered.includes('wss://nos.lol'), 'nos.lol must remain');
     assert(filtered.includes('wss://relay.mostr.pub'), 'relay.mostr.pub must remain');
+    assert(filtered.includes('wss://relay.nostrplace.com'), 'relay.nostrplace.com must remain');
 }
 
 function testSignalingErrorDetection() {
@@ -116,7 +120,7 @@ function testTransportConfigRelays() {
     assert(urls[0] === 'wss://nos.lol', 'nos.lol must be first Nostr relay');
     assert(!urls.includes('wss://purplepag.es'), 'purplepag must not be in relay urls');
     assert(urls.includes('wss://relay.mostr.pub'), 'relay.mostr.pub missing');
-    assert(configA.relayConfig.redundancy === 4, 'Nostr redundancy must be 4');
+    assert(configA.relayConfig.redundancy === 5, 'Nostr redundancy must be 5');
     context.setPvPSignalingBackend('mqtt');
     const configA2 = context.getPvPTransportConfig();
 

@@ -3,7 +3,7 @@ const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 2;
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v4';
 const PVP_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=12';
-const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=12';
+const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=13';
 const PVP_MQTT_PROBE_MS = 4500;
 /** MQTT; redundancy 1 — два брокера параллельно часто дают connack timeout у гостя. */
 const PVP_MQTT_RELAY_URLS = Object.freeze([
@@ -11,25 +11,31 @@ const PVP_MQTT_RELAY_URLS = Object.freeze([
     'wss://public:public@public.cloud.shiftr.io'
 ]);
 const PVP_MQTT_RELAY_REDUNDANCY = 1;
-/** Nostr — резерв; только relay с произвольными kind (Trystero ~20000–30000). */
+/** Nostr — открытая запись без регистрации (Trystero ephemeral kind ~20000–30000). */
 const PVP_NOSTR_RELAY_URLS = Object.freeze([
     'wss://nos.lol',
     'wss://relay.mostr.pub',
     'wss://relay.primal.net',
     'wss://relay.damus.io',
     'wss://relay.snort.social',
-    'wss://nostr.wine',
-    'wss://relay.nostr.band'
+    'wss://relay.nostrplace.com',
+    'wss://relay.angor.io',
+    'wss://relay.nostr.net'
 ]);
-/** Индексаторы / relay с whitelist kind — ломают Trystero (purplepag.es → kind 22717 blocked). */
+/** Индексаторы, whitelist kind, платные/закрытые relay. */
 const PVP_NOSTR_RELAY_DENY_HOSTS = Object.freeze([
     'purplepag.es',
     'purplerelay.com',
     'yabu.me',
     'hol.is',
-    'user.kindpag.es'
+    'user.kindpag.es',
+    'nostr.wine',
+    'relay.nostr.band',
+    'nostr.band',
+    'inbox.nostr.wine',
+    'filter.nostr.wine'
 ]);
-const PVP_NOSTR_RELAY_REDUNDANCY = 4;
+const PVP_NOSTR_RELAY_REDUNDANCY = 5;
 const PVP_ICE_MAX_TURN_GROUPS = 5;
 const PVP_ICE_PROBE_WAIT_MS = 20000;
 const PVP_ICE_PROBE_STUN_MS = 7000;
@@ -1390,7 +1396,7 @@ function isPvPTurnJoinError(details) {
 function isPvPSignalingError(details) {
     const err = details && details.error ? String(details.error) : '';
     const lower = err.toLowerCase();
-    return /websocket|mqtt|nostr|relay failure|failed to parse|connack timeout|connection closed|kind \d+ is not allowed|blocked: kind/i.test(lower);
+    return /websocket|mqtt|nostr|relay failure|failed to parse|connack timeout|connection closed|kind \d+ is not allowed|blocked: kind|restricted:|sign up at/i.test(lower);
 }
 
 /** Быстрая проверка: доступен ли MQTT WebSocket (иначе сразу Nostr — меньше connack timeout у гостя). */
