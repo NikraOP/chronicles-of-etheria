@@ -13,7 +13,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, 'data', 'friends-store');
 const PORT = Number(process.env.PORT || 8790);
 const CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-const MAX_BODY = 256 * 1024;
+const MAX_BODY = 512 * 1024;
+const MAX_PVP_EVENTS = 200;
 const MAX_FRIENDS = 80;
 
 const CORS_ORIGINS = (process.env.FRIENDS_CORS || '*').split(',').map(s => s.trim()).filter(Boolean);
@@ -217,6 +218,55 @@ async function loadPublicSnapshot(playerId) {
     };
 }
 
+const PVP_DIR = join(DATA_DIR, 'pvp-rooms');
+
+function pvpRoomFile(code) {
+    return join(PVP_DIR, 'room_' + String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.json');
+}
+
+function newPvPSessionId() {
+    return 's_' + randomBytes(8).toString('hex');
+}
+
+async function loadPvPRoom(code) {
+    const c = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (c.length < 4) return null;
+    return loadJson(pvpRoomFile(c), null);
+}
+
+async function savePvPRoom(room) {
+    await saveJson(pvpRoomFile(room.roomCode), room);
+}
+
+function storePvPSnapshot(snap) {
+    if (!snap || typeof snap !== 'object') return null;
+    try {
+        const raw = JSON.stringify(snap);
+        if (raw.length > 180000) return null;
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+async function pushPvPRoomEvent(room, sessionId, role, type, payload) {
+    if (!Array.isArray(room.events)) room.events = [];
+    room.events.push({
+        seq: room.nextSeq || 1,
+        from: sessionId,
+        fromRole: role,
+        type: String(type || '').slice(0, 32),
+        payload: payload || {},
+        at: Date.now()
+    });
+    room.nextSeq = (room.nextSeq || 1) + 1;
+    if (room.events.length > MAX_PVP_EVENTS) {
+        room.events = room.events.slice(-MAX_PVP_EVENTS);
+    }
+    room.updatedAt = Date.now();
+    await savePvPRoom(room);
+}
+
 const server = createServer(async (req, res) => {
     const origin = req.headers.origin || '';
     if (req.method === 'OPTIONS') {
@@ -347,6 +397,129 @@ const server = createServer(async (req, res) => {
             return;
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/v1/pvp/room/create') {
+            const body = await readJsonBody(req);
+            let roomCode = String(body.roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (roomCode.length < 4) {
+                roomCode = '';
+                for (let i = 0; i < 6; i++) roomCode += CODE_CHARS[randomInt(CODE_CHARS.length)];
+            }
+            const existing = await loadPvPRoom(roomCode);
+            if (existing) {
+                json(res, 409, { ok: false, error: 'room_exists' }, origin);
+                return;
+            }
+            const sessionId = newPvPSessionId();
+            const snap = storePvPSnapshot(body.snapshot);
+            const room = {
+                roomCode,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                hostSession: sessionId,
+                guestSession: '',
+                hostSnapshot: snap,
+                guestSnapshot: null,
+                nextSeq: 1,
+                events: []
+            };
+            await savePvPRoom(room);
+            json(res, 200, { ok: true, roomCode, sessionId, role: 'host' }, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/pvp/room/join') {
+            const body = await readJsonBody(req);
+            const roomCode = String(body.roomCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const room = await loadPvPRoom(roomCode);
+            if (!room) {
+                json(res, 404, { ok: false, error: 'room_not_found' }, origin);
+                return;
+            }
+            if (room.guestSession) {
+                json(res, 409, { ok: false, error: 'room_full' }, origin);
+                return;
+            }
+            const sessionId = newPvPSessionId();
+            const snap = storePvPSnapshot(body.snapshot);
+            room.guestSession = sessionId;
+            room.guestSnapshot = snap;
+            room.updatedAt = Date.now();
+            await pushPvPRoomEvent(room, sessionId, 'guest', 'hello', {
+                snapshot: snap,
+                ready: false
+            });
+            json(res, 200, {
+                ok: true,
+                roomCode,
+                sessionId,
+                role: 'guest',
+                hostSnapshot: room.hostSnapshot
+            }, origin);
+            return;
+        }
+
+        const pvpEventMatch = url.pathname.match(/^\/api\/v1\/pvp\/room\/([A-Z0-9]+)\/event$/i);
+        if (req.method === 'POST' && pvpEventMatch) {
+            const roomCode = pvpEventMatch[1].toUpperCase();
+            const body = await readJsonBody(req);
+            const sessionId = String(body.sessionId || '').slice(0, 64);
+            const room = await loadPvPRoom(roomCode);
+            if (!room) {
+                json(res, 404, { ok: false, error: 'room_not_found' }, origin);
+                return;
+            }
+            let role = '';
+            if (sessionId === room.hostSession) role = 'host';
+            else if (sessionId === room.guestSession) role = 'guest';
+            else {
+                json(res, 403, { ok: false, error: 'forbidden' }, origin);
+                return;
+            }
+            const type = String(body.type || '').slice(0, 32);
+            const payload = body.payload && typeof body.payload === 'object' ? body.payload : {};
+            if (type === 'hello' && payload.snapshot) {
+                const s = storePvPSnapshot(payload.snapshot);
+                if (role === 'guest') room.guestSnapshot = s;
+                else room.hostSnapshot = s;
+            }
+            if (type === 'ready' && payload.snapshot) {
+                const s = storePvPSnapshot(payload.snapshot);
+                if (role === 'guest') room.guestSnapshot = s;
+                else room.hostSnapshot = s;
+            }
+            await pushPvPRoomEvent(room, sessionId, role, type, payload);
+            json(res, 200, { ok: true, seq: room.nextSeq - 1 }, origin);
+            return;
+        }
+
+        const pvpPollMatch = url.pathname.match(/^\/api\/v1\/pvp\/room\/([A-Z0-9]+)\/poll$/i);
+        if (req.method === 'GET' && pvpPollMatch) {
+            const roomCode = pvpPollMatch[1].toUpperCase();
+            const sessionId = String(url.searchParams.get('sessionId') || '').slice(0, 64);
+            const since = Math.max(0, parseInt(url.searchParams.get('since') || '0', 10) || 0);
+            const room = await loadPvPRoom(roomCode);
+            if (!room) {
+                json(res, 404, { ok: false, error: 'room_not_found' }, origin);
+                return;
+            }
+            if (sessionId !== room.hostSession && sessionId !== room.guestSession) {
+                json(res, 403, { ok: false, error: 'forbidden' }, origin);
+                return;
+            }
+            const events = (room.events || []).filter(e => e && e.seq > since && e.from !== sessionId);
+            json(res, 200, {
+                ok: true,
+                events,
+                room: {
+                    hasGuest: !!room.guestSession,
+                    hostSnapshot: room.hostSnapshot,
+                    guestSnapshot: room.guestSnapshot,
+                    updatedAt: room.updatedAt
+                }
+            }, origin);
+            return;
+        }
+
         json(res, 404, { ok: false, error: 'not_found' }, origin);
     } catch (err) {
         const code = err.message === 'body_too_large' ? 413 : 500;
@@ -355,6 +528,7 @@ const server = createServer(async (req, res) => {
 });
 
 await ensureDataDir();
+await mkdir(PVP_DIR, { recursive: true });
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[friends-api] http://0.0.0.0:${PORT}`);
+    console.log(`[friends-api] http://0.0.0.0:${PORT} (friends + pvp cloud)`);
 });

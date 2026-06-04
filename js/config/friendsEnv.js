@@ -16,5 +16,6 @@
 
     if (onGitHubPages) {
         global.ETHERIA_FRIENDS_BACKEND = 'auto';
+        global.ETHERIA_PVP_USE_CLOUD = true;
     }
 })(typeof window !== 'undefined' ? window : globalThis);

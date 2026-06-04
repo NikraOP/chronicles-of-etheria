@@ -24,6 +24,7 @@
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test:friends": "node scripts/test-friends-api.js",
     "test:friends-profile": "node scripts/test-friends-profile.js",
+    "test:pvp-cloud": "node scripts/test-pvp-cloud-api.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
