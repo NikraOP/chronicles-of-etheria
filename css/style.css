@@ -5701,9 +5701,14 @@ body.settings-open .main-header .settings-gear-btn {
     .battle-enemies-pack .combatant-wrapper {
         width: 96px !important;
     }
-    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2),
+    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2) {
+        transform: translate(12px, -8px);
+    }
     .battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
-        transform: translateX(10px);
+        transform: translate(14px, -10px);
+    }
+    .battle-enemies-pack--count-3 {
+        grid-template-columns: 96px 96px;
     }
     .vs-badge {
         position: absolute !important;
