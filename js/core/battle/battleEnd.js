@@ -51,7 +51,33 @@ function victory() {
         return;
     }
     if (!currentMonster) return;
-    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+
+    if (window.dungeonDuoBattleActive && typeof getDuoDungeonState === 'function') {
+        const duo = getDuoDungeonState();
+        if (duo.role === 'guest') {
+            let snap = null;
+            if (typeof buildDungeonRoomSnapshot === 'function') {
+                snap = buildDungeonRoomSnapshot();
+                if (typeof fillPartyInSnapshot === 'function') fillPartyInSnapshot(snap);
+            }
+            if (typeof sendDuoDungeonBattleAction === 'function') {
+                sendDuoDungeonBattleAction({ type: 'victory_claim', snapshot: snap });
+            }
+            if (typeof addBattleLog === 'function') {
+                addBattleLog('⏳ Победа отправлена хосту для подтверждения…', 'info');
+            }
+            isPlayerTurn = false;
+            if (typeof updateBattleButtons === 'function') updateBattleButtons();
+            return;
+        }
+    }
+
+    dungeonVictoryApplyAndModal();
+}
+
+function dungeonVictoryApplyAndModal() {
+    if (!currentMonster) return;
+
     const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
     let totalExp = currentMonster.exp;
     if (enemies.length > 1) {
@@ -61,12 +87,12 @@ function victory() {
     gold = Math.floor(gold * 1.0);
     const rewardLines = claimSpecialBattleRewards(currentMonster);
     const returnTo = currentMonster.returnTo;
-    
+
     window.lastVictoryData = { exp: totalExp, gold: gold };
     player.gold += gold;
     player.experience += totalExp;
     player.victories = (player.victories || 0) + 1;
-    
+
     while (player.experience >= player.maxExperience) {
         player.experience -= player.maxExperience;
         player.level++;
@@ -75,8 +101,25 @@ function victory() {
         player.health = player.maxHealth;
         if (player.class === 'Маг') player.mana = player.maxMana;
         updateAllAbilities();
-        addMessage(`🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ${player.level} уровень!`, 'success');
+        addMessage('🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ' + player.level + ' уровень!', 'success');
     }
+
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    const isDuoHost = duo && duo.role === 'host' && session && session.mode === 'duo';
+
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('run');
+
+    if (isDuoHost && typeof sendDuoDungeonRoomState === 'function') {
+        sendDuoDungeonRoomState({
+            kind: 'victory_ack',
+            exp: totalExp,
+            gold: gold,
+            rewardLines: rewardLines
+        });
+    }
+
     currentMonster = null;
     isPlayerTurn = true;
     window._strikeAnimActive = false;
@@ -86,7 +129,7 @@ function victory() {
     renderGame();
     const rewardText = rewardLines.length ? '\n\n' + rewardLines.join('\n') : '';
     window._battleEndModalOpen = true;
-    showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', () => {
+    showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', function () {
         window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
         if (returnTo && returnTo !== '__dungeon_solo__' && returnTo !== '__dungeon_duo__' &&
@@ -97,6 +140,8 @@ function victory() {
         }
     });
 }
+
+window.dungeonVictoryApplyAndModal = dungeonVictoryApplyAndModal;
 
 function gameOver() {
     if (window.pvpBattleActive && typeof window.pvpBroadcastMatchEnd === 'function') {

@@ -178,10 +178,55 @@ function onDungeonDuoPlayerActionEnded() {
     startDungeonDuoMonsterPhase();
 }
 
+function requestDungeonDuoStateSync() {
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || !duo.role) return;
+    const snap = buildDungeonRoomSnapshot();
+    fillPartyInSnapshot(snap);
+    if (duo.role === 'host') {
+        broadcastDungeonDuoRoomState();
+    } else if (typeof sendDuoDungeonBattleAction === 'function') {
+        sendDuoDungeonBattleAction({ type: 'sync_snapshot', snapshot: snap });
+    }
+}
+
+function onDungeonDuoMonsterPhaseComplete() {
+    if (!isDungeonDuoBattleActive()) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (!duo || duo.role !== 'host') return;
+    resetDungeonDuoRoundActs();
+    dungeonDuoActiveSlot = 'host';
+    isPlayerTurn = true;
+    broadcastDungeonDuoRoomState();
+    if (typeof updateBattleButtons === 'function') updateBattleButtons();
+}
+
 function applyRemoteDuoDungeonBattleActionImpl(payload) {
     if (!payload || typeof getDuoDungeonState !== 'function') return;
     const duo = getDuoDungeonState();
     if (duo.role !== 'host') return;
+
+    if (payload.type === 'request_enter_battle') {
+        if (typeof enterCurrentRoomBattle === 'function') enterCurrentRoomBattle();
+        return;
+    }
+    if (payload.type === 'request_room_advance') {
+        if (typeof onRoomCleared === 'function') onRoomCleared({ fromRemote: false, forceHost: true });
+        return;
+    }
+    if (payload.type === 'shrine_heal') {
+        if (typeof enterShrineRoom === 'function') enterShrineRoom({ fromRemote: true, forceHost: true });
+        return;
+    }
+    if (payload.type === 'sync_snapshot' && payload.snapshot) {
+        applyDungeonDuoRoomSnapshot(payload.snapshot);
+        return;
+    }
+    if (payload.type === 'victory_claim') {
+        if (payload.snapshot) applyDungeonDuoRoomSnapshot(payload.snapshot);
+        if (typeof dungeonVictoryApplyAndModal === 'function') dungeonVictoryApplyAndModal();
+        return;
+    }
 
     if (payload.type === 'end_turn') {
         if (payload.snapshot) applyDungeonDuoRoomSnapshot(payload.snapshot);
@@ -215,3 +260,7 @@ window.startDungeonDuoBattleMode = startDungeonDuoBattleMode;
 window.stopDungeonDuoBattleMode = stopDungeonDuoBattleMode;
 window.onDungeonDuoPlayerActionEnded = onDungeonDuoPlayerActionEnded;
 window.applyRemoteDuoDungeonBattleActionImpl = applyRemoteDuoDungeonBattleActionImpl;
+window.requestDungeonDuoStateSync = requestDungeonDuoStateSync;
+window.onDungeonDuoMonsterPhaseComplete = onDungeonDuoMonsterPhaseComplete;
+window.buildDungeonDuoPartySnapshot = buildDungeonDuoPartySnapshot;
+window.fillPartyInSnapshot = fillPartyInSnapshot;

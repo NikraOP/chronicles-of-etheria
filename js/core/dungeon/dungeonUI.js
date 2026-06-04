@@ -31,9 +31,19 @@ function isDungeonDuoReady() {
  * @returns {{ style: string, className: string }}
  */
 function buildDungeonThemeStyle(dungeon, variant) {
-    const theme = dungeon && dungeon.theme;
-    if (!theme) return { style: '', className: '' };
+    if (!dungeon) return { style: '', className: '' };
     variant = variant || 'detail';
+    const theme = dungeon.theme ? Object.assign({}, dungeon.theme) : {};
+    if (!theme.backgroundImage && dungeon.backgroundId && typeof getDungeonBackground === 'function') {
+        const bg = getDungeonBackground(dungeon);
+        if (bg && bg.image) theme.backgroundImage = bg.image;
+    }
+    if (!theme.bgColor && typeof getDungeonBackground === 'function') {
+        const bg = getDungeonBackground(dungeon);
+        if (bg && bg.bgColor) theme.bgColor = bg.bgColor;
+    }
+    if (!theme.bgColor && !theme.backgroundImage) return { style: '', className: '' };
+
     const parts = [];
     let className = '';
     if (theme.bgColor) parts.push('background:' + theme.bgColor);
@@ -155,17 +165,29 @@ function openDungeonDetail(dungeonId) {
 
     let actions = '<button type="button" class="action-btn dungeon-detail__back" onclick="showDungeonsHub()">← К списку</button>';
 
+    const runSession = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
     const soloSession = typeof getSoloDungeonSession === 'function' ? getSoloDungeonSession() : null;
     const soloActive = soloSession && soloSession.dungeonId === dungeon.id && soloSession.state === 'in_room';
+    const duoRunActive = runSession && runSession.mode === 'duo' && runSession.dungeonId === dungeon.id &&
+        (runSession.state === 'in_room' || runSession.state === 'loot');
+    const duoState = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    const duoInLobby = isDuo && duoState && duoState.status !== 'idle' && !duoRunActive;
 
     if (unlocked) {
-        if (soloActive) {
-            actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartRoomBattle()">⚔️ В бой</button>';
-            if (soloSession.committed) {
-                actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="abandonDungeonRun(true);showDungeonsHub()">Покинуть забег</button>';
+        if (soloActive || duoRunActive) {
+            const battleLabel = duoRunActive && duoState && duoState.role === 'guest'
+                ? '⚔️ Запросить бой'
+                : '⚔️ В бой';
+            actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartRoomBattle()">' +
+                battleLabel + '</button>';
+            if (runSession && runSession.committed) {
+                actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="dungeonUiAbandonRun()">Покинуть забег</button>';
+            }
+            if (duoRunActive && duoState && duoState.role === 'guest') {
+                actions += '<p class="dungeon-detail__hint">Ход картой и награды синхронизирует хост.</p>';
             }
         }
-        if (isDuo) {
+        if (isDuo && !duoRunActive) {
             const duoClickCreate = duoReady
                 ? 'dungeonUiCreateDuoRoom(\'' + idSafe + '\')'
                 : 'dungeonUiDuoSoon()';
@@ -228,11 +250,19 @@ function dungeonUiStartRoomBattle() {
     }
 }
 
+function dungeonUiAbandonRun() {
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (session && session.mode === 'duo' && typeof forfeitDuoDungeon === 'function') {
+        forfeitDuoDungeon();
+        return;
+    }
+    if (typeof abandonDungeonRun === 'function') abandonDungeonRun(true);
+    if (typeof showDungeonsHub === 'function') showDungeonsHub();
+}
+
 function dungeonUiDuoSoon() {
     if (typeof addMessage === 'function') {
-        addMessage('Дуо-подземелья — скоро.', 'info');
-    } else {
-        alert('скоро');
+        addMessage('Дуо-модуль не загружен. Обновите страницу (Ctrl+F5).', 'error');
     }
 }
 
@@ -288,6 +318,7 @@ function dungeonUiStartDuoRun() {
     if (typeof startDuoDungeonFromLobby !== 'function') return;
     const session = startDuoDungeonFromLobby();
     if (!session) return;
+    if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('run');
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     if (duo && duo.dungeonId) openDungeonDetail(duo.dungeonId);
 }
@@ -398,6 +429,7 @@ window.dungeonUiDuoSoon = dungeonUiDuoSoon;
 window.dungeonUiCreateDuoRoom = dungeonUiCreateDuoRoom;
 window.dungeonUiJoinDuoRoom = dungeonUiJoinDuoRoom;
 window.dungeonUiStartRoomBattle = dungeonUiStartRoomBattle;
+window.dungeonUiAbandonRun = dungeonUiAbandonRun;
 window.showDuoDungeonLobbyScreen = showDuoDungeonLobbyScreen;
 window.dungeonUiStartDuoRun = dungeonUiStartDuoRun;
 window.dungeonUiJoinDuoRoomPrompt = dungeonUiJoinDuoRoomPrompt;

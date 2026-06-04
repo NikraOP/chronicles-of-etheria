@@ -604,7 +604,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
                 const allyHeal = Math.floor((ally.maxHealth || 100) * a.heal / 100);
                 ally.health = Math.min(ally.maxHealth || allyHeal, (ally.health || 0) + allyHeal);
                 addBattleLog('💚 Союзник +' + allyHeal + ' HP', 'heal');
-                if (typeof broadcastDungeonDuoRoomState === 'function') broadcastDungeonDuoRoomState();
+                if (typeof requestDungeonDuoStateSync === 'function') requestDungeonDuoStateSync();
             }
         } else {
             player.health = Math.min(player.maxHealth, player.health + healAmount);

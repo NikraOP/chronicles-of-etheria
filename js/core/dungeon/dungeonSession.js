@@ -111,6 +111,10 @@ function installDungeonVictoryModalHook() {
             wrapped = function () {
                 dungeonRunSession._awaitingVictory = false;
                 if (typeof callback === 'function') callback();
+                const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+                if (dungeonRunSession && dungeonRunSession.mode === 'duo' && duo && duo.role === 'guest') {
+                    return;
+                }
                 onRoomCleared();
             };
         } else if (dungeonRunSession && title && String(title).indexOf('Поражение') !== -1) {
@@ -185,6 +189,7 @@ function startDungeonRun(dungeonId, mode, externalRun) {
     }
 
     const run = createDungeonRunForStart(dungeonId, mode, externalRun);
+    if (run && !run.mode) run.mode = mode || dungeon.mode || 'solo';
     const floor0 = typeof getFloorFromRun === 'function' ? getFloorFromRun(run, 0) : (run.floors && run.floors[0]);
     if (!floor0 || !floor0.rooms || !floor0.rooms.length) {
         if (typeof addMessage === 'function') addMessage('❌ Не удалось сгенерировать забег.', 'error');
@@ -245,22 +250,173 @@ function getCurrentRoom() {
     return floor.rooms[dungeonRunSession.roomIndex] || null;
 }
 
-function enterShrineRoom() {
+function isDungeonDuoHost() {
+    if (!dungeonRunSession || dungeonRunSession.mode !== 'duo') return false;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    return !!(duo && duo.role === 'host');
+}
+
+function hostBroadcastRoomAdvance(extra) {
+    if (!isDungeonDuoHost() || typeof sendDuoDungeonRoomState !== 'function') return;
+    const session = dungeonRunSession;
+    sendDuoDungeonRoomState(Object.assign({
+        kind: 'room_advance',
+        floorIndex: session.floorIndex,
+        roomIndex: session.roomIndex,
+        state: session.state,
+        completed: session.state === 'complete',
+        dungeonId: session.dungeonId
+    }, extra || {}));
+}
+
+function applyDungeonRoomAdvanceFromHost(payload) {
+    if (!payload) return;
+    if (payload.completed) {
+        dungeonRunSession = null;
+        if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+        if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('sync');
+        if (typeof addMessage === 'function') addMessage('🏆 Подземелье пройдено вместе с напарником!', 'success');
+        if (typeof showDungeonsHub === 'function') showDungeonsHub();
+        return;
+    }
+    if (!dungeonRunSession) return;
+    if (typeof payload.floorIndex === 'number') dungeonRunSession.floorIndex = payload.floorIndex;
+    if (typeof payload.roomIndex === 'number') dungeonRunSession.roomIndex = payload.roomIndex;
+    dungeonRunSession.state = payload.state || 'in_room';
+    dungeonRunSession._awaitingVictory = false;
+    if (typeof ensureFloorGenerated === 'function') {
+        ensureFloorGenerated(dungeonRunSession.run, dungeonRunSession.floorIndex);
+    }
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('run');
+    if (dungeonRunSession.committed && typeof saveActiveDungeonRun === 'function') saveActiveDungeonRun();
+    if (typeof saveGame === 'function') saveGame();
+    if (typeof openDungeonDetail === 'function') openDungeonDetail(dungeonRunSession.dungeonId);
+}
+
+function applyDungeonDuoVictoryAck(payload) {
+    if (!payload || !player) return;
+    if (dungeonRunSession) dungeonRunSession._awaitingVictory = false;
+    const exp = payload.exp || 0;
+    const gold = payload.gold || 0;
+    window.lastVictoryData = { exp: exp, gold: gold };
+    player.gold += gold;
+    player.experience += exp;
+    player.victories = (player.victories || 0) + 1;
+    while (player.experience >= player.maxExperience) {
+        player.experience -= player.maxExperience;
+        player.level++;
+        player.maxExperience = Math.floor(player.level * 70 + 250);
+        if (typeof resetBaseStats === 'function') resetBaseStats();
+        player.health = player.maxHealth;
+        if (player.class === 'Маг') player.mana = player.maxMana;
+        if (typeof updateAllAbilities === 'function') updateAllAbilities();
+        if (typeof addMessage === 'function') {
+            addMessage('🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ' + player.level + ' уровень!', 'success');
+        }
+    }
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    currentMonster = null;
+    window._strikeAnimActive = false;
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
+    if (typeof saveGame === 'function') saveGame();
+    if (typeof renderGame === 'function') renderGame();
+    let rewardText = '';
+    if (Array.isArray(payload.rewardLines) && payload.rewardLines.length) {
+        rewardText = '\n\n' + payload.rewardLines.join('\n');
+    }
+    window._battleEndModalOpen = true;
+    if (typeof showModal === 'function') {
+        showModal('🎉 Победа!', '🏆',
+            'Партия подтверждена хостом!\n⭐ Опыт: +' + exp + '\n💰 Золото: +' + gold + rewardText +
+            '\n📊 Уровень: ' + player.level,
+            'Продолжить',
+            function () {
+                window._battleEndModalOpen = false;
+                var dc = document.getElementById('dynamicContent');
+                if (dc) dc.innerHTML = '';
+            });
+    }
+}
+
+function applyRemoteDuoDungeonEnterBattle(payload) {
+    if (!payload || !dungeonRunSession) return;
+    if (dungeonRunSession.state === 'battle' && window.dungeonDuoBattleActive) return;
+
+    if (typeof payload.floorIndex === 'number') dungeonRunSession.floorIndex = payload.floorIndex;
+    if (typeof payload.roomIndex === 'number') dungeonRunSession.roomIndex = payload.roomIndex;
+
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof stopGathering === 'function') stopGathering();
+
+    const leader = payload.enemyPayloads && payload.enemyPayloads[0];
+    const battleOpts = payload.battleOpts || {};
+    if (!leader) return;
+
+    dungeonRunSession.state = 'battle';
+    dungeonRunSession._awaitingVictory = true;
+
+    if (typeof startDungeonDuoBattleMode === 'function') startDungeonDuoBattleMode();
+    if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('battle');
+
+    if (typeof enterBattleZoneWithMonster === 'function') {
+        enterBattleZoneWithMonster(leader, battleOpts);
+    }
+
+    if (typeof isBattleZoneStaging === 'function' && isBattleZoneStaging() &&
+        typeof commitBattleStart === 'function') {
+        commitBattleStart();
+    }
+
+    setTimeout(function () {
+        if (typeof applyDungeonDuoRoomSnapshot === 'function' && payload.battleSnapshot) {
+            applyDungeonDuoRoomSnapshot(payload.battleSnapshot);
+        }
+    }, 500);
+}
+
+function enterShrineRoom(opts) {
+    opts = opts || {};
     if (!dungeonRunSession) return false;
+
+    if (dungeonRunSession.mode === 'duo' && !opts.forceHost) {
+        const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+        if (duo && duo.role === 'guest') {
+            if (typeof sendDuoDungeonBattleAction === 'function') {
+                sendDuoDungeonBattleAction({ type: 'shrine_heal' });
+            }
+            if (typeof addMessage === 'function') addMessage('✨ Запрос святыни отправлен хосту…', 'info');
+            return true;
+        }
+    }
+
     const heal = Math.floor((player.maxHealth || 100) * 0.3);
     player.health = Math.min(player.maxHealth, (player.health || 0) + heal);
     if (typeof addMessage === 'function') {
         addMessage('✨ Святыня восстанавливает ' + heal + ' HP.', 'success');
     }
     if (typeof saveGame === 'function') saveGame();
-    onRoomCleared();
+    onRoomCleared({ forceHost: !!opts.forceHost });
     return true;
 }
 
-function onRoomCleared() {
+function onRoomCleared(opts) {
+    opts = opts || {};
     if (!dungeonRunSession) return;
 
     const session = dungeonRunSession;
+    if (session.mode === 'duo') {
+        const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+        if (duo && duo.role === 'guest' && !opts.fromRemote) {
+            if (typeof sendDuoDungeonBattleAction === 'function') {
+                sendDuoDungeonBattleAction({ type: 'request_room_advance' });
+            }
+            if (typeof addMessage === 'function') addMessage('⏳ Ожидание перехода от хоста…', 'info');
+            return;
+        }
+        if (duo && duo.role !== 'host' && !opts.fromRemote && !opts.forceHost) return;
+    }
+
     if (session.state !== 'battle' && session.state !== 'loot' && session.state !== 'in_room') return;
 
     const prevFloor = session.floorIndex;
@@ -298,9 +454,8 @@ function onRoomCleared() {
         if (typeof addMessage === 'function') {
             addMessage('🏆 Подземелье пройдено! Забег завершён.', 'success');
         }
-        if (doneMode === 'duo' && typeof sendDuoDungeonRoomState === 'function' &&
-            typeof getDuoDungeonState === 'function' && getDuoDungeonState().role === 'host') {
-            sendDuoDungeonRoomState({ completed: true, floorIndex: session.floorIndex, roomIndex: session.roomIndex });
+        if (doneMode === 'duo') {
+            hostBroadcastRoomAdvance({ completed: true });
         }
         if (typeof showDungeonsHub === 'function') {
             showDungeonsHub();
@@ -326,8 +481,8 @@ function onRoomCleared() {
         );
     }
 
-    if (session.mode === 'duo' && typeof broadcastDungeonRunMeta === 'function') {
-        broadcastDungeonRunMeta();
+    if (session.mode === 'duo') {
+        hostBroadcastRoomAdvance();
     }
 
     if (typeof openDungeonDetail === 'function') {
@@ -350,6 +505,19 @@ function enterCurrentRoomBattle() {
     if (!dungeonRunSession || dungeonRunSession.state !== 'in_room') {
         if (typeof addMessage === 'function') addMessage('❌ Нет активной комнаты данжа.', 'error');
         return false;
+    }
+
+    if (dungeonRunSession.mode === 'duo') {
+        const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+        if (duo && duo.role === 'guest') {
+            if (typeof sendDuoDungeonBattleAction === 'function') {
+                sendDuoDungeonBattleAction({ type: 'request_enter_battle' });
+            }
+            if (typeof addMessage === 'function') {
+                addMessage('⚔️ Запрос боя отправлен хосту. Дождитесь начала боя…', 'info');
+            }
+            return true;
+        }
     }
 
     const room = getCurrentRoom();
@@ -391,7 +559,8 @@ function enterCurrentRoomBattle() {
         startDungeonDuoBattleMode();
         const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
         if (duo && duo.role === 'host' && typeof setDungeonDuoAlly === 'function') {
-            setDungeonDuoAlly({ name: 'Союзник', health: player.maxHealth, maxHealth: player.maxHealth, class: '?' });
+            const partySnap = typeof buildDungeonDuoPartySnapshot === 'function' ? buildDungeonDuoPartySnapshot() : null;
+            setDungeonDuoAlly(partySnap || { name: 'Союзник', health: player.maxHealth, maxHealth: player.maxHealth, class: '?' });
         }
     }
 
@@ -404,8 +573,25 @@ function enterCurrentRoomBattle() {
         return false;
     }
 
-    if (isDuo && typeof broadcastDungeonDuoRoomState === 'function') {
-        setTimeout(function () { broadcastDungeonDuoRoomState(); }, 400);
+    if (isDuo) {
+        if (typeof setDuoDungeonRunStatus === 'function') setDuoDungeonRunStatus('battle');
+        if (isDungeonDuoHost() && typeof sendDuoDungeonRoomState === 'function') {
+            let battleSnapshot = null;
+            if (typeof buildDungeonRoomSnapshot === 'function') {
+                battleSnapshot = buildDungeonRoomSnapshot();
+                if (typeof fillPartyInSnapshot === 'function') fillPartyInSnapshot(battleSnapshot);
+            }
+            setTimeout(function () {
+                sendDuoDungeonRoomState({
+                    kind: 'enter_battle',
+                    floorIndex: dungeonRunSession.floorIndex,
+                    roomIndex: dungeonRunSession.roomIndex,
+                    enemyPayloads: payloads,
+                    battleOpts: battleOpts,
+                    battleSnapshot: battleSnapshot
+                });
+            }, 400);
+        }
     }
 
     const arch = ROOM_ARCHETYPES[room.archetype];
@@ -458,3 +644,8 @@ window.saveActiveDungeonRun = saveActiveDungeonRun;
 window.clearActiveDungeonRun = clearActiveDungeonRun;
 window.tryResumeActiveDungeonRun = tryResumeActiveDungeonRun;
 window.abandonDungeonRun = abandonDungeonRun;
+window.isDungeonDuoHost = isDungeonDuoHost;
+window.hostBroadcastRoomAdvance = hostBroadcastRoomAdvance;
+window.applyDungeonRoomAdvanceFromHost = applyDungeonRoomAdvanceFromHost;
+window.applyDungeonDuoVictoryAck = applyDungeonDuoVictoryAck;
+window.applyRemoteDuoDungeonEnterBattle = applyRemoteDuoDungeonEnterBattle;

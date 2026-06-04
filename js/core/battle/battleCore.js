@@ -248,6 +248,9 @@ function finishMonsterPhase() {
         if (typeof saveGame === 'function' && !window.pvpBattleActive) saveGame();
         return;
     }
+    if (window.dungeonDuoBattleActive && typeof onDungeonDuoMonsterPhaseComplete === 'function') {
+        onDungeonDuoMonsterPhaseComplete();
+    }
     if (typeof saveGame === 'function') saveGame();
 }
 

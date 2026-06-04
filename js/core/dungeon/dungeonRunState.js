@@ -20,7 +20,8 @@ function createLazyDungeonRun(dungeonId, seed) {
         totalFloors: totalFloors,
         floors: {},
         floorOrder: [],
-        lazy: true
+        lazy: true,
+        mode: dungeon && dungeon.mode === 'duo' ? 'duo' : 'solo'
     };
 }
 
@@ -38,7 +39,13 @@ function ensureFloorGenerated(run, floorIndex) {
     if (typeof generateDungeonFloor !== 'function') {
         return null;
     }
-    const floor = generateDungeonFloor(run.dungeonId, floorIndex, run.totalFloors, run.seed);
+    const floor = generateDungeonFloor(
+        run.dungeonId,
+        floorIndex,
+        run.totalFloors,
+        run.seed,
+        run.mode
+    );
     if (!run.floors || typeof run.floors !== 'object') run.floors = {};
     if (Array.isArray(run.floors)) {
         while (run.floors.length <= floorIndex) run.floors.push(null);
