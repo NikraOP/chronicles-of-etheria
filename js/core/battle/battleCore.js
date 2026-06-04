@@ -103,8 +103,9 @@ function updateBattleButtons() {
     if (!currentMonster) return;
     const root = document.querySelector('.battle-wrapper');
     if (!root) return;
+    const targetingActive = typeof isBattleTargetingActive === 'function' && isBattleTargetingActive();
     root.querySelectorAll('.action-btn').forEach(btn => {
-        if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn;
+        if (!btn.classList.contains('danger')) btn.disabled = !isPlayerTurn || targetingActive;
     });
     if (typeof updateAbilityBattleHotbar === 'function') updateAbilityBattleHotbar();
     if (typeof updateBattleActionKeyHints === 'function') updateBattleActionKeyHints();
@@ -311,10 +312,24 @@ function setupBattleMonster(mData, scale, goldMult) {
     };
 }
 
+/** Solo: setupBattleMonster only. Multi: options.enemies[] clones full roster and syncs focus. */
+function applyBattleEnemyRoster(options, scale, goldMult) {
+    if (typeof clearBattleEnemies !== 'function') return;
+    if (!options || !options.enemies || !options.enemies.length) {
+        clearBattleEnemies();
+        return;
+    }
+    const list = setupBattleEnemiesFromTemplates(options.enemies, scale, goldMult);
+    setBattleEnemies(list);
+    setFocusedEnemyIndex(0);
+    syncCurrentMonsterFromFocus();
+}
+
 function prepareBattleState() {
     stopGathering();
     battleLogEntries = [];
     resetAllCooldowns();
+    if (typeof clearBattleEnemies === 'function') clearBattleEnemies();
     player.originalMaxHealth = null;
     specialBattleRewardClaimed = false;
 }

@@ -89,6 +89,68 @@ function renderBattleStaging() {
     if (typeof syncBattleZoneLayout === 'function') syncBattleZoneLayout();
 }
 
+function buildEnemySpriteInnerHtml(monster) {
+    const monsterSrc = monster.img
+        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(monster.img) : monster.img)
+        : '';
+    if (monsterSrc) {
+        const icon = monster.icon || '👹';
+        return '<img src="' + monsterSrc + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + icon + '\'">';
+    }
+    return '<span class="sprite-fallback">' + (monster.icon || '👹') + '</span>';
+}
+
+function buildEnemyShieldHTML(monster) {
+    let monsterShieldValue = 0;
+    let monsterShieldRemaining = 0;
+    if (monster.activeBuffs && monster.activeBuffs.shield) {
+        monsterShieldValue = monster.activeBuffs.shield.value;
+        monsterShieldRemaining = monster.activeBuffs.shield.remainingTurns;
+    }
+    if (monsterShieldValue <= 0) return '';
+    const shieldPercent = (monsterShieldValue / monster.maxHealth) * 100;
+    return '<div class="shield-bar" style="width: 100%; height: 4px; background: rgba(52,152,219,0.3); border-radius: 2px; margin-top: 2px; overflow: hidden;">' +
+        '<div class="shield-fill" style="width: ' + Math.min(100, shieldPercent) + '%; height: 100%; background: #3498db;"></div></div>' +
+        '<div class="shield-hp-label" style="font-size: 9px; color: #3498db; margin-top: 2px;">🛡️ Щит: ' + monsterShieldValue + ' HP (' + monsterShieldRemaining + ' ход.)</div>';
+}
+
+function buildEnemyCombatantWrapperHtml(monster, enemyIndex, isFocused, statusSlotHtml) {
+    const mHp = monster.maxHealth > 0 ? (monster.health / monster.maxHealth * 100) : 0;
+    const deadClass = monster.health <= 0 ? ' battle-enemy--defeated' : '';
+    const focusClass = isFocused ? ' battle-enemy--focused' : '';
+    const wrapperId = isFocused ? ' id="enemyWrapper"' : '';
+    const spriteId = isFocused ? ' id="enemySprite"' : '';
+    return '<div class="combatant-wrapper' + deadClass + focusClass + '"' + wrapperId +
+        ' data-enemy-index="' + enemyIndex + '">' +
+        '<div class="combatant-sprite"' + spriteId + '>' + buildEnemySpriteInnerHtml(monster) + '</div>' +
+        '<div class="combatant-info">' +
+        '<div class="combatant-name" style="color:#e74c3c;">' + escapeBattleHtml(monster.name) + '</div>' +
+        '<div class="health-bar"><div class="health-fill enemy-hp" style="width:' + mHp + '%;"></div></div>' +
+        buildEnemyShieldHTML(monster) +
+        '<div class="health-text">' + monster.health + '/' + monster.maxHealth + '</div>' +
+        (statusSlotHtml ? '<div class="combatant-status-slot" data-side="enemy">' + statusSlotHtml + '</div>' : '') +
+        '</div></div>';
+}
+
+function buildBattleEnemiesRowHtml() {
+    const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
+    if (enemies.length <= 1) return '';
+    const resolvedFocus = typeof getBattleEnemyFocusIndex === 'function'
+        ? getBattleEnemyFocusIndex()
+        : 0;
+    let row = '';
+    for (let i = 0; i < enemies.length; i++) {
+        const enemy = enemies[i];
+        const isFocused = i === resolvedFocus;
+        let statusSlot = '';
+        if (isFocused) {
+            statusSlot = buildMonsterBuffsHTML() + buildMonsterStatusEffectsHTML() + buildMonsterAbilitiesHTML();
+        }
+        row += buildEnemyCombatantWrapperHtml(enemy, i, isFocused, statusSlot);
+    }
+    return '<div class="battle-enemies-row" style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:flex-end;">' + row + '</div>';
+}
+
 function renderBattle(options) {
     options = options || {};
     if (!currentMonster) return;
@@ -110,12 +172,8 @@ function renderBattle(options) {
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 0;
     const mHp = currentMonster.maxHealth > 0 ? (currentMonster.health / currentMonster.maxHealth * 100) : 0;
     const bgStyle = loc.bgColor;
-    const monsterSrc = currentMonster.img
-        ? (typeof resolveGameAssetUrl === 'function' ? resolveGameAssetUrl(currentMonster.img) : currentMonster.img)
-        : '';
-    const monsterImg = monsterSrc
-        ? '<img src="' + monsterSrc + '" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'' + currentMonster.icon + '\'">'
-        : '<span class="sprite-fallback">' + currentMonster.icon + '</span>';
+    const multiEnemyRow = buildBattleEnemiesRowHtml();
+    const monsterImg = buildEnemySpriteInnerHtml(currentMonster);
 
     const abilitiesHTML = buildMonsterAbilitiesHTML();
     const monsterDotHTML = buildMonsterStatusEffectsHTML();
@@ -184,8 +242,9 @@ function renderBattle(options) {
     logHTML += '</div>';
 
     const turnNum = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
-    const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena">' +
-        '<div class="combatant-wrapper" id="enemyWrapper">' +
+    const enemyBlockHtml = multiEnemyRow
+        ? multiEnemyRow
+        : ('<div class="combatant-wrapper" id="enemyWrapper" data-enemy-index="0">' +
             '<div class="combatant-sprite" id="enemySprite">' + monsterImg + '</div>' +
             '<div class="combatant-info">' +
                 '<div class="combatant-name" style="color:#e74c3c;">' + escapeBattleHtml(currentMonster.name) + '</div>' +
@@ -194,7 +253,9 @@ function renderBattle(options) {
                 '<div class="health-text">' + currentMonster.health + '/' + currentMonster.maxHealth + '</div>' +
                 '<div class="combatant-status-slot" data-side="enemy">' + monsterBuffsHTML + monsterDotHTML + abilitiesHTML + '</div>' +
             '</div>' +
-        '</div>' +
+        '</div>');
+    const html = '<div class="battle-wrapper"><div class="battle-arena" style="background:' + bgStyle + ';" id="battleArena">' +
+        enemyBlockHtml +
         '<div class="vs-badge">⚔️ Ход ' + turnNum + ' ⚔️</div>' +
         '<div class="combatant-wrapper" id="playerWrapper">' +
             '<div class="combatant-sprite" id="playerSprite">' + playerSpriteHtml + '</div>' +
@@ -213,6 +274,7 @@ function renderBattle(options) {
     document.getElementById('dynamicContent').innerHTML = html;
     updateBattleButtons();
     if (typeof updateBattleActionKeyHints === 'function') updateBattleActionKeyHints();
+    if (typeof restoreBattleTargetingUi === 'function') restoreBattleTargetingUi();
 }
 
 function setCombatantShieldDisplay(wrapper, shieldValue, maxHp, remainingTurns) {

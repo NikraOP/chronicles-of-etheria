@@ -51,14 +51,19 @@ function victory() {
         return;
     }
     if (!currentMonster) return;
-    let gold = Math.floor((currentMonster.exp / 4 + player.level * 1.5) * currentMonster.goldMult / 15);
+    const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
+    let totalExp = currentMonster.exp;
+    if (enemies.length > 1) {
+        totalExp = enemies.reduce(function (sum, e) { return sum + (e && e.exp ? e.exp : 0); }, 0);
+    }
+    let gold = Math.floor((totalExp / 4 + player.level * 1.5) * currentMonster.goldMult / 15);
     gold = Math.floor(gold * 1.0);
     const rewardLines = claimSpecialBattleRewards(currentMonster);
     const returnTo = currentMonster.returnTo;
     
-    window.lastVictoryData = { exp: currentMonster.exp, gold: gold };
+    window.lastVictoryData = { exp: totalExp, gold: gold };
     player.gold += gold;
-    player.experience += currentMonster.exp;
+    player.experience += totalExp;
     player.victories = (player.victories || 0) + 1;
     
     while (player.experience >= player.maxExperience) {
@@ -83,8 +88,11 @@ function victory() {
     showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', () => {
         window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
-        if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
-        else renderGame();
+        if (returnTo && returnTo !== '__dungeon_solo__' && typeof showGatheringResources === 'function') {
+            showGatheringResources(returnTo);
+        } else if (returnTo !== '__dungeon_solo__') {
+            renderGame();
+        }
     });
 }
 

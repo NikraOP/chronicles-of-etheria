@@ -1,5 +1,18 @@
 // js/core/battle/battleMonster.js
 
+/**
+ * TODO(multi-enemy): After one enemy finishes its turn, advance focus to the
+ * next living enemy, syncCurrentMonsterFromFocus(), and call monsterTurn() again before
+ * finishMonsterPhase / onPlayerTurnStart. Return true when another enemy turn was started.
+ */
+function advanceMonsterQueue() {
+    const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
+    if (enemies.length <= 1) return false;
+    const living = enemies.filter(e => e && e.health > 0);
+    if (living.length <= 1) return false;
+    return false;
+}
+
 function applyMonsterBuff(type, value, duration) {
     if (!currentMonster.activeBuffs) currentMonster.activeBuffs = {};
     
@@ -320,7 +333,7 @@ function monsterTurn() {
         const applied = applyDamageToMonster(dotDmg);
         addBattleLog(`🌪️ Продолжительный урон: ${applied}!`, 'dmg');
         currentMonster.dotOverTime.remaining--;
-        if (currentMonster.health <= 0) { victory(); return; }
+        if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
     }
 
     if (summonedSpirit) {
@@ -443,7 +456,7 @@ function monsterTurn() {
                 const counterDmg = Math.floor(getPlayerEffectiveAttack() * (counter.counterDmg || 80) / 100);
                 const appliedCounter = applyDamageToMonster(counterDmg);
                 addBattleLog(`↩️ Контратака! ${appliedCounter} урона!`, 'dmg');
-                if (currentMonster.health <= 0) { victory(); return; }
+                if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
             }
             
             // ОТРАЖЕНИЕ УРОНА ИГРОКОМ (при атаке монстра)
@@ -454,7 +467,7 @@ function monsterTurn() {
                 addBattleLog(`↩️ Отражено ${reflectedDmg} урона!`, 'dmg');
                 reflectEffect.dur--;
                 if (reflectEffect.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== reflectEffect);
-                if (currentMonster.health <= 0) { victory(); return; }
+                if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
             }
             
             // ЗАМОРОЗКА АТАКУЮЩЕГО
@@ -508,6 +521,9 @@ function monsterTurn() {
             }
             gameOver(); 
             return; 
+        }
+        if (!isPlayerTurn && typeof advanceMonsterQueue === 'function' && advanceMonsterQueue()) {
+            return;
         }
         finishMonsterPhase();
         onPlayerTurnStart();
@@ -577,7 +593,7 @@ function monsterTurn() {
         addBattleLog(`💢 Накопление ярости сброшено!`, 'info');
     }
     
-    if (currentMonster.health <= 0) { victory(); return; }
+    if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
     if (player.health <= 0) {
         const reviveAb2 = player.abilities && player.abilities.find(a => (a.reviveOnDeath || a.reviveOnce) && !reviveUsed);
         if (reviveAb2 && !reviveUsed) {

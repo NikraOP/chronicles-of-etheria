@@ -10,7 +10,37 @@ function requireBattleEngaged() {
 
 function playerAttack() {
     if (!requireBattleEngaged()) return;
+    if (typeof isBattleTargetingActive === 'function' && isBattleTargetingActive()) return;
     if (!beginPlayerAction()) return;
+
+    const beginAttack = function (targetKind, targetIndex) {
+        executePlayerAttackAtTarget(targetKind, targetIndex);
+    };
+
+    if (typeof beginBattleTargeting === 'function') {
+        if (getBattleEnemySlotCount() <= 1) {
+            if (typeof focusBattleEnemyAtIndex === 'function') focusBattleEnemyAtIndex(0);
+            beginAttack('enemy', 0);
+            return;
+        }
+        if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
+        beginBattleTargeting({
+            type: 'attack',
+            targeting: 'enemy',
+            validKinds: ['enemy'],
+            hint: '🎯 Выберите врага для атаки',
+            handler: beginAttack
+        });
+        return;
+    }
+
+    executePlayerAttackAtTarget('enemy', 0);
+}
+
+function executePlayerAttackAtTarget(targetKind, targetIndex) {
+    if (targetKind === 'enemy' && typeof focusBattleEnemyAtIndex === 'function') {
+        focusBattleEnemyAtIndex(targetIndex);
+    }
     if (playerAttackMissesFromBlind()) {
         addBattleLog('👁️ Ослепление — промах!', 'error');
         isPlayerTurn = false;
@@ -57,7 +87,7 @@ function playerAttack() {
     addBattleLog(msg, crit ? 'crit' : 'dmg');
 
     animatePlayerAttack(() => {
-        if (currentMonster.health <= 0) { victory(); return; }
+        if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
         endPlayerActionChain();
     }, {
         onImpact: () => floatDamage('enemy', appliedDamage, crit),
@@ -153,6 +183,7 @@ function showBattleAbilities() {
 
 function useBattleAbility(index) {
     if (!requireBattleEngaged()) return;
+    if (typeof isBattleTargetingActive === 'function' && isBattleTargetingActive()) return;
     if (!beginPlayerAction()) return;
     const a = player.abilities[index];
     
@@ -178,6 +209,40 @@ function useBattleAbility(index) {
         addBattleLog(`❌ Не хватает маны! (нужно ${manaCost})`, 'error');
         return;
     }
+
+    if (typeof beginBattleTargeting === 'function' && typeof getBattleAbilityTargeting === 'function') {
+        const targeting = getBattleAbilityTargeting(a);
+        const validKinds = targeting === 'self' ? ['self']
+            : targeting === 'ally' ? ['ally', 'self']
+            : ['enemy'];
+        const hints = {
+            self: '💚 Выберите себя',
+            ally: '🤝 Выберите союзника',
+            enemy: '🎯 Выберите цель'
+        };
+        const runAbility = function (kind, idx) {
+            executeUseBattleAbilityAtTarget(index, kind, idx);
+        };
+        if (typeof closeBattleAbilitiesMenu === 'function') closeBattleAbilitiesMenu();
+        beginBattleTargeting({
+            type: 'ability',
+            abilityId: index,
+            targeting: targeting,
+            validKinds: validKinds,
+            hint: hints[targeting] || hints.enemy,
+            handler: runAbility
+        });
+        return;
+    }
+
+    executeUseBattleAbilityAtTarget(index, 'enemy', 0);
+}
+
+function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
+    if (targetKind === 'enemy' && typeof focusBattleEnemyAtIndex === 'function') {
+        focusBattleEnemyAtIndex(targetIndex);
+    }
+    const a = player.abilities[index];
 
     isPlayerTurn = false;
     updateBattleButtons();
@@ -713,6 +778,12 @@ function useBattleAbility(index) {
 
     const afterAbilityResolve = () => {
         if (currentMonster.health <= 0) {
+            const pack = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
+            const living = pack.filter(function (e) { return e && e.health > 0; });
+            if (pack.length > 1 && living.length > 0) {
+                tryVictoryAfterEnemyDown();
+                return;
+            }
             if (extraTurn && !window.pvpBattleActive) {
                 addBattleLog(`⚡ Дополнительный ход за убийство!`, 'crit');
                 isPlayerTurn = true;
@@ -738,7 +809,7 @@ function useBattleAbility(index) {
         const echoDmg = Math.floor(appliedDamage * (window.echoMultiplier || 0.6));
         const echoDamage = applyDamageToMonster(echoDmg);
         addBattleLog(`🔁 Эхо: +${echoDamage} урона!`, 'info'); 
-        if (currentMonster.health <= 0) setTimeout(() => victory(), 100);
+        if (currentMonster.health <= 0) setTimeout(() => tryVictoryAfterEnemyDown(), 100);
     }
     
     if (a.revive && player.health <= 0) {

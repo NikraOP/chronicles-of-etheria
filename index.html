@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>Хроники Этерии — Версия 3.0 (Модульная)</title>
-    <link rel="stylesheet" href="css/style.css?v=42">
+    <link rel="stylesheet" href="css/style.css?v=43">
     <script src="js/ui/theme.js"></script>
 </head>
 <body>
@@ -26,14 +26,17 @@
 <script src="js/data/crafting.js"></script>
 <script src="js/data/equipment.js"></script>
 <script src="js/data/locations.js"></script>
+<script src="js/data/dungeons.js"></script>
 <script src="js/data/itemPrices.js"></script>  <!-- ДОБАВЬТЕ ЭТУ СТРОКУ -->
     
     <!-- ===== ЗАГРУЗКА ЯДРА БОЯ (МОДУЛЬНО) ===== -->
+<script src="js/core/battle/battleEnemies.js"></script>
 <script src="js/core/battle/battleCore.js"></script>
     <script src="js/core/battle/battleZone.js"></script>
 <script src="js/core/battle/battleDamage.js"></script>
 <script src="js/core/battle/monsterAI.js"></script>
 <script src="js/core/battle/battleMonster.js"></script>
+<script src="js/core/battle/battleTargets.js"></script>
 <script src="js/core/battle/battlePlayer.js"></script>
 <script src="js/core/battle/battleUI.js"></script>
     <script src="js/core/battle/battleEnd.js"></script>
@@ -51,6 +54,10 @@
     <script src="js/core/shop.js"></script>
     <script src="js/core/inventory.js"></script>
     <script src="js/core/pvpArena.js?v=32"></script>
+    <script src="js/core/dungeon/dungeonGenerator.js"></script>
+    <script src="js/core/dungeon/dungeonSession.js"></script>
+    <script src="js/core/dungeon/dungeonDuo.js"></script>
+    <script src="js/core/dungeon/dungeonUI.js"></script>
     <script src="js/core/uiNavBack.js"></script>
     <script src="js/core/abilityHotbar.js"></script>
     <script src="js/core/giftMail.js"></script>

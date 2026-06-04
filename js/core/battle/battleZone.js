@@ -40,6 +40,7 @@ function clearBattleZoneState() {
     stagedBattleRoll = null;
     window._stagedFixedMonster = null;
     window._battleAbilitiesMenuOpen = false;
+    if (typeof clearBattleEnemies === 'function') clearBattleEnemies();
     syncBattleZoneLayout();
 }
 
@@ -112,12 +113,16 @@ function beginEngagedCombatFromStaging() {
     if (window._stagedFixedMonster) {
         const pack = window._stagedFixedMonster;
         const opts = pack.options || {};
-        setupBattleMonster(pack.monsterData, opts.scale || 1, opts.goldMult || pack.monsterData.goldMult || 10);
+        const scale = opts.scale || 1;
+        const goldMult = opts.goldMult || pack.monsterData.goldMult || 10;
+        setupBattleMonster(pack.monsterData, scale, goldMult);
+        if (typeof applyBattleEnemyRoster === 'function') applyBattleEnemyRoster(opts, scale, goldMult);
         window._stagedFixedMonster = null;
     } else {
         const roll = computeRandomBattleRoll();
         if (!roll) return false;
         setupBattleMonster(roll.mData, roll.scale, roll.goldMult);
+        if (typeof applyBattleEnemyRoster === 'function') applyBattleEnemyRoster(null, roll.scale, roll.goldMult);
     }
 
     originalMonsterStats.attack = currentMonster.attack;
