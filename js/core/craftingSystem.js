@@ -237,6 +237,81 @@ function escapeHtmlText(s) {
         .replace(/"/g, '&quot;');
 }
 
+function getCraftRecipeCombatStatsText(r) {
+    if (!r) return '';
+    let s = '';
+    if (r.dmg) s += '⚔️+' + r.dmg + ' ';
+    if (r.def) s += '🛡️+' + r.def + ' ';
+    if (r.hp) s += '❤️+' + r.hp + ' ';
+    if (r.crit) s += '💥+' + r.crit + '% ';
+    if (r.critDmg) s += '⭐+' + r.critDmg + '% ';
+    if (r.dodge) s += '💨+' + r.dodge + '% ';
+    if (r.mana) s += '💎+' + r.mana + ' ';
+    return s.trim();
+}
+
+function getCraftRecipeEffectText(r) {
+    if (!r) return '';
+    const val = r.value;
+    const effect = r.effect;
+    const type = r.type || '';
+
+    if (effect === 'heal') {
+        return '❤️ В бою: восстанавливает ' + (val || 0) + ' HP';
+    }
+    if (effect === 'restoreMana' || type === 'mana_potion') {
+        return '💎 В бою: восстанавливает ' + (val || 0) + ' маны (только маг)';
+    }
+    if (effect === 'atk') return '⚔️ В бою: +' + (val || 0) + '% атаки на 3 хода';
+    if (effect === 'def') return '🛡️ В бою: +' + (val || 0) + '% защиты на 3 хода';
+    if (effect === 'dodge') return '💨 В бою: +' + (val || 0) + '% уклонения на 3 хода';
+    if (effect === 'crit') return '💥 В бою: +' + (val || 0) + '% крита на 3 хода';
+    if (effect === 'berserk') return '😤 В бою: +' + (val || 0) + '% урона на 3 хода';
+    if (effect === 'immortal') return '✨ В бою: иммунитет к урону на 1 ход';
+    if (effect === 'enchant') {
+        return '✨ В бою: улучшает экипированное оружие на +' + (val || 0) + '% урона';
+    }
+    if (effect === 'fireball') return '🔥 В бою: урон свитком (~' + (val || 0) + ' силы)';
+    if (type === 'gather_scroll' || effect === 'auto_gather') {
+        const mins = r.durationMs ? Math.max(1, Math.round(r.durationMs / 60000)) : '?';
+        const mult = r.expMultiplier != null ? Math.round(r.expMultiplier * 100) : 65;
+        return '📜 Свиток добычи: тир ' + (r.scrollTier || '?') + ', ~' + mins + ' мин, до '
+            + (r.maxGathers || '?') + ' сборов, опыт добычи ×' + mult + '%';
+    }
+    if (type === 'stone') return '💎 Камень: вставляется в снаряжение для бонусов';
+    if (type === 'weapon') return '⚔️ Оружие — экипируется в слот оружия';
+    if (type === 'helmet') return '⛑️ Шлем';
+    if (type === 'chest') return '🛡️ Нагрудник';
+    if (type === 'pants') return '👖 Поножи';
+    if (type === 'boots') return '👢 Сапоги';
+    if (type === 'ring') return '💍 Кольцо — слот кольца';
+    if (type === 'necklace') return '📿 Амулет — слот амулета';
+    return '';
+}
+
+function buildCraftRecipeTooltipHtml(r) {
+    const name = escapeHtmlText(r.name || 'Предмет');
+    const stats = getCraftRecipeCombatStatsText(r);
+    const effect = getCraftRecipeEffectText(r);
+    let desc = '';
+    if (stats && effect) desc = stats + '<br>' + effect;
+    else if (stats) desc = stats;
+    else if (effect) desc = effect;
+    else desc = 'Созданный предмет для экипировки или использования.';
+
+    let meta = '⭐ Тир рецепта ' + (parseInt(r.tier, 10) || 1);
+    if (r.rarity) meta += ' · ' + escapeHtmlText(r.rarity);
+    if (r.class) meta += '<br>👤 Класс: ' + escapeHtmlText(r.class);
+    const craftTime = parseInt(r.time, 10) || parseInt(r.exp, 10) || 0;
+    if (craftTime > 0) meta += '<br>⏱️ Время крафта: ~' + craftTime + ' с';
+
+    return '<div class="prof-resource-tooltip craft-recipe-tooltip" role="tooltip">' +
+        '<div class="prof-resource-tooltip-name">' + name + '</div>' +
+        '<div class="prof-resource-tooltip-desc">' + desc + '</div>' +
+        '<div class="prof-resource-tooltip-meta">' + meta + '</div>' +
+        '</div>';
+}
+
 function getGatherResourceDescription(r) {
     if (r && r.desc) return String(r.desc);
     if (r && r.battle) return 'Особая добыча — победа в бою, затем тушка в инвентарь.';
@@ -778,20 +853,17 @@ function showCraftingRecipes(profId) {
                 const rarityColor = getCraftRarityColor(norm.rarity || 'Обычный');
                 const rarityLabel = norm.rarity || 'Обычный';
                 
-                let statsText = '';
-                if (norm.dmg) statsText += `⚔️+${norm.dmg} `;
-                if (norm.def) statsText += `🛡️+${norm.def} `;
-                if (norm.hp) statsText += `❤️+${norm.hp} `;
-                if (norm.crit) statsText += `💥+${norm.crit}% `;
-                if (norm.critDmg) statsText += `⭐+${norm.critDmg}% `;
-                if (norm.dodge) statsText += `💨+${norm.dodge}% `;
-                if (norm.mana) statsText += `💎+${norm.mana} `;
+                const statsText = getCraftRecipeCombatStatsText(norm);
+                const effectText = getCraftRecipeEffectText(norm);
+                const tooltipHtml = buildCraftRecipeTooltipHtml(norm);
                 
                 const safeRecipe = encodeURIComponent(norm.name);
                 const blockAttr = blockReason ? encodeURIComponent(blockReason) : '';
                 const blockDataAttr = blockReason ? ` data-block-reason="${blockAttr}"` : '';
+                const ariaLabel = escapeHtmlText(norm.name + (effectText ? '. ' + effectText.replace(/<[^>]+>/g, '') : ''));
                 
-                html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}"${blockDataAttr} role="button" tabindex="0">`;
+                html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}"${blockDataAttr} role="button" tabindex="0" aria-label="${ariaLabel}">`;
+                html += tooltipHtml;
                 html += '<div style="display: flex; gap: 12px;">';
                 html += typeof renderItemIconHTML === 'function'
                     ? renderItemIconHTML(norm, { size: 44, fallback: norm.icon || '📦' })
@@ -800,6 +872,7 @@ function showCraftingRecipes(profId) {
                 html += `<div style="font-weight: 700; font-size: 14px; color: ${rarityColor};">${norm.name}</div>`;
                 html += `<div style="font-size: 10px; color: ${rarityColor}; opacity: 0.9;">${rarityLabel}</div>`;
                 if (statsText) html += `<div style="font-size: 11px; color: var(--text-secondary);">${statsText}</div>`;
+                else if (effectText) html += `<div class="craft-recipe-effect-preview">${effectText}</div>`;
                 html += `<div style="font-size: 10px; margin-top: 5px;">${previewMatText || 'Нет материалов'}</div>`;
                 html += `<div style="font-size: 10px; color: var(--gold); margin-top: 4px;">⭐ +${norm.exp || norm.time || 0} XP | 🔓 Тир ${norm.tier}</div>`;
                 if (canCraft) html += '<div class="craft-ready-badge">✓ Можно создать</div>';

@@ -1273,12 +1273,42 @@ body.low-hp .main-content {
 .gather-scroll-shop-card:hover { border-color: var(--accent); }
 
 .craft-recipe-card {
+    position: relative;
+    overflow: visible;
     border-radius: 10px;
     padding: 12px;
     transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
     cursor: pointer;
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border);
+}
+.craft-recipe-card .craft-recipe-tooltip {
+    min-width: 200px;
+    max-width: 280px;
+    z-index: 50;
+}
+.craft-recipe-card:hover .craft-recipe-tooltip,
+.craft-recipe-card:focus-visible .craft-recipe-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+.craft-recipe-card.craft-recipe-crafting .craft-recipe-tooltip {
+    display: none;
+}
+.craft-recipe-effect-preview {
+    font-size: 11px;
+    color: #8ecae6;
+    margin-top: 4px;
+    line-height: 1.35;
+}
+.craft-recipe-grid .craft-recipe-card:nth-child(3n+1) .craft-recipe-tooltip {
+    left: 0;
+    transform: translateX(0);
+}
+.craft-recipe-grid .craft-recipe-card:nth-child(3n) .craft-recipe-tooltip {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
 }
 .craft-recipe-ready {
     border-color: rgba(46, 204, 113, 0.75) !important;

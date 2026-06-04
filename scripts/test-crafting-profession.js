@@ -101,4 +101,11 @@ assert(ctx.getCraftBlockReason(ringRecipe, 'jewelry', 7).indexOf('хватает
 const scaled = ctx.scaleRecipeMaterials(ringRecipe.resources, 3);
 assert(scaled['Медная руда'] === 9, 'scale materials x3');
 
+const potion = { name: 'Зелье', type: 'potion', effect: 'heal', value: 144 };
+assert(ctx.getCraftRecipeEffectText(potion).indexOf('144') !== -1, 'heal potion tooltip');
+assert(ctx.getCraftRecipeCombatStatsText({ dmg: 10, def: 5 }).indexOf('⚔️') !== -1, 'combat stats');
+const food = { type: 'food', effect: 'heal', value: 48 };
+assert(ctx.getCraftRecipeEffectText(food).indexOf('HP') !== -1, 'food heal text');
+assert(ctx.buildCraftRecipeTooltipHtml(potion).indexOf('prof-resource-tooltip') !== -1, 'tooltip html');
+
 console.log('Crafting profession tests OK');
