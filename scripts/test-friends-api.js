@@ -64,6 +64,44 @@ async function main() {
     if (!list.friends || list.friends.length !== 1) throw new Error('friends list expected 1');
     if (list.friends[0].profile.name !== 'Тест А') throw new Error('wrong friend profile');
 
+    const dInvite = await req('/api/v1/dungeon-duo/invite', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Player-Id': sync1.playerId,
+            'X-Sync-Token': sync1.syncToken
+        },
+        body: JSON.stringify({
+            toPlayerId: sync2.playerId,
+            dungeonId: 'frozen_pass',
+            dungeonName: 'Ледяной проход',
+            snapshot: { name: 'Тест А', level: 5 }
+        })
+    });
+    if (!dInvite.roomCode || !dInvite.sessionId) throw new Error('dungeon invite missing room');
+
+    const dPoll = await req(
+        '/api/v1/dungeon-duo/invites/poll?since=0&wait=0',
+        {
+            headers: {
+                'X-Player-Id': sync2.playerId,
+                'X-Sync-Token': sync2.syncToken
+            }
+        }
+    );
+    if (!dPoll.invite || dPoll.invite.dungeonId !== 'frozen_pass') throw new Error('dungeon poll invite');
+
+    const dAccept = await req('/api/v1/dungeon-duo/invite/' + dPoll.invite.inviteId + '/respond', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Player-Id': sync2.playerId,
+            'X-Sync-Token': sync2.syncToken
+        },
+        body: JSON.stringify({ accept: true })
+    });
+    if (!dAccept.roomCode) throw new Error('dungeon accept missing roomCode');
+
     console.log('test-friends-api: ok');
 }
 

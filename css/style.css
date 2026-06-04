@@ -6828,6 +6828,89 @@ body.settings-open .main-header .settings-gear-btn {
     border-color: rgba(232, 184, 74, 0.55) !important;
     box-shadow: var(--shadow-gold);
 }
+.friend-dungeon-invite-btn {
+    flex: 1 1 100%;
+    min-height: 44px;
+    font-weight: 700;
+    border-color: rgba(90, 160, 220, 0.45) !important;
+    background: linear-gradient(145deg, rgba(52, 120, 180, 0.22) 0%, rgba(0, 0, 0, 0.35) 100%) !important;
+}
+.friend-dungeon-invite-btn:hover:not(:disabled) {
+    border-color: rgba(120, 200, 255, 0.55) !important;
+    box-shadow: 0 0 12px rgba(90, 160, 220, 0.35);
+}
+.friend-dungeon-pick {
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: left;
+}
+.friend-dungeon-pick__title {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    text-align: center;
+}
+.friend-dungeon-pick__hint {
+    margin: 0 0 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+.friend-dungeon-pick__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(52vh, 320px);
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+.friend-dungeon-pick__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+.friend-dungeon-pick__row:hover:not(:disabled) {
+    border-color: rgba(120, 200, 255, 0.4);
+    background: rgba(52, 120, 180, 0.12);
+}
+.friend-dungeon-pick__row--locked,
+.friend-dungeon-pick__row:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    text-decoration: line-through;
+    text-decoration-color: rgba(232, 85, 69, 0.85);
+}
+.friend-dungeon-pick__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+.friend-dungeon-pick__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.friend-dungeon-pick__name {
+    font-weight: 700;
+}
+.friend-dungeon-pick__level {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.friend-dungeon-pick__cancel {
+    width: 100%;
+}
+.modal-duel--dungeon .modal-duel__icon {
+    filter: drop-shadow(0 0 8px rgba(90, 160, 220, 0.5));
+}
 .friend-card__footer-time {
     display: flex;
     align-items: center;

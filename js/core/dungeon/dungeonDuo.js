@@ -596,6 +596,37 @@ function joinDungeonDuoTransportRoom(code, sessionId) {
         .catch(err => handleDungeonDuoError(err));
 }
 
+function startDungeonDuoInviteHost(dungeonId, roomCode, cloudSessionId) {
+    const id = String(dungeonId || '').trim();
+    const code = String(roomCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!id || !code || code.length < 4) {
+        duoDungeonLog('Некорректное приглашение в подземелье.', 'error');
+        return Promise.resolve(false);
+    }
+    leaveDuoDungeonLobby();
+    resetDungeonDuoConnection();
+    const sessionId = duoDungeonSessionId;
+    duoDungeonState = createEmptyDuoDungeonState();
+    duoDungeonState.role = 'host';
+    duoDungeonState.dungeonId = id;
+    duoDungeonState.roomCode = code;
+    duoDungeonState.status = 'lobby';
+    if (typeof shouldUseDungeonDuoCloudTransport === 'function' && shouldUseDungeonDuoCloudTransport()) {
+        if (typeof attachDungeonDuoCloudAsHost === 'function') {
+            attachDungeonDuoCloudAsHost(id, code, cloudSessionId);
+            refreshDuoDungeonLobbyUI();
+            return Promise.resolve(true);
+        }
+        duoDungeonLog('Облачный режим недоступен.', 'error');
+        return Promise.resolve(false);
+    }
+    duoDungeonLog('Комната ' + code + ' (данж ' + id + ', MQTT).', 'info');
+    return joinDungeonDuoTransportRoom(code, sessionId).then(function () {
+        refreshDuoDungeonLobbyUI();
+        return true;
+    });
+}
+
 function createDuoDungeonLobby(dungeonId) {
     const id = String(dungeonId || '').trim();
     if (!id) {
@@ -713,6 +744,7 @@ function getDuoDungeonState() {
 
 window.DUNGEON_ROOM_PREFIX = DUNGEON_ROOM_PREFIX;
 window.DUNGEON_DUO_MSG = DUNGEON_DUO_MSG;
+window.startDungeonDuoInviteHost = startDungeonDuoInviteHost;
 window.createDuoDungeonLobby = createDuoDungeonLobby;
 window.joinDuoDungeonLobby = joinDuoDungeonLobby;
 window.leaveDuoDungeonLobby = leaveDuoDungeonLobby;

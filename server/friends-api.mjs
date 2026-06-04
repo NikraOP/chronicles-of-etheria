@@ -11,6 +11,7 @@ import { createAccountsApi } from './lib/accounts.mjs';
 import { createPvPRoomsApi } from './lib/pvpRooms.mjs';
 import { createDungeonDuoRoomsApi } from './lib/dungeonDuoRooms.mjs';
 import { createBattleInvitesApi } from './lib/battleInvites.mjs';
+import { createDungeonInvitesApi } from './lib/dungeonInvites.mjs';
 import { createFriendExchangesApi } from './lib/friendExchanges.mjs';
 import { createGameAccountsApi } from './lib/gameAccounts.mjs';
 import { createHttpHelpers } from './lib/httpUtil.mjs';
@@ -28,6 +29,7 @@ const accounts = createAccountsApi(DATA_DIR);
 const pvp = createPvPRoomsApi(PVP_DIR);
 const dungeonDuo = createDungeonDuoRoomsApi(DUNGEON_DUO_DIR);
 const battleInvites = createBattleInvitesApi(DATA_DIR, pvp, accounts);
+const dungeonInvites = createDungeonInvitesApi(DATA_DIR, dungeonDuo, accounts);
 const friendExchanges = createFriendExchangesApi(DATA_DIR, accounts);
 const gameAccounts = createGameAccountsApi(DATA_DIR);
 
@@ -335,6 +337,55 @@ const server = createServer(async (req, res) => {
             const since = url.searchParams.get('since') || '0';
             const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
             const result = await battleInvites.pollInvites(account.playerId, since, waitMs);
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/v1/dungeon-duo/invite') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const toPlayerId = accounts.sanitizeId(body.toPlayerId);
+            const result = await dungeonInvites.createInvite(
+                account,
+                toPlayerId,
+                body.dungeonId,
+                body.dungeonName,
+                body.snapshot
+            );
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error, message: result.message }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        const dungeonInviteRespondMatch = url.pathname.match(/^\/api\/v1\/dungeon-duo\/invite\/([a-zA-Z0-9_]+)\/respond$/);
+        if (req.method === 'POST' && dungeonInviteRespondMatch) {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const body = await readJsonBody(req);
+            const accept = !!(body && body.accept);
+            const result = await dungeonInvites.respondInvite(
+                account.playerId,
+                dungeonInviteRespondMatch[1],
+                accept
+            );
+            if (result.error) {
+                json(res, result.status || 400, { ok: false, error: result.error }, origin);
+                return;
+            }
+            json(res, 200, result, origin);
+            return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/v1/dungeon-duo/invites/poll') {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const since = url.searchParams.get('since') || '0';
+            const waitMs = Math.max(0, parseInt(url.searchParams.get('wait') || '0', 10) || 0);
+            const result = await dungeonInvites.pollInvites(account.playerId, since, waitMs);
             json(res, 200, result, origin);
             return;
         }

@@ -16,6 +16,8 @@ let friendsInvitePollInFlight = false;
 let friendsInvitePollSince = 0;
 let friendsInvitePollActive = false;
 let friendsLastHandledInviteId = '';
+let friendsDungeonInvitePollSince = 0;
+let friendsLastHandledDungeonInviteId = '';
 
 function isGitHubPagesHost() {
     const host = typeof location !== 'undefined' ? location.hostname : '';
@@ -680,7 +682,7 @@ async function friendsInvitePollTick() {
     ensureFriendsPlayerState();
     if (getFriendsBackendKind() !== 'http') return;
     if (friendsInvitePollInFlight) return;
-    if (window._battleInviteModalOpen || window.pvpBattleActive) {
+    if (window._battleInviteModalOpen || window._dungeonInviteModalOpen || window.pvpBattleActive) {
         scheduleFriendsInvitePoll(3000);
         return;
     }
@@ -702,6 +704,16 @@ async function friendsInvitePollTick() {
         if (inv && inv.inviteId && inv.status === 'pending' && inv.inviteId !== friendsLastHandledInviteId) {
             showBattleInviteModal(inv);
         }
+        const dData = await friendsHttpFetch(
+            '/api/v1/dungeon-duo/invites/poll?since=' + encodeURIComponent(String(friendsDungeonInvitePollSince || 0)) +
+            '&wait=0'
+        );
+        if (dData && Number.isFinite(dData.seq)) friendsDungeonInvitePollSince = dData.seq;
+        const dInv = dData && dData.invite;
+        if (dInv && dInv.inviteId && dInv.status === 'pending' &&
+            dInv.inviteId !== friendsLastHandledDungeonInviteId && !window._dungeonInviteModalOpen) {
+            showDungeonInviteModal(dInv);
+        }
     } catch (_) { /* offline */ }
     finally {
         friendsInvitePollInFlight = false;
@@ -722,6 +734,230 @@ function stopFriendsInvitePolling() {
         clearTimeout(friendsInvitePollTimer);
         friendsInvitePollTimer = null;
     }
+}
+
+function isFriendsDungeonUnlocked(dungeon) {
+    if (!dungeon || !player) return false;
+    return player.level >= (dungeon.minLevel || 1);
+}
+
+function canInviteFriendToDungeon() {
+    if (!player) return false;
+    if (getFriendsBackendKind() !== 'http') return false;
+    if (typeof isDungeonDuoReady === 'function' && !isDungeonDuoReady()) return false;
+    if (typeof shouldUseDungeonDuoCloudTransport === 'function' && !shouldUseDungeonDuoCloudTransport()) {
+        return false;
+    }
+    return true;
+}
+
+function getFriendDungeonInviteList() {
+    const db = typeof window !== 'undefined' && window.DUNGEONS_DB ? window.DUNGEONS_DB : [];
+    return db
+        .filter(function (d) { return d && d.mode === 'duo'; })
+        .slice()
+        .sort(function (a, b) {
+            return (a.minLevel || 1) - (b.minLevel || 1);
+        });
+}
+
+function closeDungeonInviteModal() {
+    const modal = document.getElementById('modalOverlay');
+    if (modal) modal.style.display = 'none';
+    window._dungeonInviteModalOpen = false;
+    window._dungeonInvitePickerOpen = false;
+    window._pendingDungeonInviteId = '';
+    window._dungeonInviteTargetId = '';
+    window._dungeonInviteTargetName = '';
+}
+
+function closeDungeonInvitePickerModal() {
+    window._dungeonInvitePickerOpen = false;
+    const modal = document.getElementById('modalOverlay');
+    if (modal && !window._dungeonInviteModalOpen) modal.style.display = 'none';
+}
+
+function showDungeonInvitePickerModal(targetPlayerId, friendName) {
+    if (!player) return;
+    if (!canInviteFriendToDungeon()) {
+        if (typeof addMessage === 'function') {
+            addMessage(
+                'Приглашение в подземелье работает через сервер Etheria (облачный дуо-режим).',
+                'error'
+            );
+        }
+        return;
+    }
+    const toId = resolveFriendPlayerId(targetPlayerId);
+    if (!toId) {
+        if (typeof addMessage === 'function') addMessage('❌ Не удалось определить друга.', 'error');
+        return;
+    }
+    const dungeons = getFriendDungeonInviteList();
+    if (!dungeons.length) {
+        if (typeof addMessage === 'function') addMessage('❌ Нет дуо-подземелий.', 'error');
+        return;
+    }
+    const modal = document.getElementById('modalOverlay');
+    const content = document.getElementById('modalContent');
+    if (!modal || !content) return;
+    window._dungeonInvitePickerOpen = true;
+    window._dungeonInviteTargetId = toId;
+    window._dungeonInviteTargetName = friendName || 'друг';
+    let rows = '';
+    dungeons.forEach(function (d) {
+        const unlocked = isFriendsDungeonUnlocked(d);
+        const min = d.minLevel || 1;
+        const cls = unlocked ? '' : ' friend-dungeon-pick__row--locked';
+        const disabled = unlocked ? '' : ' disabled aria-disabled="true"';
+        rows +=
+            '<button type="button" class="friend-dungeon-pick__row' + cls + '"' + disabled +
+            ' data-dungeon-invite-id="' + escapeFriendsAttr(d.id) + '"' +
+            ' data-dungeon-invite-name="' + escapeFriendsAttr(d.name || d.id) + '">' +
+            '<span class="friend-dungeon-pick__icon" aria-hidden="true">' + escapeFriendsHtml(d.icon || '🏰') + '</span>' +
+            '<span class="friend-dungeon-pick__info">' +
+            '<span class="friend-dungeon-pick__name">' + escapeFriendsHtml(d.name || d.id) + '</span>' +
+            '<span class="friend-dungeon-pick__level">⭐ Ур. ' + min + '</span>' +
+            '</span></button>';
+    });
+    content.innerHTML =
+        '<div class="friend-dungeon-pick">' +
+        '<h3 class="friend-dungeon-pick__title">Позвать в подземелье</h3>' +
+        '<p class="friend-dungeon-pick__hint">Выберите данж для <strong>' + escapeFriendsHtml(friendName || 'друга') +
+        '</strong>. Недоступные по уровню перечёркнуты.</p>' +
+        '<div class="friend-dungeon-pick__list">' + rows + '</div>' +
+        '<button type="button" class="modal-btn modal-btn--ghost friend-dungeon-pick__cancel" onclick="closeDungeonInvitePickerModal()">Отмена</button>' +
+        '</div>';
+    modal.style.display = 'flex';
+}
+
+async function sendDungeonInviteToFriend(dungeonId, dungeonName) {
+    const toId = window._dungeonInviteTargetId;
+    const friendName = window._dungeonInviteTargetName || 'друг';
+    closeDungeonInvitePickerModal();
+    const modal = document.getElementById('modalOverlay');
+    if (modal) modal.style.display = 'none';
+    if (!toId || !dungeonId) return;
+    const dungeonDef = typeof getDungeonById === 'function' ? getDungeonById(dungeonId) : null;
+    if (!dungeonDef || !isFriendsDungeonUnlocked(dungeonDef)) {
+        if (typeof addMessage === 'function') addMessage('❌ Подземелье недоступно по уровню.', 'error');
+        return;
+    }
+    if (typeof buildDuoLobbyPlayerSnapshot !== 'function') {
+        if (typeof addMessage === 'function') addMessage('❌ Дуо-подземелье недоступно.', 'error');
+        return;
+    }
+    friendsUpdateLiveStatus('loading');
+    const ready = await ensureFriendsOnlineSession({ silent: false });
+    if (!ready) return;
+    const snap = buildDuoLobbyPlayerSnapshot();
+    try {
+        const data = await friendsHttpFetch('/api/v1/dungeon-duo/invite', {
+            method: 'POST',
+            body: {
+                toPlayerId: toId,
+                dungeonId: dungeonId,
+                dungeonName: dungeonName,
+                snapshot: snap
+            }
+        });
+        if (!data.roomCode || !data.sessionId) throw new Error('no_room');
+        if (typeof startDungeonDuoInviteHost === 'function') {
+            const ok = await startDungeonDuoInviteHost(data.dungeonId || dungeonId, data.roomCode, data.sessionId);
+            if (!ok) throw new Error('lobby_failed');
+        }
+        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+        if (typeof addMessage === 'function') {
+            addMessage('🏰 Приглашение в «' + (dungeonName || 'подземелье') + '» отправлено: ' + friendName, 'success');
+        }
+        friendsUpdateLiveStatus('online');
+    } catch (err) {
+        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+        friendsUpdateLiveStatus('online');
+    }
+}
+
+function showDungeonInviteModal(invite) {
+    if (!invite || !invite.inviteId) return;
+    if (window._dungeonInviteModalOpen || window._battleInviteModalOpen) return;
+    if (window.pvpBattleActive) return;
+    const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
+    if (duo && (duo.status === 'battle' || duo.status === 'run')) return;
+    const modal = document.getElementById('modalOverlay');
+    const content = document.getElementById('modalContent');
+    if (!modal || !content) return;
+    const name = escapeFriendsHtml(invite.fromName || 'Друг');
+    const cls = escapeFriendsHtml(invite.fromClass || '');
+    const meta = cls ? '<span class="modal-duel__meta">' + cls + '</span>' : '';
+    const dName = escapeFriendsHtml(invite.dungeonName || invite.dungeonId || 'подземелье');
+    window._dungeonInviteModalOpen = true;
+    window._pendingDungeonInviteId = invite.inviteId;
+    content.innerHTML =
+        '<div class="modal-duel modal-duel--dungeon">' +
+        '<div class="modal-duel__icon" aria-hidden="true">🏰</div>' +
+        '<h3 class="modal-duel__title">Приглашение в подземелье</h3>' +
+        '<p class="modal-duel__msg"><strong>' + name + '</strong> зовёт вас в <strong>' + dName + '</strong>.' + meta + '</p>' +
+        '<p class="modal-duel__hint">Примите — откроется лобби дуо. Отклоните — приглашение будет отменено.</p>' +
+        '<div class="modal-duel__actions">' +
+        '<button type="button" class="modal-btn modal-btn--primary" onclick="acceptDungeonInvite()">Принять</button>' +
+        '<button type="button" class="modal-btn modal-btn--ghost" onclick="declineDungeonInvite()">Отклонить</button>' +
+        '</div></div>';
+    modal.style.display = 'flex';
+}
+
+function closeDungeonInviteIncomingModal() {
+    const modal = document.getElementById('modalOverlay');
+    if (modal) modal.style.display = 'none';
+    window._dungeonInviteModalOpen = false;
+    window._pendingDungeonInviteId = '';
+}
+
+async function acceptDungeonInvite() {
+    const inviteId = window._pendingDungeonInviteId;
+    closeDungeonInviteIncomingModal();
+    if (!inviteId) return;
+    friendsLastHandledDungeonInviteId = inviteId;
+    try {
+        await ensureFriendsOnlineSession({ silent: false });
+        const data = await friendsHttpFetch(
+            '/api/v1/dungeon-duo/invite/' + encodeURIComponent(inviteId) + '/respond',
+            { method: 'POST', body: { accept: true } }
+        );
+        if (!data.roomCode) throw new Error('no_room');
+        if (typeof addMessage === 'function') addMessage('🏰 Принято — подключаемся к лобби…', 'success');
+        if (typeof joinDuoDungeonLobby === 'function') {
+            const ok = await joinDuoDungeonLobby(data.roomCode);
+            if (!ok) throw new Error('join_failed');
+        }
+        if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+    } catch (err) {
+        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+    }
+}
+
+async function declineDungeonInvite() {
+    const inviteId = window._pendingDungeonInviteId;
+    closeDungeonInviteIncomingModal();
+    if (!inviteId) return;
+    friendsLastHandledDungeonInviteId = inviteId;
+    try {
+        await ensureFriendsOnlineSession({ silent: true });
+        await friendsHttpFetch(
+            '/api/v1/dungeon-duo/invite/' + encodeURIComponent(inviteId) + '/respond',
+            { method: 'POST', body: { accept: false } }
+        );
+        if (typeof addMessage === 'function') addMessage('Приглашение в подземелье отклонено.', 'info');
+    } catch (_) { /* ignore */ }
+}
+
+function openFriendDungeonInvitePicker(targetPlayerId, friendName) {
+    if (!canInviteFriendToDungeon()) {
+        if (typeof addMessage === 'function') {
+            addMessage('Приглашение в подземелье доступно на сервере Etheria (GitHub Pages / облачный дуо).', 'error');
+        }
+        return;
+    }
+    showDungeonInvitePickerModal(targetPlayerId, friendName);
 }
 
 async function challengeFriendToPvP(targetPlayerId, friendName) {
@@ -807,7 +1043,12 @@ function renderFriendCard(entry) {
                 escapeFriendsAttr(p.name || 'Герой') + '">🎁 Обмен</button>' +
             '<button type="button" class="action-btn friend-duel-btn" data-pvp-challenge-id="' +
                 escapeFriendsAttr(playerId) + '" data-pvp-challenge-name="' +
-                escapeFriendsAttr(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>'
+                escapeFriendsAttr(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>' +
+            (canInviteFriendToDungeon()
+                ? '<button type="button" class="action-btn friend-dungeon-invite-btn" data-dungeon-invite-target-id="' +
+                    escapeFriendsAttr(playerId) + '" data-dungeon-invite-target-name="' +
+                    escapeFriendsAttr(p.name || 'Герой') + '">🏰 В подземелье</button>'
+                : '')
             : '<p class="friend-card__no-id">Друг офлайн — попросите открыть вкладку «Друзья»</p>') +
         '</div>' +
         '<span class="friend-card__footer-time"><span class="friend-card__footer-icon" aria-hidden="true">🕐</span> Обновлено: ' +
@@ -987,13 +1228,34 @@ function friendsHookRenderGame() {
 function bindFriendsDuelClickDelegation() {
     if (window.__friendsDuelClickBound) return;
     document.addEventListener('click', function (e) {
-        const btn = e.target && e.target.closest ? e.target.closest('.friend-duel-btn') : null;
-        if (!btn) return;
-        const id = btn.getAttribute('data-pvp-challenge-id');
-        const name = btn.getAttribute('data-pvp-challenge-name') || 'друг';
-        if (id && typeof challengeFriendToPvP === 'function') {
-            e.preventDefault();
-            challengeFriendToPvP(id, name);
+        const duelBtn = e.target && e.target.closest ? e.target.closest('.friend-duel-btn') : null;
+        if (duelBtn) {
+            const id = duelBtn.getAttribute('data-pvp-challenge-id');
+            const name = duelBtn.getAttribute('data-pvp-challenge-name') || 'друг';
+            if (id && typeof challengeFriendToPvP === 'function') {
+                e.preventDefault();
+                challengeFriendToPvP(id, name);
+            }
+            return;
+        }
+        const dungeonBtn = e.target && e.target.closest ? e.target.closest('.friend-dungeon-invite-btn') : null;
+        if (dungeonBtn) {
+            const tid = dungeonBtn.getAttribute('data-dungeon-invite-target-id');
+            const tname = dungeonBtn.getAttribute('data-dungeon-invite-target-name') || 'друг';
+            if (tid && typeof openFriendDungeonInvitePicker === 'function') {
+                e.preventDefault();
+                openFriendDungeonInvitePicker(tid, tname);
+            }
+            return;
+        }
+        const pickRow = e.target && e.target.closest ? e.target.closest('.friend-dungeon-pick__row:not([disabled])') : null;
+        if (pickRow && window._dungeonInvitePickerOpen) {
+            const did = pickRow.getAttribute('data-dungeon-invite-id');
+            const dname = pickRow.getAttribute('data-dungeon-invite-name') || did;
+            if (did && typeof sendDungeonInviteToFriend === 'function') {
+                e.preventDefault();
+                sendDungeonInviteToFriend(did, dname);
+            }
         }
     });
     window.__friendsDuelClickBound = true;
@@ -1018,6 +1280,10 @@ window.renderFriendPortraitHTML = renderFriendPortraitHTML;
 window.resolveFriendPortraitFromProfile = resolveFriendPortraitFromProfile;
 window.findSkinDefInDb = findSkinDefInDb;
 window.challengeFriendToPvP = challengeFriendToPvP;
+window.openFriendDungeonInvitePicker = openFriendDungeonInvitePicker;
+window.closeDungeonInvitePickerModal = closeDungeonInvitePickerModal;
+window.acceptDungeonInvite = acceptDungeonInvite;
+window.declineDungeonInvite = declineDungeonInvite;
 window.resolveFriendPlayerId = resolveFriendPlayerId;
 window.acceptBattleInvite = acceptBattleInvite;
 window.declineBattleInvite = declineBattleInvite;

@@ -192,6 +192,21 @@ function leaveDungeonDuoCloudTransport() {
     dungeonDuoCloudLastSeq = 0;
 }
 
+function attachDungeonDuoCloudAsHost(dungeonId, roomCode, sessionId) {
+    duoDungeonState.transport = 'cloud';
+    duoDungeonState.role = 'host';
+    duoDungeonState.roomCode = String(roomCode || '').toUpperCase();
+    duoDungeonState.cloudSessionId = sessionId;
+    duoDungeonState.dungeonId = dungeonId || '';
+    duoDungeonState.status = 'lobby';
+    dungeonDuoCloudLastSeq = 0;
+    if (typeof setDuoDungeonPartnerId === 'function') setDuoDungeonPartnerId('');
+    if (typeof duoDungeonLog === 'function') {
+        duoDungeonLog('Комната приглашения. Код: ' + duoDungeonState.roomCode, 'success');
+    }
+    startDungeonDuoCloudPolling();
+}
+
 async function enterDungeonDuoCloudAsHost(dungeonId, roomCode) {
     const snap = typeof buildDuoLobbyPlayerSnapshot === 'function' ? buildDuoLobbyPlayerSnapshot() : null;
     const data = await dungeonDuoCloudFetch('/api/v1/dungeon-duo/room/create', {
@@ -237,6 +252,7 @@ function getDungeonDuoTransportLabel() {
 window.shouldUseDungeonDuoCloudTransport = shouldUseDungeonDuoCloudTransport;
 window.isDungeonDuoCloudApiMissing = isDungeonDuoCloudApiMissing;
 window.dungeonDuoCloudSendMessage = dungeonDuoCloudSendMessage;
+window.attachDungeonDuoCloudAsHost = attachDungeonDuoCloudAsHost;
 window.enterDungeonDuoCloudAsHost = enterDungeonDuoCloudAsHost;
 window.enterDungeonDuoCloudAsGuest = enterDungeonDuoCloudAsGuest;
 window.leaveDungeonDuoCloudTransport = leaveDungeonDuoCloudTransport;

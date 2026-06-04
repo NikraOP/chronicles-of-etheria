@@ -24,6 +24,8 @@ function isDungeonUnlocked(dungeon) {
 function isDungeonDuoReady() {
     return typeof createDuoDungeonLobby === 'function' && typeof joinDuoDungeonLobby === 'function';
 }
+window.isDungeonUnlocked = isDungeonUnlocked;
+window.isDungeonDuoReady = isDungeonDuoReady;
 
 /**
  * @param {object} dungeon
