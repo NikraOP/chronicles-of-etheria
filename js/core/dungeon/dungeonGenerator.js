@@ -21,6 +21,17 @@ function dungeonClamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
 }
 
+function normalizeLocationDungeonTemplate(template) {
+    if (!template) return null;
+    const t = Object.assign({}, template);
+    const thr = DUNGEON_BALANCE.locationLegacyHpThreshold || 1500;
+    if (t.hp > thr) {
+        t.hp = Math.floor(t.hp * (DUNGEON_BALANCE.locationLegacyHpMult || 0.75));
+        t.atk = Math.floor(t.atk * (DUNGEON_BALANCE.locationLegacyAtkMult || 0.85));
+    }
+    return t;
+}
+
 function findMonsterTemplateByName(name) {
     if (!name) return null;
     if (typeof findDungeonMonsterTemplate === 'function') {
@@ -31,7 +42,9 @@ function findMonsterTemplateByName(name) {
     for (let i = 0; i < LOCATIONS.length; i++) {
         const monsters = LOCATIONS[i].monsters || [];
         for (let j = 0; j < monsters.length; j++) {
-            if (monsters[j].name === name) return monsters[j];
+            if (monsters[j].name === name) {
+                return normalizeLocationDungeonTemplate(monsters[j]);
+            }
         }
     }
     return null;
@@ -75,9 +88,9 @@ function pickNamesWithoutRepeat(pool, count, rng) {
 
 function rollRoomCount(rng, dungeon) {
     const cfg = dungeon.roomsPerFloor || { min: 3, max: 5 };
-    const lo = dungeonClamp(cfg.min, 3, 5);
-    const hi = dungeonClamp(cfg.max, 3, 5);
-    return dungeonRandInt(rng, lo, hi > lo ? hi : lo);
+    const lo = Math.max(2, cfg.min != null ? cfg.min : 3);
+    const hi = Math.max(lo, cfg.max != null ? cfg.max : 5);
+    return dungeonRandInt(rng, lo, hi);
 }
 
 function rollFloorCount(rng, dungeon) {
@@ -131,27 +144,36 @@ function buildRoomPresentation(room) {
     };
 }
 
-function buildScaledEnemy(template, mults, dungeon) {
+function getDungeonFloorGoldMult(floorIndex) {
+    return 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorGoldStep || 0.1);
+}
+
+function getDungeonFloorExpMult(floorIndex) {
+    return 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorExpStep || 0.08);
+}
+
+function buildScaledEnemy(template, mults, dungeon, floorIndex) {
     const expMult = dungeon.expMult != null ? dungeon.expMult : 1;
+    const floorExp = getDungeonFloorExpMult(floorIndex);
     return {
         name: template.name,
         hp: Math.max(1, Math.floor(template.hp * mults.hp)),
         atk: Math.max(1, Math.floor(template.atk * mults.atk)),
         def: Math.max(0, Math.floor(template.def * mults.def)),
-        exp: Math.max(1, Math.floor(template.exp * mults.exp * expMult)),
+        exp: Math.max(1, Math.floor(template.exp * mults.exp * expMult * floorExp)),
         icon: template.icon || '👾',
         img: template.img || '',
         abilities: template.abilities ? template.abilities.slice() : []
     };
 }
 
-function resolveEnemiesForRoom(namePool, count, rng, mults, dungeon) {
+function resolveEnemiesForRoom(namePool, count, rng, mults, dungeon, floorIndex) {
     const names = pickNamesWithoutRepeat(namePool, count, rng);
     const enemies = [];
     for (let i = 0; i < names.length; i++) {
         const template = findMonsterTemplateByName(names[i]);
         if (!template) continue;
-        enemies.push(buildScaledEnemy(template, mults, dungeon));
+        enemies.push(buildScaledEnemy(template, mults, dungeon, floorIndex));
     }
     return enemies;
 }
@@ -169,8 +191,13 @@ function getDungeonLevelHpMult(dungeon, floorIndex, isBoss) {
     const lv = Math.max(minLv, plv);
     const floor = 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorThreatStep || 0.12);
     if (lv < 12) return Math.max(1, (0.35 + lv * 0.05) * floor);
-    if (isBoss) return (0.55 + lv * 0.09) * floor;
-    return (0.38 + lv * 0.58) * floor;
+    const B = DUNGEON_BALANCE;
+    if (isBoss) {
+        const raw = (B.levelHpBaseBoss || 0.62) + lv * (B.levelHpCoefBoss || 0.48);
+        return Math.min(B.levelHpCapBoss || 6.35, raw * floor);
+    }
+    const raw = (B.levelHpBaseNormal || 0.42) + lv * (B.levelHpCoefNormal || 0.45);
+    return Math.min(B.levelHpCapNormal || 5.2, raw * floor);
 }
 
 function floorStatMults(floorIndex, enemyCount, mode, dungeon) {
@@ -191,17 +218,33 @@ function floorStatMults(floorIndex, enemyCount, mode, dungeon) {
         atk *= soloMult;
     }
     hp *= levelHp;
-    atk *= 1 + Math.max(0, levelHp - 1) * 0.38;
+    atk *= 1 + Math.max(0, levelHp - 1) * (DUNGEON_BALANCE.levelAtkExcessFactor || 0.22);
+    const modeKey = isDuo ? 'duo' : 'solo';
+    const rewardExp = (DUNGEON_BALANCE.reward[modeKey] && DUNGEON_BALANCE.reward[modeKey].exp) || 1;
     return {
         hp: hp,
         atk: atk,
         def: floorMult * 0.95,
-        exp: floorMult * (isDuo ? (DUNGEON_BALANCE.reward.duo.exp || 1.3) : 1)
+        exp: floorMult * rewardExp
     };
 }
 
 function floorRng(seed, floorIndex) {
     return mulberry32((seed >>> 0) ^ ((floorIndex + 1) * 7919));
+}
+
+function buildMidFloorBossEnemy(template, mults, dungeon, floorIndex) {
+    const normalHp = getDungeonLevelHpMult(dungeon, floorIndex, false);
+    const bossHp = getDungeonLevelHpMult(dungeon, floorIndex, true);
+    const bossHpRatio = normalHp > 0 ? bossHp / normalHp : 1.12;
+    const B = DUNGEON_BALANCE;
+    const bossMults = {
+        hp: mults.hp * bossHpRatio * (B.midFloorBossHpPackMult || 1.06),
+        atk: mults.atk * (B.midFloorBossAtkMult || 1.06),
+        def: mults.def * 1.10,
+        exp: mults.exp * 1.25
+    };
+    return buildScaledEnemy(template, bossMults, dungeon, floorIndex);
 }
 
 function buildFinalBossEnemy(dungeon, floorIndex, mults, runMode) {
@@ -212,13 +255,14 @@ function buildFinalBossEnemy(dungeon, floorIndex, mults, runMode) {
     const normalHp = getDungeonLevelHpMult(dungeon, floorIndex, false);
     const bossHp = getDungeonLevelHpMult(dungeon, floorIndex, true);
     const bossHpRatio = normalHp > 0 ? bossHp / normalHp : 1;
+    const B = DUNGEON_BALANCE;
     const bossMults = {
-        hp: mults.hp * bossHpRatio * 1.35,
-        atk: mults.atk * 1.12,
-        def: mults.def * 1.18,
-        exp: mults.exp * 1.65
+        hp: mults.hp * bossHpRatio * (B.finalBossHpPackMult || 1.10),
+        atk: mults.atk * (B.finalBossAtkMult || 1.10),
+        def: mults.def * (B.finalBossDefMult || 1.14),
+        exp: mults.exp * (B.finalBossExpMult || 1.55)
     };
-    return buildScaledEnemy(template, bossMults, dungeon);
+    return buildScaledEnemy(template, bossMults, dungeon, floorIndex);
 }
 
 /**
@@ -290,11 +334,16 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
         const isBoss = archetype.id === 'boss' || (isLastFloor && r === roomCount - 1 && rng() < 0.28);
         const enemyCount = rollEnemyCount(rng, archetype, floorIndex, isBoss, runMode);
         const mults = floorStatMults(floorIndex, enemyCount, runMode, dungeon);
-        const enemies = resolveEnemiesForRoom(poolForRooms, enemyCount, rng, mults, dungeon);
+        const enemies = resolveEnemiesForRoom(poolForRooms, enemyCount, rng, mults, dungeon, floorIndex);
 
         if (!enemies.length && poolForRooms.length) {
             const fallback = findMonsterTemplateByName(poolForRooms[0]);
-            if (fallback) enemies.push(buildScaledEnemy(fallback, mults, dungeon));
+            if (fallback) enemies.push(buildScaledEnemy(fallback, mults, dungeon, floorIndex));
+        }
+
+        if (isBoss && !isFinalRoom && enemies.length === 1) {
+            const tpl = findMonsterTemplateByName(enemies[0].name);
+            if (tpl) enemies[0] = buildMidFloorBossEnemy(tpl, mults, dungeon, floorIndex);
         }
 
         const combatRoom = {
@@ -315,7 +364,7 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
         if (fallback) {
             rooms.push({
                 archetype: 'chamber',
-                enemies: [buildScaledEnemy(fallback, mults, dungeon)],
+                enemies: [buildScaledEnemy(fallback, mults, dungeon, floorIndex)],
                 isBoss: false,
                 isShrine: false
             });

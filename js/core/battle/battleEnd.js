@@ -83,8 +83,18 @@ function dungeonVictoryApplyAndModal() {
     if (enemies.length > 1) {
         totalExp = enemies.reduce(function (sum, e) { return sum + (e && e.exp ? e.exp : 0); }, 0);
     }
-    let gold = Math.floor((totalExp / 4 + player.level * 1.5) * currentMonster.goldMult / 15);
-    gold = Math.floor(gold * 1.0);
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    const floorIdx = session && typeof session.floorIndex === 'number' ? session.floorIndex : 0;
+    const floorGoldMult = (typeof DUNGEON_BALANCE !== 'undefined')
+        ? 1 + floorIdx * (DUNGEON_BALANCE.floorGoldStep || 0.1)
+        : 1;
+    const isDuoRun = session && session.mode === 'duo';
+    const duoGoldMult = isDuoRun && typeof DUNGEON_BALANCE !== 'undefined'
+        ? (DUNGEON_BALANCE.reward.duo.gold || 1.3)
+        : 1;
+    const bossGoldMult = currentMonster.isBoss ? 1.12 : 1;
+    let gold = Math.floor((totalExp / 4 + player.level * 1.5) * (currentMonster.goldMult || 10) / 15);
+    gold = Math.floor(gold * floorGoldMult * duoGoldMult * bossGoldMult);
     const rewardLines = claimSpecialBattleRewards(currentMonster);
     const returnTo = currentMonster.returnTo;
 
@@ -105,7 +115,6 @@ function dungeonVictoryApplyAndModal() {
     }
 
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
-    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
     const isDuoHost = duo && duo.role === 'host' && session && session.mode === 'duo';
 
     if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();

@@ -334,7 +334,8 @@ function setupBattleMonster(mData, scale, goldMult) {
         damageAmp: 1,
         source: mData.source || '',
         rewards: mData.rewards || null,
-        returnTo: mData.returnTo || ''
+        returnTo: mData.returnTo || '',
+        isBoss: !!mData.isBoss
     };
 }
 
