@@ -119,14 +119,35 @@ function estimateMonsterAbilityValue(ability, ctx) {
     }
 }
 
+function pickMonsterCombatTarget() {
+    if (!window.dungeonDuoBattleActive || typeof getDungeonDuoAlly !== 'function') return 'player';
+    const ally = getDungeonDuoAlly();
+    if (!ally || ally.health <= 0) return 'player';
+    if (!player || player.health <= 0) return 'ally';
+    const pRatio = player.health / Math.max(1, player.maxHealth);
+    const aRatio = ally.health / Math.max(1, ally.maxHealth || 1);
+    let allyWeight = 0.34;
+    if (aRatio < pRatio * 0.72) allyWeight = 0.58;
+    if (aRatio < 0.32) allyWeight = 0.74;
+    const last = monsterAiState.lastPlayerAction;
+    if (last && last.kind === 'ability' && last.threat >= 42) allyWeight += 0.1;
+    if (last && last.kind === 'ability' && (last.type === 'heal' || last.type === 'shield')) allyWeight += 0.14;
+    return Math.random() < Math.min(0.82, allyWeight) ? 'ally' : 'player';
+}
+
 function buildMonsterAiContext() {
     const monster = typeof currentMonster !== 'undefined' ? currentMonster : null;
     const pl = typeof player !== 'undefined' ? player : null;
+    const ally = window.dungeonDuoBattleActive && typeof getDungeonDuoAlly === 'function'
+        ? getDungeonDuoAlly()
+        : null;
     const turn = typeof getGlobalBattleTurn === 'function' ? getGlobalBattleTurn() : 0;
     const monsterHpRatio = monster && monster.maxHealth > 0
         ? monster.health / monster.maxHealth
         : 1;
     const playerHpRatio = pl && pl.maxHealth > 0 ? pl.health / pl.maxHealth : 1;
+    const allyHpRatio = ally && ally.maxHealth > 0 ? ally.health / ally.maxHealth : 1;
+    const allyAlive = !!(ally && ally.health > 0);
     const lastPlayer = monsterAiState.lastPlayerAction;
     const lastMonster = monsterAiState.lastMonsterAbility;
     const playerJustActed = lastPlayer && (turn - lastPlayer.turn) <= 1;
@@ -158,6 +179,9 @@ function buildMonsterAiContext() {
         turn,
         monsterHpRatio,
         playerHpRatio,
+        allyHpRatio,
+        allyAlive,
+        allyWeaker: allyAlive && allyHpRatio < playerHpRatio * 0.78,
         monsterMaxHealth: monster ? monster.maxHealth : 100,
         playerMaxHealth: pl ? pl.maxHealth : 100,
         playerThreatHigh,
@@ -304,6 +328,8 @@ function scoreMonsterAbility(ability, ctx) {
         }
         case 'damage': {
             if (ctx.playerHpRatio < 0.35) score += 85;
+            if (ctx.allyAlive && ctx.allyHpRatio < 0.35) score += 72;
+            if (ctx.allyWeaker) score += 28;
             if (ctx.burstPhase) score += 70;
             if (ctx.offensivePhase) score += 55;
             if (ctx.monsterAtkBuffActive) score += 45;
@@ -412,6 +438,7 @@ function getMonsterTacticalHint(ability, ctx) {
     if (role === 'finisher' && ctx.burstPhase) return '🔗 Комбо · удар';
     if (role === 'setup' && ctx.offensivePhase && !ctx.recentMonsterSetup) return '🔗 Комбо · подготовка';
     if (role === 'finisher' && ctx.playerHpRatio < 0.35) return '🧠 Добивание';
+    if (role === 'finisher' && ctx.allyAlive && ctx.allyHpRatio < 0.35) return '🧠 Добивание союзника';
     if (role === 'debuff' && ctx.playerThreatHigh) return '🧠 Контр';
     return '';
 }
@@ -425,3 +452,4 @@ window.buildMonsterAiContext = buildMonsterAiContext;
 window.getMonsterTacticalHint = getMonsterTacticalHint;
 window.estimateMonsterAbilityValue = estimateMonsterAbilityValue;
 window.classifyMonsterAbilityRole = classifyMonsterAbilityRole;
+window.pickMonsterCombatTarget = pickMonsterCombatTarget;

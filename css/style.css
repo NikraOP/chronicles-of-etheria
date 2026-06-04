@@ -2821,15 +2821,59 @@ body.gather-screen-flash::after {
     outline-offset: -2px;
     box-shadow: var(--shadow-lg), inset 0 0 60px rgba(61, 214, 140, 0.08);
 }
+.battle-enemies-pack {
+    display: grid;
+    margin-right: auto !important;
+    margin-left: 0 !important;
+    align-self: flex-end;
+    flex-shrink: 0;
+    z-index: 2;
+    padding: 8px 4px 14px;
+    position: relative;
+    max-width: min(58%, 520px);
+}
+.battle-enemies-pack .combatant-wrapper {
+    width: 148px !important;
+    margin: 0 !important;
+}
+.battle-enemies-pack #enemyWrapper {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+}
+.battle-enemies-pack--count-2,
+.battle-enemies-pack--count-3 {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 8px 12px;
+}
+.battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2) {
+    transform: translate(14px, -10px);
+    z-index: 3;
+}
+.battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
+    transform: translate(18px, -14px);
+    z-index: 4;
+}
+.battle-enemies-pack .battle-enemy--focused {
+    z-index: 5;
+}
+.battle-enemies-pack .battle-enemy--defeated {
+    opacity: 0.42;
+    filter: grayscale(0.65);
+}
 .battle-targeting-hint {
-    position: sticky;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: fit-content;
-    max-width: calc(100% - 24px);
-    margin: 0 auto 10px;
-    z-index: 20;
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    right: auto;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    margin: 0;
+    transform: translateX(-50%);
+    z-index: 30;
+    pointer-events: none;
     padding: 10px 20px;
     font-size: 13px;
     font-weight: 700;
@@ -2895,6 +2939,12 @@ body.gather-screen-flash::after {
     box-shadow: 0 0 22px 6px rgba(251, 191, 36, 0.45);
     animation: none;
     z-index: 4;
+}
+.battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2).combatant-wrapper--target-hover {
+    transform: translateX(20px) scale(1.03);
+}
+.battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2).combatant-wrapper--target-hover {
+    transform: translateX(26px) scale(1.03);
 }
 .combatant-status-slot {
     margin-top: 6px;
@@ -4385,6 +4435,11 @@ h3 { font-size: 18px; }
     margin-right: auto !important;
 }
 
+#enemyPack {
+    margin-right: auto !important;
+    margin-left: 0 !important;
+}
+
 #playerWrapper {
     margin-left: auto !important;
 }
@@ -4411,7 +4466,26 @@ h3 { font-size: 18px; }
     }
     
     #enemyWrapper { margin: 0 !important; }
+    #enemyPack {
+        margin-left: 0 !important;
+        margin-right: auto !important;
+        max-width: 100%;
+    }
+    .battle-enemies-pack .combatant-wrapper {
+        width: 130px !important;
+    }
+    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2),
+    .battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
+        transform: translateX(14px);
+    }
     #playerWrapper { margin: 0 !important; }
+    .battle-targeting-hint {
+        top: 8px;
+        font-size: 12px;
+        padding: 8px 14px;
+        white-space: normal;
+        text-align: center;
+    }
     
     .vs-badge {
         position: relative !important;
@@ -5556,6 +5630,18 @@ body.settings-open .main-header .settings-gear-btn {
     #enemyWrapper,
     #playerWrapper {
         margin: 0 !important;
+    }
+    #enemyPack {
+        margin-right: auto !important;
+        margin-left: 0 !important;
+        max-width: 42% !important;
+    }
+    .battle-enemies-pack .combatant-wrapper {
+        width: 96px !important;
+    }
+    .battle-enemies-pack--count-2 .combatant-wrapper:nth-child(2),
+    .battle-enemies-pack--count-3 .combatant-wrapper:nth-child(2) {
+        transform: translateX(10px);
     }
     .vs-badge {
         position: absolute !important;

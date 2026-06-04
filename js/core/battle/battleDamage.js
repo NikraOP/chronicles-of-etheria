@@ -132,6 +132,40 @@ function getMonsterCurrentShield() {
     return 0;
 }
 
+function getAllyEffectiveDefense() {
+    if (typeof getDungeonDuoAlly !== 'function') return 0;
+    const ally = getDungeonDuoAlly();
+    if (!ally) return 0;
+    if (ally.defense != null) return ally.defense;
+    if (ally.def != null) return ally.def;
+    return Math.floor((typeof getPlayerEffectiveDefense === 'function' ? getPlayerEffectiveDefense() : 10) * 0.88);
+}
+
+function applyDamageToAlly(damage) {
+    const ally = typeof getDungeonDuoAlly === 'function' ? getDungeonDuoAlly() : null;
+    if (!ally || ally.health <= 0) return 0;
+    let remainingDamage = Math.max(0, Math.floor(damage));
+    if (remainingDamage > 0) {
+        ally.health = Math.max(0, (ally.health || 0) - remainingDamage);
+    }
+    return remainingDamage;
+}
+
+/** @returns {{ target: 'player'|'ally', applied: number }} */
+function applyMonsterDamageToTarget(rawDmg, forcedTarget) {
+    const target = forcedTarget
+        || (typeof pickMonsterCombatTarget === 'function' ? pickMonsterCombatTarget() : 'player');
+    if (target === 'ally') {
+        let dmg = Math.max(0, Math.floor(rawDmg));
+        dmg = calculateDamageWithDebuffs(dmg, getAllyEffectiveDefense(), []);
+        return { target: 'ally', applied: applyDamageToAlly(dmg) };
+    }
+    let dmg = Math.max(0, Math.floor(rawDmg));
+    const playerDef = getPlayerEffectiveDefense();
+    dmg = calculateDamageWithDebuffs(dmg, playerDef, player.temporaryEffects);
+    return { target: 'player', applied: applyDamageToPlayer(dmg) };
+}
+
 function applyDamageToPlayer(damage) {
     let remainingDamage = damage;
     const dr = player.temporaryEffects.find(e => e.damageReduction);

@@ -111,13 +111,19 @@ function useMonsterAbility(ability) {
                     dmg = Math.floor(dmg * 1.5);
                     if (h === 0) addBattleLog(`💥 Критический удар ${currentMonster.name}!`, 'crit');
                 }
-                const playerDef = getPlayerEffectiveDefense();
-                dmg = calculateDamageWithDebuffs(dmg, playerDef, player.temporaryEffects);
-                totalApplied += applyDamageToPlayer(dmg);
+                const hit = applyMonsterDamageToTarget(dmg);
+                totalApplied += hit.applied;
+                if (hits === 1 && hit.applied > 0) {
+                    const targetLabel = hit.target === 'ally' ? 'союзнику' : 'вам';
+                    addBattleLog(`⚔️ ${currentMonster.name} бьёт ${targetLabel}: ${hit.applied} урона`, 'dmg');
+                }
             }
             if (hits > 1) addBattleLog(`⚔️ Серия из ${hits} ударов: всего ${totalApplied} урона`, 'dmg');
             if (typeof setStrikeImpact === 'function') {
-                setStrikeImpact(() => floatDamage('player', totalApplied, false));
+                const strikeTarget = typeof pickMonsterCombatTarget === 'function'
+                    ? pickMonsterCombatTarget()
+                    : 'player';
+                setStrikeImpact(() => floatDamage(strikeTarget, totalApplied, false));
             }
             break;
         }
@@ -324,7 +330,10 @@ function monsterTurn() {
         const applied = applyDamageToMonster(dotDmg);
         addBattleLog(`🌪️ Продолжительный урон: ${applied}!`, 'dmg');
         currentMonster.dotOverTime.remaining--;
-        if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
+        if (currentMonster.health <= 0) {
+            if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+            return;
+        }
     }
 
     if (summonedSpirit) {
@@ -417,8 +426,14 @@ function monsterTurn() {
         }
         const monsterAtk = getMonsterCurrentAttack();
         let dmg = Math.floor(monsterAtk);
-        const playerDef = getPlayerEffectiveDefense();
-        dmg = calculateDamageWithDebuffs(dmg, playerDef, player.temporaryEffects);
+        const combatTarget = typeof pickMonsterCombatTarget === 'function'
+            ? pickMonsterCombatTarget()
+            : 'player';
+        const playerDef = combatTarget === 'ally'
+            ? getAllyEffectiveDefense()
+            : getPlayerEffectiveDefense();
+        const debuffs = combatTarget === 'ally' ? [] : player.temporaryEffects;
+        dmg = calculateDamageWithDebuffs(dmg, playerDef, debuffs);
         
         // ПОЛУЧАЕМ БАФФЫ МОНСТРА
         const lifestealBuff = currentMonster.activeBuffs ? currentMonster.activeBuffs.lifesteal : null;
@@ -444,7 +459,10 @@ function monsterTurn() {
                 const counterDmg = Math.floor(getPlayerEffectiveAttack() * (counter.counterDmg || 80) / 100);
                 const appliedCounter = applyDamageToMonster(counterDmg);
                 addBattleLog(`↩️ Контратака! ${appliedCounter} урона!`, 'dmg');
-                if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
+                if (currentMonster.health <= 0) {
+                    if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+                    return;
+                }
             }
             
             // ОТРАЖЕНИЕ УРОНА ИГРОКОМ (при атаке монстра)
@@ -455,7 +473,10 @@ function monsterTurn() {
                 addBattleLog(`↩️ Отражено ${reflectedDmg} урона!`, 'dmg');
                 reflectEffect.dur--;
                 if (reflectEffect.dur <= 0) player.temporaryEffects = player.temporaryEffects.filter(e => e !== reflectEffect);
-                if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
+                if (currentMonster.health <= 0) {
+                    if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+                    return;
+                }
             }
             
             // ЗАМОРОЗКА АТАКУЮЩЕГО
@@ -467,11 +488,14 @@ function monsterTurn() {
             
             // НАНЕСЕНИЕ УРОНА
             if (dmg > 0) {
-                const appliedDamage = applyDamageToPlayer(dmg);
+                const appliedDamage = combatTarget === 'ally'
+                    ? applyDamageToAlly(dmg)
+                    : applyDamageToPlayer(dmg);
                 if (appliedDamage > 0) {
-                    addBattleLog(`👊 ${currentMonster.name} наносит ${appliedDamage} урона!`, 'dmg');
+                    const who = combatTarget === 'ally' ? 'союзнику' : 'вам';
+                    addBattleLog(`👊 ${currentMonster.name} наносит ${appliedDamage} урона ${who}!`, 'dmg');
                     if (typeof setStrikeImpact === 'function') {
-                        setStrikeImpact(() => floatDamage('player', appliedDamage, false));
+                        setStrikeImpact(() => floatDamage(combatTarget, appliedDamage, false));
                     }
                 }
                 
@@ -576,7 +600,10 @@ function monsterTurn() {
         addBattleLog(`💢 Накопление ярости сброшено!`, 'info');
     }
     
-    if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
+    if (currentMonster.health <= 0) {
+        if (tryVictoryAfterEnemyDown()) finishMonsterTurnOrQueue();
+        return;
+    }
     if (player.health <= 0) {
         const reviveAb2 = player.abilities && player.abilities.find(a => (a.reviveOnDeath || a.reviveOnce) && !reviveUsed);
         if (reviveAb2 && !reviveUsed) {

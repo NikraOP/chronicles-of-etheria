@@ -162,9 +162,20 @@ function getPackMult(table, enemyCount, fallback) {
     return table[n] != null ? table[n] : fallback;
 }
 
-function floorStatMults(floorIndex, enemyCount, mode) {
+function getDungeonLevelHpMult(dungeon, floorIndex) {
+    if (!dungeon) return 1;
+    const minLv = dungeon.minLevel || 1;
+    const plv = (typeof player !== 'undefined' && player && player.level) ? player.level : minLv;
+    const lv = Math.max(minLv, plv);
+    const floor = 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorThreatStep || 0.12);
+    if (lv < 12) return Math.max(1, (0.35 + lv * 0.05) * floor);
+    return (2.0 + lv * 0.9) * floor;
+}
+
+function floorStatMults(floorIndex, enemyCount, mode, dungeon) {
     const isDuo = mode === 'duo';
     const floorMult = 1 + floorIndex * (DUNGEON_BALANCE.floorThreatStep || 0.12);
+    const levelHp = getDungeonLevelHpMult(dungeon, floorIndex);
     const packHpTable = isDuo ? DUNGEON_BALANCE.packHp.duo : DUNGEON_BALANCE.packHp.solo;
     const packAtkTable = isDuo ? DUNGEON_BALANCE.packAtk.duo : DUNGEON_BALANCE.packAtk.solo;
     const modeHp = isDuo ? DUNGEON_BALANCE.modeHp.duo : DUNGEON_BALANCE.modeHp.solo;
@@ -178,6 +189,8 @@ function floorStatMults(floorIndex, enemyCount, mode) {
         hp *= soloMult;
         atk *= soloMult;
     }
+    hp *= levelHp;
+    atk *= 1 + Math.max(0, levelHp - 1) * 0.38;
     return {
         hp: hp,
         atk: atk,
@@ -237,7 +250,7 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
         const isFinalRoom = isLastFloor && r === roomCount - 1 && bossId;
 
         if (isFinalRoom) {
-            const mults = floorStatMults(floorIndex, 1, runMode);
+            const mults = floorStatMults(floorIndex, 1, runMode, dungeon);
             const bossEnemy = buildFinalBossEnemy(dungeon, floorIndex, mults, runMode);
             if (bossEnemy) {
                 const finalRoom = {
@@ -272,7 +285,7 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
 
         const isBoss = archetype.id === 'boss' || (isLastFloor && r === roomCount - 1 && rng() < 0.28);
         const enemyCount = rollEnemyCount(rng, archetype, floorIndex, isBoss, runMode);
-        const mults = floorStatMults(floorIndex, enemyCount, runMode);
+        const mults = floorStatMults(floorIndex, enemyCount, runMode, dungeon);
         const enemies = resolveEnemiesForRoom(poolForRooms, enemyCount, rng, mults, dungeon);
 
         if (!enemies.length && poolForRooms.length) {
@@ -293,7 +306,7 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
     }
 
     if (!rooms.length) {
-        const mults = floorStatMults(floorIndex, 1, runMode);
+        const mults = floorStatMults(floorIndex, 1, runMode, dungeon);
         const fallback = findMonsterTemplateByName(poolForRooms[0] || namePool[0]);
         if (fallback) {
             rooms.push({

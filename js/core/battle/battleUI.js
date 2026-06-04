@@ -163,6 +163,7 @@ function buildBattleEnemiesRowHtml() {
     const resolvedFocus = typeof getBattleEnemyFocusIndex === 'function'
         ? getBattleEnemyFocusIndex()
         : 0;
+    const packCount = enemies.length >= 3 ? 3 : 2;
     let row = '';
     for (let i = 0; i < enemies.length; i++) {
         const enemy = enemies[i];
@@ -173,7 +174,7 @@ function buildBattleEnemiesRowHtml() {
         }
         row += buildEnemyCombatantWrapperHtml(enemy, i, isFocused, statusSlot);
     }
-    return '<div class="battle-enemies-row" style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:flex-end;">' + row + '</div>';
+    return '<div class="battle-enemies-pack battle-enemies-pack--count-' + packCount + '" id="enemyPack">' + row + '</div>';
 }
 
 function renderBattle(options) {
@@ -681,7 +682,11 @@ function animateEnemyAttack(callback, options) {
 }
 
 function floatDamage(target, amount, isCrit) {
-    const wrapper = target === 'player' ? document.getElementById('playerWrapper') : document.getElementById('enemyWrapper');
+    const wrapper = target === 'player'
+        ? document.getElementById('playerWrapper')
+        : target === 'ally'
+            ? document.getElementById('allyWrapper')
+            : document.getElementById('enemyWrapper');
     if (!wrapper) return;
     const el = document.createElement('div');
     el.className = 'damage-float' + (isCrit ? ' damage-float--crit' : '');

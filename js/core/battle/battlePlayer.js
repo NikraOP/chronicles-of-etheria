@@ -88,7 +88,10 @@ function executePlayerAttackAtTarget(targetKind, targetIndex) {
     addBattleLog(msg, crit ? 'crit' : 'dmg');
 
     animatePlayerAttack(() => {
-        if (currentMonster.health <= 0) { tryVictoryAfterEnemyDown(); return; }
+        if (currentMonster.health <= 0) {
+            if (tryVictoryAfterEnemyDown()) endPlayerActionChain();
+            return;
+        }
         endPlayerActionChain();
     }, {
         onImpact: () => floatDamage('enemy', appliedDamage, crit),
@@ -829,8 +832,9 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         if (currentMonster.health <= 0) {
             const pack = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
             const living = pack.filter(function (e) { return e && e.health > 0; });
-            if (pack.length > 1 && living.length > 0) {
+            if (living.length > 0) {
                 tryVictoryAfterEnemyDown();
+                endPlayerActionChain();
                 return;
             }
             if (extraTurn && !window.pvpBattleActive) {
@@ -840,7 +844,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
                 updateBattleButtons();
                 return;
             }
-            victory();
+            tryVictoryAfterEnemyDown();
             return;
         }
         endPlayerActionChain();
@@ -858,7 +862,11 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         const echoDmg = Math.floor(appliedDamage * (window.echoMultiplier || 0.6));
         const echoDamage = applyDamageToMonster(echoDmg);
         addBattleLog(`🔁 Эхо: +${echoDamage} урона!`, 'info'); 
-        if (currentMonster.health <= 0) setTimeout(() => tryVictoryAfterEnemyDown(), 100);
+        if (currentMonster.health <= 0) {
+            setTimeout(function () {
+                if (tryVictoryAfterEnemyDown()) endPlayerActionChain();
+            }, 100);
+        }
     }
     
     if (a.revive && player.health <= 0) {

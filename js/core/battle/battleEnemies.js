@@ -131,9 +131,9 @@ function finishMonsterTurnOrQueue() {
     if (typeof onPlayerTurnStart === 'function') onPlayerTurnStart();
 }
 
-/** Переключение на следующего врага или вызов victory(), если пак зачищен. */
+/** @returns {boolean} true — бой продолжается; false — вызвана victory() или враг ещё жив */
 function tryVictoryAfterEnemyDown() {
-    if (!currentMonster || currentMonster.health > 0) return;
+    if (!currentMonster || currentMonster.health > 0) return true;
     const enemies = getBattleEnemies();
     if (enemies.length > 1) {
         const living = enemies.filter(function (e) { return e && e.health > 0; });
@@ -146,10 +146,11 @@ function tryVictoryAfterEnemyDown() {
             }
             if (typeof renderBattle === 'function') renderBattle({ force: true });
             if (typeof updateBattleButtons === 'function') updateBattleButtons();
-            return;
+            return true;
         }
     }
     if (typeof victory === 'function') victory();
+    return false;
 }
 
 function getBattleEnemyFocusIndex() {
