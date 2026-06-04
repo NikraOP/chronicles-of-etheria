@@ -490,12 +490,14 @@ function applyRemoteDuoDungeonBattleAction(payload) {
 }
 
 function applyRemoteDuoDungeonForfeit(_payload) {
-    duoDungeonLog('Партнёр сдался или отключился.', 'warning');
+    duoDungeonLog('Партнёр сдался или покинул забег.', 'warning');
+    if (typeof dungeonUiTeardownBattleUi === 'function') dungeonUiTeardownBattleUi();
     if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
-    if (typeof abandonDungeonRun === 'function') abandonDungeonRun();
-    duoDungeonState.status = 'lobby';
-    duoDungeonState.remoteReady = false;
-    if (typeof showDuoDungeonLobbyScreen === 'function') showDuoDungeonLobbyScreen();
+    if (typeof abandonDungeonRun === 'function') abandonDungeonRun(true);
+    if (typeof leaveDuoDungeonLobby === 'function') leaveDuoDungeonLobby();
+    duoDungeonState = createEmptyDuoDungeonState();
+    if (typeof addMessage === 'function') addMessage('↩️ Напарник вышел — забег завершён.', 'warning');
+    if (typeof showDungeonsHub === 'function') showDungeonsHub({ force: true });
 }
 
 function handleDungeonDuoMessage(msg) {

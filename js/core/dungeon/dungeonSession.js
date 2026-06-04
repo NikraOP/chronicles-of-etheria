@@ -687,9 +687,15 @@ function debugStartSoloDungeon(dungeonId) {
 
 function abandonDungeonRun(clearSaved) {
     const shouldClear = clearSaved === true || (dungeonRunSession && dungeonRunSession.committed);
+    pendingDuoEnterBattlePayload = null;
+    lastHostDuoEnterBattlePayload = null;
     dungeonRunSession = null;
     if (shouldClear) clearActiveDungeonRun();
     if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
+    if (typeof currentMonster !== 'undefined') currentMonster = null;
+    window.dungeonDuoBattleActive = false;
+    window._strikeAnimActive = false;
 }
 
 window.getDungeonRunSession = getDungeonRunSession;

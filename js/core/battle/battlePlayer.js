@@ -1180,8 +1180,14 @@ function fleeBattle() {
         return;
     }
     if (typeof isBattleZoneStaging === 'function' && isBattleZoneStaging()) {
+        const staged = window._stagedFixedMonster;
+        const returnTo = staged && staged.monsterData ? staged.monsterData.returnTo : '';
         if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
         if (typeof addMessage === 'function') addMessage('↩️ Вы покинули поле боя.', 'info');
+        if ((returnTo === '__dungeon_solo__' || returnTo === '__dungeon_duo__') &&
+            typeof dungeonUiReturnToDungeonMap === 'function' && dungeonUiReturnToDungeonMap()) {
+            return;
+        }
         if (typeof renderGame === 'function') renderGame();
         return;
     }
@@ -1190,14 +1196,23 @@ function fleeBattle() {
         const returnTo = currentMonster.returnTo;
         addBattleLog('🏃 Сбежали! Штраф за трусость.', 'info');
         if (typeof applyFleePenalty === 'function') applyFleePenalty();
-        if (typeof leaveBattleZoneAfterFlee === 'function') leaveBattleZoneAfterFlee(returnTo);
-        else {
+        if (typeof leaveBattleZoneAfterFlee === 'function') {
+            leaveBattleZoneAfterFlee(returnTo);
+        } else {
             currentMonster = null;
             if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
-            document.getElementById('dynamicContent').innerHTML = '';
+            const dc = document.getElementById('dynamicContent');
+            if (dc) dc.innerHTML = '';
             document.body.classList.remove('low-hp');
-            if (returnTo && typeof showGatheringResources === 'function') showGatheringResources(returnTo);
-            else renderGame();
+            if ((returnTo === '__dungeon_solo__' || returnTo === '__dungeon_duo__') &&
+                typeof dungeonUiReturnToDungeonMap === 'function' && dungeonUiReturnToDungeonMap()) {
+                /* ok */
+            } else if (returnTo && returnTo !== '__dungeon_solo__' && returnTo !== '__dungeon_duo__' &&
+                typeof showGatheringResources === 'function') {
+                showGatheringResources(returnTo);
+            } else if (typeof renderGame === 'function') {
+                renderGame();
+            }
         }
     } else {
         addBattleLog('❌ Побег не удался!', 'info');

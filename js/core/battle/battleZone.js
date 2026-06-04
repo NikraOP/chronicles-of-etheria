@@ -192,8 +192,22 @@ function leaveBattleZoneAfterFlee(returnTo) {
     document.body.classList.remove('low-hp');
     const dc = document.getElementById('dynamicContent');
     if (dc) dc.innerHTML = '';
-    if (dest && typeof showGatheringResources === 'function') showGatheringResources(dest);
-    else if (typeof renderGame === 'function') renderGame();
+    if (dest === '__dungeon_solo__' || dest === '__dungeon_duo__') {
+        if (typeof dungeonUiReturnToDungeonMap === 'function' && dungeonUiReturnToDungeonMap()) {
+            return;
+        }
+        const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+        if (session && session.dungeonId && typeof openDungeonDetail === 'function') {
+            openDungeonDetail(session.dungeonId);
+            return;
+        }
+    }
+    if (dest && dest !== '__dungeon_solo__' && dest !== '__dungeon_duo__' &&
+        typeof showGatheringResources === 'function') {
+        showGatheringResources(dest);
+    } else if (typeof renderGame === 'function') {
+        renderGame();
+    }
 }
 
 window.isBattleZoneStaging = isBattleZoneStaging;

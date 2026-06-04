@@ -93,12 +93,41 @@ function renderDungeonLevelLine(dungeon, unlocked) {
     return '<div class="dungeon-card__level' + cls + '">⭐ Ур. ' + min + (max > min ? '–' + max : '') + '</div>';
 }
 
-function showDungeonsHub() {
+function dungeonUiTeardownBattleUi() {
+    if (typeof cancelBattleTargeting === 'function') cancelBattleTargeting();
+    if (typeof stopDungeonDuoBattleMode === 'function') stopDungeonDuoBattleMode();
+    if (typeof clearBattleZoneState === 'function') clearBattleZoneState();
+    if (typeof currentMonster !== 'undefined') currentMonster = null;
+    window.dungeonDuoBattleActive = false;
+    window._strikeAnimActive = false;
+    window._battleAbilitiesMenuOpen = false;
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.remove('low-hp', 'battle-zone-active', 'battle-engaged');
+    }
+}
+
+function dungeonUiReturnToDungeonMap() {
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    if (!session || !session.dungeonId) return false;
+    if (typeof openDungeonDetail === 'function') {
+        openDungeonDetail(session.dungeonId);
+        return true;
+    }
+    return false;
+}
+
+function showDungeonsHub(opts) {
+    opts = opts || {};
     const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
     if (session && !session.committed && typeof abandonDungeonRun === 'function') {
         abandonDungeonRun(false);
     }
-    if (!dungeonUiPrepareScreen('renderGame', [])) return;
+    if (opts.force) {
+        if (typeof stopGathering === 'function') stopGathering();
+        if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    } else if (!dungeonUiPrepareScreen('renderGame', [])) {
+        return;
+    }
     const el = document.getElementById('dynamicContent');
     if (!el) return;
 
@@ -253,13 +282,33 @@ function dungeonUiStartRoomBattle() {
 }
 
 function dungeonUiAbandonRun() {
-    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
-    if (session && session.mode === 'duo' && typeof forfeitDuoDungeon === 'function') {
-        forfeitDuoDungeon();
+    if (typeof isBattleEngaged === 'function' && isBattleEngaged()) {
+        if (typeof addMessage === 'function') {
+            addMessage('⚔️ Сейчас идёт бой. Сбегите (🏃) или дождитесь конца боя, затем покиньте забег.', 'warning');
+        }
         return;
     }
+    const session = typeof getDungeonRunSession === 'function' ? getDungeonRunSession() : null;
+    const wasDuo = session && session.mode === 'duo';
+
+    dungeonUiTeardownBattleUi();
+
+    if (wasDuo) {
+        if (typeof sendDuoDungeonMessage === 'function' && typeof DUNGEON_DUO_MSG !== 'undefined') {
+            sendDuoDungeonMessage(DUNGEON_DUO_MSG.FORFEIT, {});
+        } else if (typeof forfeitDuoDungeon === 'function') {
+            forfeitDuoDungeon();
+        } else if (typeof leaveDuoDungeonLobby === 'function') {
+            leaveDuoDungeonLobby();
+        }
+    }
+
     if (typeof abandonDungeonRun === 'function') abandonDungeonRun(true);
-    if (typeof showDungeonsHub === 'function') showDungeonsHub();
+    if (typeof uiNavReset === 'function') uiNavReset();
+    if (typeof addMessage === 'function') {
+        addMessage('↩️ Забег в подземелье завершён.', 'info');
+    }
+    if (typeof showDungeonsHub === 'function') showDungeonsHub({ force: true });
 }
 
 function dungeonUiDuoSoon() {
@@ -425,7 +474,7 @@ function showDuoDungeonLobbyScreen() {
     if (duo.status === 'sync') {
         actions += '<button type="button" class="action-btn dungeon-detail__enter" onclick="dungeonUiStartDuoRun()">▶ Начать забег</button>';
     }
-    actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="leaveDuoDungeonLobby();showDungeonsHub()">Выйти из комнаты</button>';
+    actions += '<button type="button" class="action-btn modal-btn--ghost" onclick="leaveDuoDungeonLobby();showDungeonsHub({force:true})">Выйти из комнаты</button>';
 
     const roleLabel = duo.role === 'host' ? 'Хост' : 'Гость';
 
@@ -657,6 +706,8 @@ window.dungeonUiCreateDuoRoom = dungeonUiCreateDuoRoom;
 window.dungeonUiJoinDuoRoom = dungeonUiJoinDuoRoom;
 window.dungeonUiStartRoomBattle = dungeonUiStartRoomBattle;
 window.dungeonUiAbandonRun = dungeonUiAbandonRun;
+window.dungeonUiTeardownBattleUi = dungeonUiTeardownBattleUi;
+window.dungeonUiReturnToDungeonMap = dungeonUiReturnToDungeonMap;
 window.showDuoDungeonLobbyScreen = showDuoDungeonLobbyScreen;
 window.dungeonUiToggleReady = dungeonUiToggleReady;
 window.dungeonUiCopyDuoCode = dungeonUiCopyDuoCode;
