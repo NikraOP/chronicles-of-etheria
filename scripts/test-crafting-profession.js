@@ -81,4 +81,16 @@ assert(!atLoc.includes('Железная руда'), 'tier2 ore hidden at prof t
 ctx.player.professions.mining = { tier: 2, exp: 0 };
 assert(ctx.getResourcesAtLocationForProfession('mining').includes('Железная руда'), 'tier2 ore at prof tier 2');
 
+const defs = ctx.getGatherableResourceDefsAtLocation('mining');
+assert(defs.length >= 1 && defs[0].name, 'gather defs return objects with name');
+assert(ctx.getGatherableResourceDefsAtLocation('mining').every(d => d.tier <= 2), 'defs respect prof tier');
+
+ctx.player.resources = { 'Медная руда': 20 };
+const ringRecipe = { name: 'Медное кольцо', tier: 1, resources: { 'Медная руда': 3 } };
+ctx.player.professions.jewelry = { tier: 3, exp: 0 };
+assert(ctx.getMaxCraftCount(ringRecipe, 'jewelry') === 6, 'max craft from materials');
+assert(ctx.getCraftBlockReason(ringRecipe, 'jewelry', 7).indexOf('хватает') !== -1, 'batch over max blocked');
+const scaled = ctx.scaleRecipeMaterials(ringRecipe.resources, 3);
+assert(scaled['Медная руда'] === 9, 'scale materials x3');
+
 console.log('Crafting profession tests OK');

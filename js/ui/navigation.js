@@ -37,18 +37,23 @@ function showProfessions() {
         const expNeeded = getExpForNextTier(tier);
         const percent = (expNeeded > 0 && tier < 6) ? (exp / expNeeded * 100) : 100;
         const bonuses = getProfessionBonuses(tier);
-        const locHint = typeof formatLocationResourcesHint === 'function'
-            ? formatLocationResourcesHint(prof.id) : '';
+        const gatherDefs = typeof getGatherableResourceDefsAtLocation === 'function'
+            ? getGatherableResourceDefsAtLocation(prof.id) : [];
+        const resourceIcons = typeof renderGatherProfessionIconsHtml === 'function'
+            ? renderGatherProfessionIconsHtml(prof.id) : '';
+        const noResourcesHere = learned && gatherDefs.length === 0;
+        const locLine = '📍 ' + (player.location || '—') + (learned && tier > 0 ? ' · T' + tier : '');
         
-        html += '<div class="profession-card" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 12px; padding: 15px;">' +
-            '<div class="profession-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">' +
+        html += '<div class="profession-card profession-card--gather' + (noResourcesHere ? ' profession-card--inactive' : '') + '" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 12px; padding: 15px;">' +
+            '<div class="profession-header profession-header--gather">' +
                 '<div class="profession-icon" style="font-size: 40px;">' + prof.icon + '</div>' +
-                '<div class="profession-info" style="flex: 1;">' +
+                '<div class="profession-info" style="flex: 1; min-width: 0;">' +
                     '<div class="profession-name" style="font-weight: 600; font-size: 16px;">' + prof.name + '</div>' +
                     '<span class="profession-type type-gathering" style="font-size: 10px; padding: 2px 10px; border-radius: 10px; background: rgba(46,204,113,0.2); color: var(--green);">Добыча</span>' +
                 '</div>' +
+                resourceIcons +
             '</div>' +
-            '<div style="font-size: 10px; color: var(--text-secondary); margin: 6px 0; line-height: 1.35;">' + locHint + '</div>' +
+            '<div class="prof-location-line">' + locLine + (noResourcesHere ? ' · нет ресурсов' : '') + '</div>' +
             (learned ? 
                 '<div>Тир: <strong>' + tier + '</strong>/6</div>' +
                 (tier < 6 ? 

@@ -826,6 +826,116 @@ body.low-hp .main-content {
     box-shadow: var(--shadow-gold);
     transform: translateY(-2px);
 }
+.profession-card--inactive {
+    opacity: 0.52;
+    filter: grayscale(0.4);
+    border-color: rgba(255, 255, 255, 0.08);
+    pointer-events: auto;
+}
+.profession-card--inactive:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.profession-card--inactive .action-btn {
+    opacity: 0.7;
+}
+.profession-header--gather {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.profession-resource-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+    align-content: flex-start;
+    max-width: 132px;
+    flex-shrink: 0;
+}
+.profession-resource-icons--empty {
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.profession-resource-empty {
+    font-size: 18px;
+    color: #666;
+    line-height: 1;
+}
+.profession-resource-icon-chip {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.prof-resource-more {
+    font-size: 10px;
+    color: var(--gold);
+    align-self: center;
+    padding: 0 2px;
+}
+.prof-location-line {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+    line-height: 1.35;
+}
+.craft-batch-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.craft-batch-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.craft-batch-input {
+    width: 56px;
+    padding: 6px 8px;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+.craft-batch-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+.craft-batch-btn:hover {
+    background: rgba(240, 192, 64, 0.15);
+    border-color: var(--border-gold);
+}
+.craft-batch-hint {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
 .profession-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .profession-icon { font-size: 42px; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4)); }
 .profession-info { flex: 1; }

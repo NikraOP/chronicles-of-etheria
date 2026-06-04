@@ -12,6 +12,7 @@
     "start:relay": "node server/pvp-relay.mjs",
     "test:crafting": "node scripts/test-crafting-profession.js",
     "test:jewelry": "node scripts/test-jewelry-equip.js",
+    "test:craft-batch": "node scripts/test-craft-batch.js",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
     "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test": "echo \"Error: no test specified\" && exit 1"

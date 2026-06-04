@@ -79,13 +79,61 @@ function getPlayerResourceAmount(resourceName) {
     return total;
 }
 
-function hasRecipeMaterials(recipe) {
+function hasRecipeMaterials(recipe, craftCount) {
     const materials = recipe && (recipe.resources || recipe.materials);
     if (!materials) return true;
+    const count = Math.max(1, parseInt(craftCount, 10) || 1);
     for (const mat in materials) {
-        if (getPlayerResourceAmount(mat) < materials[mat]) return false;
+        if (getPlayerResourceAmount(mat) < materials[mat] * count) return false;
     }
     return true;
+}
+
+function scaleRecipeMaterials(materials, craftCount) {
+    const count = Math.max(1, parseInt(craftCount, 10) || 1);
+    const scaled = {};
+    for (const mat in materials) {
+        scaled[mat] = materials[mat] * count;
+    }
+    return scaled;
+}
+
+const CRAFT_BATCH_MAX = 99;
+
+function getCraftNonMaterialBlockReason(recipe, profId) {
+    if (!recipe) return 'Рецепт не найден';
+    const prof = player.professions[profId];
+    if (!prof) return 'Профессия не изучена';
+    normalizeProfessionProf(prof);
+    const r = normalizeRecipeForCraft(recipe);
+    const requiredTier = r.tier;
+    const profTier = parseInt(prof.tier, 10) || 1;
+    if (profTier < requiredTier) {
+        const left = getExpForNextTier(profTier) - prof.exp;
+        if (left > 0) return `Нужен ${requiredTier} тир (ещё ~${Math.ceil(left)} XP)`;
+        return `Нужен ${requiredTier} тир профессии`;
+    }
+    const playerClass = (player.class || '').trim();
+    const recipeClass = (r.class || '').trim();
+    if (recipeClass && playerClass && recipeClass !== playerClass) {
+        return `Только для класса ${recipeClass}`;
+    }
+    return '';
+}
+
+function getMaxCraftCount(recipe, profId) {
+    const block = getCraftNonMaterialBlockReason(recipe, profId);
+    if (block) return 0;
+    const r = normalizeRecipeForCraft(recipe);
+    const materials = r.resources || r.materials;
+    if (!materials) return CRAFT_BATCH_MAX;
+    let max = CRAFT_BATCH_MAX;
+    for (const mat in materials) {
+        const perCraft = materials[mat];
+        if (perCraft <= 0) continue;
+        max = Math.min(max, Math.floor(getPlayerResourceAmount(mat) / perCraft));
+    }
+    return Math.max(0, max);
 }
 
 function consumePlayerResources(materials) {
@@ -134,16 +182,37 @@ function getProfessionLearnBlockReason(profId) {
     return '';
 }
 
+/** Объекты ресурсов на текущей локации (добывающая профессия — свой RESOURCES_DB). */
+function getGatherableResourceDefsAtLocation(profId) {
+    const loc = String(player.location || '').trim();
+    if (!loc) return [];
+    const profState = player.professions[profId];
+    const tier = profState ? (parseInt(profState.tier, 10) || 1) : 1;
+    const list = RESOURCES_DB[profId] || [];
+    const seen = new Set();
+    const defs = [];
+    for (const r of list) {
+        if (!r || !r.name || seen.has(r.name)) continue;
+        const resTier = parseInt(r.tier, 10) || 1;
+        const locs = r.locations || [];
+        if (locs.indexOf(loc) === -1 || tier < resTier) continue;
+        seen.add(r.name);
+        defs.push(r);
+    }
+    return defs.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
 /** Ресурсы на текущей локации для профессии (с учётом тира профессии). */
 function getResourcesAtLocationForProfession(profId) {
     const loc = String(player.location || '').trim();
     if (!loc) return [];
+    if (RESOURCES_DB[profId]) {
+        return getGatherableResourceDefsAtLocation(profId).map(r => r.name);
+    }
     const meta = findProfessionMeta(profId);
     const profState = player.professions[profId];
     const tier = profState ? (parseInt(profState.tier, 10) || 1) : 1;
-    const sourceIds = RESOURCES_DB[profId]
-        ? [profId]
-        : (meta && meta.relatedGathering ? meta.relatedGathering : []);
+    const sourceIds = meta && meta.relatedGathering ? meta.relatedGathering : [];
     const names = [];
     const seen = new Set();
     for (const srcId of sourceIds) {
@@ -160,6 +229,30 @@ function getResourcesAtLocationForProfession(profId) {
     return names.sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
+function renderGatherProfessionIconsHtml(profId) {
+    const defs = getGatherableResourceDefsAtLocation(profId);
+    if (!defs.length) {
+        return '<div class="profession-resource-icons profession-resource-icons--empty" title="На этой локации нет ресурсов для вашего тира">' +
+            '<span class="profession-resource-empty">∅</span></div>';
+    }
+    const maxShow = 8;
+    let html = '<div class="profession-resource-icons">';
+    for (let i = 0; i < Math.min(defs.length, maxShow); i++) {
+        const r = defs[i];
+        const tip = (r.name || '') + ' · T' + (r.tier || 1);
+        html += '<div class="profession-resource-icon-chip" title="' + tip.replace(/"/g, '&quot;') + '">';
+        html += typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(r, { size: 32, fallback: r.icon || '📦' })
+            : '<span>' + (r.icon || '📦') + '</span>';
+        html += '</div>';
+    }
+    if (defs.length > maxShow) {
+        html += '<span class="prof-resource-more">+' + (defs.length - maxShow) + '</span>';
+    }
+    html += '</div>';
+    return html;
+}
+
 function formatLocationResourcesHint(profId) {
     const list = getResourcesAtLocationForProfession(profId);
     const loc = player.location || '—';
@@ -171,32 +264,21 @@ function formatLocationResourcesHint(profId) {
     return `📍 ${loc}: ${preview}${more}`;
 }
 
-function getCraftBlockReason(recipe, profId) {
-    if (!recipe) return 'Рецепт не найден';
-    const prof = player.professions[profId];
-    if (!prof) return 'Профессия не изучена';
-    normalizeProfessionProf(prof);
+function getCraftBlockReason(recipe, profId, craftCount) {
+    const nonMat = getCraftNonMaterialBlockReason(recipe, profId);
+    if (nonMat) return nonMat;
     const r = normalizeRecipeForCraft(recipe);
-    const requiredTier = r.tier;
-    const profTier = parseInt(prof.tier, 10) || 1;
-    if (profTier < requiredTier) {
-        const left = getExpForNextTier(profTier) - prof.exp;
-        if (left > 0) {
-            return `Нужен ${requiredTier} тир (ещё ~${Math.ceil(left)} XP)`;
-        }
-        return `Нужен ${requiredTier} тир профессии`;
-    }
-    const playerClass = (player.class || '').trim();
-    const recipeClass = (r.class || '').trim();
-    if (recipeClass && playerClass && recipeClass !== playerClass) {
-        return `Только для класса ${recipeClass}`;
-    }
+    const count = Math.max(1, parseInt(craftCount, 10) || 1);
     const materials = r.resources || r.materials;
     if (materials) {
         for (const mat in materials) {
-            const needed = materials[mat];
+            const needed = materials[mat] * count;
             const has = getPlayerResourceAmount(mat);
-            if (has < needed) return `Не хватает: ${mat} (${has}/${needed})`;
+            if (has < needed) {
+                return count > 1
+                    ? `Не хватает для ×${count}: ${mat} (${has}/${needed})`
+                    : `Не хватает: ${mat} (${has}/${needed})`;
+            }
         }
     }
     return '';
@@ -225,9 +307,30 @@ function bindCraftRecipeGrid(profId) {
             }
             const recipeName = decodeURIComponent(card.getAttribute('data-recipe-name') || '');
             if (!recipeName) return;
-            prepareCraft(profId, recipeName);
+            const qtyInput = document.getElementById('craftBatchQty');
+            let qty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
+            if (!Number.isFinite(qty) || qty < 1) qty = 1;
+            prepareCraft(profId, recipeName, qty);
         });
     });
+}
+
+function clampCraftBatchInput() {
+    const input = document.getElementById('craftBatchQty');
+    if (!input) return 1;
+    let v = parseInt(input.value, 10);
+    if (!Number.isFinite(v) || v < 1) v = 1;
+    v = Math.min(CRAFT_BATCH_MAX, v);
+    input.value = String(v);
+    return v;
+}
+
+function adjustCraftBatchQty(delta) {
+    const input = document.getElementById('craftBatchQty');
+    if (!input) return;
+    let v = parseInt(input.value, 10) || 1;
+    v = Math.max(1, Math.min(CRAFT_BATCH_MAX, v + delta));
+    input.value = String(v);
 }
 
 function scrollCraftResultIntoView() {
@@ -279,22 +382,9 @@ function getAllRecipesForProfession(profId) {
     return allRecipes.map(normalizeRecipeForCraft);
 }
 
-function completeCrafting(profId, options) {
-    options = options || {};
-    if (!pendingCraftData) {
-        addMessage('❌ Нет данных о крафте!', 'error');
-        return;
-    }
-    
-    const prof = player.professions[profId];
-    if (!prof) return;
-    normalizeProfessionProf(prof);
-    
-    const { recipe, adjustedExp, bonuses } = pendingCraftData;
-    
-    // Создаём предмет напрямую из полей рецепта
+function buildCraftedItemFromRecipe(recipe, bonuses) {
     const visuals = typeof pickItemVisualFields === 'function' ? pickItemVisualFields(recipe) : { icon: recipe.icon || '📦', img: recipe.img || '' };
-    let newItem = {
+    const newItem = {
         name: recipe.name,
         rarity: recipe.rarity || 'Обычный',
         icon: visuals.icon,
@@ -318,16 +408,12 @@ function completeCrafting(profId, options) {
         baseDef: recipe.baseDef || recipe.def || 0,
         upgradeLevel: 0
     };
-    
-    // Устанавливаем цену продажи из базы
     if (typeof getItemSellPrice === 'function') {
         newItem.sellPrice = getItemSellPrice(newItem);
     } else if (recipe.sellPrice) {
         newItem.sellPrice = recipe.sellPrice;
     }
-    
-    
-    let qualityBonus = bonuses.craftQualityBonus;
+    const qualityBonus = bonuses.craftQualityBonus;
     if (qualityBonus > 0 && (newItem.dmg > 0 || newItem.def > 0 || newItem.hp > 0)) {
         const qualityMultiplier = 1 + qualityBonus;
         if (newItem.dmg) newItem.dmg = Math.floor(newItem.dmg * qualityMultiplier);
@@ -336,71 +422,106 @@ function completeCrafting(profId, options) {
         if (newItem.crit) newItem.crit = Math.floor(newItem.crit * qualityMultiplier);
         if (newItem.critDmg) newItem.critDmg = Math.floor(newItem.critDmg * qualityMultiplier);
         if (newItem.dodge) newItem.dodge = Math.floor(newItem.dodge * qualityMultiplier);
-        addMessage(`✨ Бонус качества +${Math.floor(qualityBonus * 100)}%!`, 'success');
     }
-    
-    // Добавляем в инвентарь в зависимости от типа
+    return newItem;
+}
+
+function pushCraftedItemToInventory(recipe, newItem) {
     const itemType = recipe.type;
-    
     if (itemType === 'weapon') {
         if (!player.inventory.weapons) player.inventory.weapons = [];
         player.inventory.weapons.push(newItem);
-        addMessage(`⚔️ Создано оружие: ${recipe.name}!`, 'success');
     } else if (itemType === 'helmet') {
         if (!player.inventory.helmets) player.inventory.helmets = [];
         player.inventory.helmets.push(newItem);
-        addMessage(`⛑️ Создан шлем: ${recipe.name}!`, 'success');
     } else if (itemType === 'chest') {
         if (!player.inventory.chests) player.inventory.chests = [];
         player.inventory.chests.push(newItem);
-        addMessage(`🛡️ Создан нагрудник: ${recipe.name}!`, 'success');
     } else if (itemType === 'pants') {
         if (!player.inventory.pants) player.inventory.pants = [];
         player.inventory.pants.push(newItem);
-        addMessage(`👖 Созданы поножи: ${recipe.name}!`, 'success');
     } else if (itemType === 'boots') {
         if (!player.inventory.boots) player.inventory.boots = [];
         player.inventory.boots.push(newItem);
-        addMessage(`👢 Созданы сапоги: ${recipe.name}!`, 'success');
     } else if (itemType === 'stone') {
         if (!player.inventory.stones) player.inventory.stones = [];
         player.inventory.stones.push(newItem);
-        addMessage(`💎 Создан камень: ${recipe.name}!`, 'success');
     } else if (itemType === 'ring') {
         if (!player.inventory.rings) player.inventory.rings = [];
         player.inventory.rings.push(newItem);
-        addMessage(`💍 Создано кольцо: ${recipe.name}!`, 'success');
     } else if (itemType === 'necklace') {
         if (!player.inventory.necklaces) player.inventory.necklaces = [];
         player.inventory.necklaces.push(newItem);
-        addMessage(`📿 Создан амулет: ${recipe.name}!`, 'success');
     } else if (itemType === 'potion') {
         if (!player.inventory.potions) player.inventory.potions = [];
         player.inventory.potions.push(newItem);
-        addMessage(`🧪 Создано зелье: ${recipe.name}!`, 'success');
     } else if (itemType === 'food') {
         if (!player.inventory.foods) player.inventory.foods = [];
         player.inventory.foods.push(newItem);
-        addMessage(`🍖 Создана еда: ${recipe.name}!`, 'success');
     } else if (itemType === 'gather_scroll') {
         if (!player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
         player.inventory.gatherScrolls.push(newItem);
-        addMessage(`📜 Создан ${recipe.name}! Активируйте в меню добычи профессии.`, 'success');
     } else if (itemType === 'scroll' || itemType === 'battle_scroll') {
         if (!player.inventory.scrolls) player.inventory.scrolls = [];
         player.inventory.scrolls.push(newItem);
-        addMessage(`📜 Создан свиток: ${recipe.name}!`, 'success');
     } else if (itemType === 'elixir') {
         if (!player.inventory.elixirs) player.inventory.elixirs = [];
         player.inventory.elixirs.push(newItem);
-        addMessage(`💪 Создан эликсир: ${recipe.name}!`, 'success');
     } else {
         if (!player.inventory.armor) player.inventory.armor = [];
         player.inventory.armor.push(newItem);
-        addMessage(`✅ Создано: ${recipe.name}!`, 'success');
+    }
+}
+
+function getCraftSuccessMessage(recipe, batchCount) {
+    const n = Math.max(1, batchCount || 1);
+    const label = n > 1 ? `×${n} ` : '';
+    const itemType = recipe.type;
+    if (itemType === 'weapon') return `⚔️ Создано ${label}оружие: ${recipe.name}!`;
+    if (itemType === 'helmet') return `⛑️ Создано ${label}шлемов: ${recipe.name}!`;
+    if (itemType === 'chest') return `🛡️ Создано ${label}нагрудников: ${recipe.name}!`;
+    if (itemType === 'pants') return `👖 Создано ${label}поножей: ${recipe.name}!`;
+    if (itemType === 'boots') return `👢 Создано ${label}сапог: ${recipe.name}!`;
+    if (itemType === 'stone') return `💎 Создано ${label}камней: ${recipe.name}!`;
+    if (itemType === 'ring') return `💍 Создано ${label}колец: ${recipe.name}!`;
+    if (itemType === 'necklace') return `📿 Создано ${label}амулетов: ${recipe.name}!`;
+    if (itemType === 'potion') return `🧪 Создано ${label}зелий: ${recipe.name}!`;
+    if (itemType === 'food') return `🍖 Создано ${label}еды: ${recipe.name}!`;
+    if (itemType === 'gather_scroll') return `📜 Создано ${label}${recipe.name}! Активируйте в меню добычи.`;
+    if (itemType === 'scroll' || itemType === 'battle_scroll') return `📜 Создано ${label}свитков: ${recipe.name}!`;
+    if (itemType === 'elixir') return `💪 Создано ${label}эликсиров: ${recipe.name}!`;
+    return `✅ Создано ${label}: ${recipe.name}!`;
+}
+
+function completeCrafting(profId, options) {
+    options = options || {};
+    if (!pendingCraftData) {
+        addMessage('❌ Нет данных о крафте!', 'error');
+        return;
     }
     
-    let totalExp = Number(adjustedExp) || 0;
+    const prof = player.professions[profId];
+    if (!prof) return;
+    normalizeProfessionProf(prof);
+    
+    const { recipe, adjustedExp, bonuses, batchCount } = pendingCraftData;
+    const count = Math.max(1, parseInt(batchCount, 10) || 1);
+    let qualityMsgShown = false;
+
+    for (let i = 0; i < count; i++) {
+        const newItem = buildCraftedItemFromRecipe(recipe, bonuses);
+        if (bonuses.craftQualityBonus > 0 && !qualityMsgShown &&
+            (newItem.dmg > 0 || newItem.def > 0 || newItem.hp > 0)) {
+            qualityMsgShown = true;
+        }
+        pushCraftedItemToInventory(recipe, newItem);
+    }
+    if (qualityMsgShown) {
+        addMessage(`✨ Бонус качества +${Math.floor(bonuses.craftQualityBonus * 100)}%!`, 'success');
+    }
+    addMessage(getCraftSuccessMessage(recipe, count), 'success');
+    
+    let totalExp = (Number(adjustedExp) || 0) * count;
     prof.exp += totalExp;
     const leveledUp = applyProfessionTierUps(prof);
     if (leveledUp) {
@@ -475,6 +596,13 @@ function showCraftingRecipes(profId) {
         html += '<div style="font-size: 11px; color: var(--text-secondary); margin-top: 8px;">🔒 Ещё ' + lockedByTierCount
             + ' рецепт(ов) откроются с повышением тира профессии</div>';
     }
+    html += '</div>';
+    html += '<div class="craft-batch-bar">';
+    html += '<span class="craft-batch-label">🔢 Создать за раз:</span>';
+    html += '<button type="button" class="craft-batch-btn" onclick="adjustCraftBatchQty(-1)" aria-label="Меньше">−</button>';
+    html += '<input type="number" id="craftBatchQty" class="craft-batch-input" min="1" max="' + CRAFT_BATCH_MAX + '" value="1" onchange="clampCraftBatchInput()" onblur="clampCraftBatchInput()">';
+    html += '<button type="button" class="craft-batch-btn" onclick="adjustCraftBatchQty(1)" aria-label="Больше">+</button>';
+    html += '<span class="craft-batch-hint">макс. ' + CRAFT_BATCH_MAX + ' · по материалам</span>';
     html += '</div>';
     html += '<div id="craftResult" class="craft-result-panel"></div>';
     
@@ -597,7 +725,7 @@ function showCraftingRecipes(profId) {
     bindCraftRecipeGrid(profId);
 }
 
-function prepareCraft(profId, recipeName) {
+function prepareCraft(profId, recipeName, craftCount) {
     if (pendingCraftData) flushPendingCraft();
     const allRecipes = getAllRecipesForProfession(profId);
     const recipe = allRecipes.find(r => r.name === recipeName);
@@ -616,7 +744,19 @@ function prepareCraft(profId, recipeName) {
     normalizeProfessionProf(prof);
     applyProfessionTierUps(prof);
     const bonuses = getProfessionBonuses(prof.tier);
-    const blockReason = getCraftBlockReason(normRecipe, profId);
+
+    let qty = parseInt(craftCount, 10);
+    if (!Number.isFinite(qty) || qty < 1) qty = 1;
+    qty = Math.min(CRAFT_BATCH_MAX, Math.floor(qty));
+    const maxCraft = getMaxCraftCount(normRecipe, profId);
+    if (maxCraft <= 0) {
+        const blockReason = getCraftBlockReason(normRecipe, profId, 1);
+        addMessage(`❌ ${blockReason || 'Нельзя создать'}`, 'error');
+        return;
+    }
+    qty = Math.min(qty, maxCraft);
+
+    const blockReason = getCraftBlockReason(normRecipe, profId, qty);
     if (blockReason) {
         addMessage(`❌ ${blockReason}`, 'error');
         return;
@@ -628,15 +768,17 @@ function prepareCraft(profId, recipeName) {
         return;
     }
     
-    consumePlayerResources(materials);
+    consumePlayerResources(scaleRecipeMaterials(materials, qty));
     
+    const perExp = normRecipe.exp || normRecipe.time || 0;
     pendingCraftData = {
         profId: profId,
         recipe: normRecipe,
-        adjustedExp: normRecipe.exp || normRecipe.time || 0,
+        adjustedExp: perExp,
         bonuses: bonuses,
-        actualMaterials: materials,
-        savedMaterials: false
+        actualMaterials: scaleRecipeMaterials(materials, qty),
+        savedMaterials: false,
+        batchCount: qty
     };
     
     // Показываем результат
@@ -646,10 +788,11 @@ function prepareCraft(profId, recipeName) {
         saveGame();
         return;
     }
+    const qtyLabel = qty > 1 ? ' ×' + qty : '';
     let resultHtml = '<div style="background: rgba(0,0,0,0.5); border-radius: 10px; padding: 15px;">';
     resultHtml += '<div style="margin-bottom: 10px;">🔨 <strong>Крафт завершён!</strong></div>';
-    resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано: <span style="color: var(--gold); font-weight: bold;">' + normRecipe.name + '</span></div>';
-    resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (normRecipe.exp || normRecipe.time || 0) + ' XP</div>';
+    resultHtml += '<div style="font-size: 13px; margin-bottom: 8px;">📦 Создано' + qtyLabel + ': <span style="color: var(--gold); font-weight: bold;">' + normRecipe.name + '</span></div>';
+    resultHtml += '<div style="font-size: 11px; margin-top: 5px;">⭐ Опыт: +' + (perExp * qty) + ' XP</div>';
     if (bonuses.craftQualityBonus > 0) {
         resultHtml += '<div style="font-size: 11px; color: #f0c040;">✨ Бонус качества: +' + Math.floor(bonuses.craftQualityBonus * 100) + '%</div>';
     }
@@ -673,6 +816,12 @@ window.normalizeRecipeForCraft = normalizeRecipeForCraft;
 window.getCraftBlockReason = getCraftBlockReason;
 window.getProfessionLearnBlockReason = getProfessionLearnBlockReason;
 window.getResourcesAtLocationForProfession = getResourcesAtLocationForProfession;
+window.getGatherableResourceDefsAtLocation = getGatherableResourceDefsAtLocation;
+window.renderGatherProfessionIconsHtml = renderGatherProfessionIconsHtml;
 window.formatLocationResourcesHint = formatLocationResourcesHint;
+window.getMaxCraftCount = getMaxCraftCount;
+window.scaleRecipeMaterials = scaleRecipeMaterials;
+window.clampCraftBatchInput = clampCraftBatchInput;
+window.adjustCraftBatchQty = adjustCraftBatchQty;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
