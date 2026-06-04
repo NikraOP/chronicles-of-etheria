@@ -75,7 +75,7 @@ const ABILITIES_DB = {
             abilities: [
                 {name:'Ледяная стрела',desc:'100% урона, заморозка 1 ход',lvl:1,cd:4,mana:18,dmg:100,icon:'❄️',effect:{type:'Заморозка',dur:1}},
                 {name:'Ледяная тюрьма',desc:'Заморозка 1 ход (без урона)',lvl:5,cd:6,mana:30,icon:'🧊',effect:{type:'Заморозка',dur:1},noDamage:true},
-                {name:'Ледяной щит',desc:'+35% защиты + щит 30% HP',lvl:10,cd:6,mana:25,icon:'🛡️',buff:{def:35,dur:2},maxHpShield:30,dur:2},
+                {name:'Ледяной щит',desc:'+35% защиты + щит 30% HP',lvl:10,cd:5,mana:25,icon:'🛡️',buff:{def:35,dur:2},maxHpShield:30,dur:2},
                 {name:'Ледяная буря',desc:'100% урона всем, заморозка',lvl:15,cd:7,mana:45,dmg:100,icon:'🌨️',aoe:true,effect:{type:'Заморозка',dur:1}},
                 {name:'Абсолютный холод',desc:'200% урона, заморозка',lvl:20,cd:7,mana:50,dmg:200,icon:'🥶',effect:{type:'Заморозка',dur:1},dispelBuffs:true},
                 {name:'Снежная буря',desc:'130% урона всем, +8 маны за заморозку',lvl:25,cd:6,mana:48,dmg:130,icon:'🌨️',aoe:true,effect:{type:'Заморозка',dur:1},manaPerFrozen:8},
