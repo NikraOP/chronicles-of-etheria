@@ -7,6 +7,7 @@
     "build:pvp-transport": "esbuild js/vendor/trystero-nostr.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-nostr.bundle.mjs",
     "build:pvp-transport-mqtt": "esbuild js/vendor/trystero-mqtt.entry.js --bundle --format=esm --platform=browser --target=es2020 --minify --outfile=js/vendor/trystero-mqtt.bundle.mjs",
     "test:pvp-transport": "node scripts/test-pvp-transport-adapter.js",
+    "test:pvp": "node scripts/run-pvp-stress-suite.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

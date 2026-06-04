@@ -2,23 +2,33 @@
 const PVP_ROOM_PREFIX = 'etheria-pvp-';
 const PVP_VERSION = 2;
 const PVP_TRYSTERO_APP_ID = 'chronicles-of-etheria-pvp-v4';
-const PVP_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=10';
-const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=10';
-/** MQTT резерв: только HiveMQ (eclipseprojects.io часто недоступен из РФ). */
+const PVP_MQTT_MODULE_URL = '../vendor/trystero-mqtt.bundle.mjs?v=11';
+const PVP_NOSTR_MODULE_URL = '../vendor/trystero-nostr.bundle.mjs?v=11';
+/** MQTT — основной сигналинг (разные районы города); без eclipseprojects.io. */
 const PVP_MQTT_RELAY_URLS = Object.freeze([
-    'wss://broker.hivemq.com:8884/mqtt'
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://broker.emqx.io:8084/mqtt'
 ]);
-const PVP_MQTT_RELAY_REDUNDANCY = 1;
-/** Nostr — основной сигналинг; без yabu.me / purplerelay / hol.is / eclipse. */
+const PVP_MQTT_RELAY_REDUNDANCY = 2;
+/** Nostr — резерв; только relay с произвольными kind (Trystero ~20000–30000). */
 const PVP_NOSTR_RELAY_URLS = Object.freeze([
     'wss://nos.lol',
+    'wss://relay.mostr.pub',
     'wss://relay.primal.net',
     'wss://relay.damus.io',
-    'wss://nostr.wine',
     'wss://relay.snort.social',
-    'wss://purplepag.es'
+    'wss://nostr.wine',
+    'wss://relay.nostr.band'
 ]);
-const PVP_NOSTR_RELAY_REDUNDANCY = 3;
+/** Индексаторы / relay с whitelist kind — ломают Trystero (purplepag.es → kind 22717 blocked). */
+const PVP_NOSTR_RELAY_DENY_HOSTS = Object.freeze([
+    'purplepag.es',
+    'purplerelay.com',
+    'yabu.me',
+    'hol.is',
+    'user.kindpag.es'
+]);
+const PVP_NOSTR_RELAY_REDUNDANCY = 4;
 const PVP_ICE_MAX_TURN_GROUPS = 5;
 const PVP_ICE_PROBE_WAIT_MS = 20000;
 const PVP_ICE_PROBE_STUN_MS = 7000;
@@ -39,7 +49,7 @@ let pvpRoom = null;
 let pvpSendPacket = null;
 let pvpRemotePeerId = '';
 let pvpSessionId = 0;
-let pvpSignalingBackend = 'nostr';
+let pvpSignalingBackend = 'mqtt';
 let pvpTrysteroModuleCache = {};
 let pvpIceServersPromise = null;
 let pvpTransportIdlePromise = Promise.resolve();
@@ -674,7 +684,7 @@ function detachPvPTransportRoom() {
 
 function resetPvPConnection() {
     pvpSessionId++;
-    pvpSignalingBackend = 'nostr';
+    pvpSignalingBackend = 'mqtt';
     pvpIceBuildPreferTurnOnly = false;
     pvpIceServersPromise = null;
     pvpTransportIdlePromise = pvpTransportIdlePromise
@@ -1198,7 +1208,7 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">PvP: Nostr-сигналинг + TURN (Яндекс Браузер, без VPN). <strong>Оба</strong> — один Metered Credential API Key. Ctrl+Shift+R. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">metered.ca/openrelay</a></p>
+            <p class="pvp-hint">PvP: MQTT→Nostr + TURN для игры из разных районов (Яндекс, без VPN). <strong>Оба</strong> — один Metered Credential API Key. Ctrl+Shift+R. <a href="https://www.metered.ca/tools/openrelay/" target="_blank" rel="noopener">metered.ca/openrelay</a></p>
             <div class="pvp-metered-key-row">
                 <label class="pvp-room-label" for="pvpMeteredApiKey">Credential API Key (не Secret Key sk_…)</label>
                 <input id="pvpMeteredApiKey" class="hero-input pvp-code-input" type="password" autocomplete="off" placeholder="Show API Key у TURN credential в Metered">
@@ -1261,11 +1271,21 @@ function getPvPStatusLabel() {
     return labels[pvpState.status] || pvpState.status;
 }
 
+function isPvPNostrRelayDenied(url) {
+    const lower = String(url || '').toLowerCase();
+    return PVP_NOSTR_RELAY_DENY_HOSTS.some(host => lower.includes(host));
+}
+
+function getPvPNostrRelayUrlsFiltered() {
+    return PVP_NOSTR_RELAY_URLS.filter(url => !isPvPNostrRelayDenied(url));
+}
+
 function getPvPSignalingRelayConfig() {
     if (pvpSignalingBackend === 'nostr') {
+        const urls = getPvPNostrRelayUrlsFiltered();
         return {
-            urls: [...PVP_NOSTR_RELAY_URLS],
-            redundancy: Math.min(PVP_NOSTR_RELAY_REDUNDANCY, PVP_NOSTR_RELAY_URLS.length)
+            urls: [...urls],
+            redundancy: Math.min(PVP_NOSTR_RELAY_REDUNDANCY, urls.length)
         };
     }
     return {
@@ -1358,6 +1378,12 @@ function logPvPIceProbeResult(probe, sessionId) {
 function isPvPTurnJoinError(details) {
     const err = details && details.error ? String(details.error) : '';
     return /turn|could not connect to peer after exchanging sdp|unreachable/i.test(err.toLowerCase());
+}
+
+function isPvPSignalingError(details) {
+    const err = details && details.error ? String(details.error) : '';
+    const lower = err.toLowerCase();
+    return /websocket|mqtt|nostr|relay failure|failed to parse|kind \d+ is not allowed|blocked: kind/i.test(lower);
 }
 
 function retryPvPJoinRelayOnly(mod, code, sessionId, priorOpts) {
@@ -1460,8 +1486,7 @@ function setupPvPTransportRoom(mod, iceServers, code, sessionId, joinOpts) {
             if (details && details.error) {
                 pvpLog(`Технически: ${String(details.error).slice(0, 220)}`, 'error');
             }
-            const errLower = details && details.error ? String(details.error).toLowerCase() : '';
-            const signalingFail = /websocket|mqtt|nostr|relay failure|failed to parse/i.test(errLower);
+            const signalingFail = isPvPSignalingError(details);
             if (signalingFail && !opts.triedMqtt && pvpSignalingBackend === 'nostr') {
                 retryPvPSignalingMqtt(code, sessionId, opts);
                 return;
@@ -1536,7 +1561,7 @@ function joinPvPTransportRoom(code, sessionId) {
                 if (sessionId !== pvpSessionId) return;
                 setupPvPTransportRoom(mod, iceServers, code, sessionId, {
                     iceTransportPolicy: 'all',
-                    triedNostr: true
+                    triedMqtt: true
                 });
             });
         })
@@ -1994,3 +2019,6 @@ window.getPvPSignalingBackend = () => pvpSignalingBackend;
 window.setPvPSignalingBackend = v => { pvpSignalingBackend = v; };
 window.ensurePvPRelayProbe = ensurePvPRelayProbe;
 window.filterPvPFirewallTurnUrls = filterPvPFirewallTurnUrls;
+window.getPvPNostrRelayUrlsFiltered = getPvPNostrRelayUrlsFiltered;
+window.isPvPNostrRelayDenied = isPvPNostrRelayDenied;
+window.isPvPSignalingError = isPvPSignalingError;

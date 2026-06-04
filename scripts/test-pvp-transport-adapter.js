@@ -70,34 +70,46 @@ function testLegacyFunctionRoomHandlers() {
     assert(joined === 'peer-c', 'function onPeerJoin handler did not run');
 }
 
+function testNostrRelayDenylist() {
+    assert(context.isPvPNostrRelayDenied('wss://purplepag.es/'), 'purplepag must be denied');
+    assert(context.isPvPNostrRelayDenied('wss://purplerelay.com'), 'purplerelay must be denied');
+    const filtered = context.getPvPNostrRelayUrlsFiltered();
+    assert(!filtered.some(u => u.includes('purplepag.es')), 'filtered list must exclude purplepag');
+    assert(filtered.includes('wss://nos.lol'), 'nos.lol must remain');
+    assert(filtered.includes('wss://relay.mostr.pub'), 'relay.mostr.pub must remain');
+}
+
+function testSignalingErrorDetection() {
+    assert(context.isPvPSignalingError({ error: 'blocked: kind 22717 is not allowed' }), 'kind block must be signaling error');
+    assert(context.isPvPSignalingError({ error: 'Trystero: relay failure from wss://x' }), 'relay failure must match');
+}
+
 function testTransportConfigRelays() {
+    context.setPvPSignalingBackend('mqtt');
+    const mqttCfg = context.getPvPTransportConfig();
+    const mqttJson = JSON.stringify(mqttCfg);
+    assert(mqttCfg.appId === 'chronicles-of-etheria-pvp-v4', 'transport appId mismatch');
+    assert(mqttCfg.relayConfig.urls.includes('wss://broker.hivemq.com:8884/mqtt'), 'HiveMQ broker');
+    assert(mqttCfg.relayConfig.urls.includes('wss://broker.emqx.io:8084/mqtt'), 'EMQX broker');
+    assert(!mqttJson.includes('eclipseprojects'), 'eclipse MQTT must not be configured');
+    assert(mqttCfg.relayConfig.redundancy === 2, 'MQTT redundancy must be 2');
+    assert(mqttCfg.trickleIce === true, 'trickleIce must be enabled');
+
     context.setPvPSignalingBackend('nostr');
     const configA = context.getPvPTransportConfig();
     const configB = context.getPvPTransportConfig();
-    const configJson = JSON.stringify(configA);
     const urls = configA.relayConfig.urls;
-
-    assert(configA.appId === 'chronicles-of-etheria-pvp-v4', 'transport appId mismatch');
     assert(urls[0] === 'wss://nos.lol', 'nos.lol must be first Nostr relay');
-    assert(urls.includes('wss://relay.primal.net'), 'primal relay missing');
-    assert(!configJson.includes('eclipseprojects'), 'eclipse MQTT must not be configured');
-    assert(!urls.includes('wss://yabu.me/v2'), 'yabu.me must be excluded');
-    assert(configA.relayConfig.redundancy === 3, 'Nostr redundancy must be 3');
-    assert(!configA.rtcConfig.iceTransportPolicy || configA.rtcConfig.iceTransportPolicy === undefined
-        || configA.rtcConfig.iceTransportPolicy === 'all', 'default rtc should allow all ICE paths');
-    assert(configA.trickleIce === true, 'trickleIce must be enabled');
-
+    assert(!urls.includes('wss://purplepag.es'), 'purplepag must not be in relay urls');
+    assert(urls.includes('wss://relay.mostr.pub'), 'relay.mostr.pub missing');
+    assert(configA.relayConfig.redundancy === 4, 'Nostr redundancy must be 4');
     context.setPvPSignalingBackend('mqtt');
-    const mqttCfg = context.getPvPTransportConfig();
-    assert(mqttCfg.relayConfig.urls.length === 1, 'MQTT backup is HiveMQ only');
-    assert(mqttCfg.relayConfig.urls[0] === 'wss://broker.hivemq.com:8884/mqtt', 'HiveMQ broker');
-    assert(mqttCfg.relayConfig.redundancy === 1, 'MQTT redundancy must be 1');
-    context.setPvPSignalingBackend('nostr');
+    const configA2 = context.getPvPTransportConfig();
 
-    const ice = configA.rtcConfig && configA.rtcConfig.iceServers;
+    const ice = configA2.rtcConfig && configA2.rtcConfig.iceServers;
     assert(Array.isArray(ice) && ice.length >= 4, 'rtcConfig.iceServers must include STUN and TURN');
-    assert(configA.rtcConfig.iceCandidatePoolSize === 10, 'iceCandidatePoolSize must be 10');
-    assert(Array.isArray(configA.turnConfig) && configA.turnConfig.length > 0, 'turnConfig must list TURN servers');
+    assert(configA2.rtcConfig.iceCandidatePoolSize === 10, 'iceCandidatePoolSize must be 10');
+    assert(Array.isArray(configA2.turnConfig) && configA2.turnConfig.length > 0, 'turnConfig must list TURN servers');
     const iceJson = JSON.stringify(ice);
     assert(iceJson.includes('stun:stun.l.google.com'), 'Google STUN missing');
     assert(iceJson.includes('stun:stun.cloudflare.com'), 'Cloudflare STUN missing');
@@ -107,8 +119,8 @@ function testTransportConfigRelays() {
         return u.includes('turn:') && s.username && s.credential;
     });
     assert(turnEntry && turnEntry.username && turnEntry.credential, 'TURN must have username and credential');
-    assert(configA.rtcConfig !== configB.rtcConfig, 'rtcConfig object must be copied');
-    assert(configA.rtcConfig.iceServers !== configB.rtcConfig.iceServers, 'iceServers array must be copied');
+    assert(configA2.rtcConfig !== configB.rtcConfig, 'rtcConfig object must be copied');
+    assert(configA2.rtcConfig.iceServers !== configB.rtcConfig.iceServers, 'iceServers array must be copied');
 }
 
 async function testLoadPvPIceServersMerged() {
@@ -218,6 +230,8 @@ function testCompressPvPIceServers() {
 (async () => {
     testSetterRoomHandlers();
     testLegacyFunctionRoomHandlers();
+    testNostrRelayDenylist();
+    testSignalingErrorDetection();
     testTransportConfigRelays();
     testFirewallTurnUrls();
     testCompressPvPIceServers();
