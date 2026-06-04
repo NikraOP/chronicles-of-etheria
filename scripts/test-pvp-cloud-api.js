@@ -16,10 +16,11 @@ async function main() {
         maxHealth: 200, health: 200, attack: 30, defense: 10, dodgeChance: 5,
         abilities: []
     };
+    const roomCode = 'T' + Date.now().toString(36).toUpperCase().slice(-5);
     const created = await req('/api/v1/pvp/room/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomCode: 'TEST01', snapshot: snap })
+        body: JSON.stringify({ roomCode: roomCode, snapshot: snap })
     });
     if (!created.roomCode || !created.sessionId) throw new Error('create missing fields');
 
