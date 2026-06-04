@@ -291,8 +291,9 @@
                     '<div class="account-char-card__time">🕐 ' + escapeAccHtml(formatCharTime(c.updatedAt)) + '</div>' +
                     '</div>' +
                     '<div class="account-char-card__actions">' +
-                    '<button type="button" class="action-btn" onclick="playAccountCharacter(' + JSON.stringify(c.id) + ')">Играть</button>' +
-                    '<button type="button" class="action-btn danger" onclick="deleteAccountCharacter(' + JSON.stringify(c.id) + ',' + JSON.stringify(c.name) + ')">Удалить</button>' +
+                    '<button type="button" class="action-btn" data-account-play-id="' + escapeAccHtml(c.id) + '">Играть</button>' +
+                    '<button type="button" class="action-btn danger" data-account-delete-id="' + escapeAccHtml(c.id) +
+                    '" data-account-delete-name="' + escapeAccHtml(c.name) + '">Удалить</button>' +
                     '</div></article>';
             });
             listHtml += '</div>';
@@ -504,6 +505,26 @@
     }
 
     hookSaveGameForCloud();
+
+    function bindAccountHubClickDelegation() {
+        if (window.__accountHubClickBound) return;
+        document.addEventListener('click', function (e) {
+            const playBtn = e.target && e.target.closest ? e.target.closest('[data-account-play-id]') : null;
+            if (playBtn) {
+                const id = playBtn.getAttribute('data-account-play-id');
+                if (id) playAccountCharacter(id);
+                return;
+            }
+            const delBtn = e.target && e.target.closest ? e.target.closest('[data-account-delete-id]') : null;
+            if (delBtn) {
+                const id = delBtn.getAttribute('data-account-delete-id');
+                const name = delBtn.getAttribute('data-account-delete-name') || '';
+                if (id) deleteAccountCharacter(id, name);
+            }
+        });
+        window.__accountHubClickBound = true;
+    }
+    bindAccountHubClickDelegation();
 
     window.bootstrapGameAccount = bootstrapGameAccount;
     window.setAccountAuthTab = setAuthTab;

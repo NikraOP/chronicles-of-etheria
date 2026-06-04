@@ -363,6 +363,9 @@ function friendsErrorMessage(err) {
     if (code === 'not_friend') return 'Можно вызывать на бой только друзей из списка.';
     if (code === 'invalid_target') return 'Некорректный игрок для вызова.';
     if (code === 'invite_not_found') return 'Приглашение устарело или уже обработано.';
+    if (code === 'not_friend') return 'Можно вызывать только из списка друзей.';
+    if (code === 'room_exists') return 'Не удалось создать комнату — попробуйте снова.';
+    if (code === 'room_not_found') return 'Комната PvP не найдена (истекла).';
     if (code === 'room_exists') return 'Комната уже занята — попробуйте снова.';
     if (code === 'code_not_found') return 'Код не найден. Друг должен хотя бы раз открыть вкладку «Друзья» в игре.';
     if (code === 'self_friend') return 'Нельзя добавить свой собственный код.';
@@ -636,10 +639,11 @@ function scheduleFriendsInvitePoll(delayMs) {
 }
 
 async function friendsInvitePollTick() {
-    if (!player || !player.friends || !player.friends.playerId) {
+    if (!player) {
         scheduleFriendsInvitePoll(8000);
         return;
     }
+    ensureFriendsPlayerState();
     if (getFriendsBackendKind() !== 'http') return;
     if (friendsInvitePollInFlight) return;
     if (window._battleInviteModalOpen || window.pvpBattleActive) {
@@ -648,7 +652,13 @@ async function friendsInvitePollTick() {
     }
     friendsInvitePollInFlight = true;
     try {
-        if (!player.friends.syncToken) await ensureFriendsOnlineSession({ silent: true });
+        if (!player.friends.playerId || !player.friends.syncToken) {
+            await ensureFriendsOnlineSession({ silent: true });
+        }
+        if (!player.friends.playerId) {
+            scheduleFriendsInvitePoll(8000);
+            return;
+        }
         const data = await friendsHttpFetch(
             '/api/v1/pvp/invites/poll?since=' + encodeURIComponent(String(friendsInvitePollSince || 0)) +
             '&wait=' + FRIENDS_INVITE_POLL_WAIT_SEC
@@ -754,8 +764,9 @@ function renderFriendCard(entry) {
         '<footer class="friend-card__footer">' +
         '<div class="friend-card__actions">' +
         (playerId
-            ? '<button type="button" class="action-btn friend-duel-btn" onclick="challengeFriendToPvP(' +
-                JSON.stringify(playerId) + ',' + JSON.stringify(p.name || 'Герой') + ')">⚔️ Вызвать на бой</button>'
+            ? '<button type="button" class="action-btn friend-duel-btn" data-pvp-challenge-id="' +
+                escapeFriendsHtml(playerId) + '" data-pvp-challenge-name="' +
+                escapeFriendsHtml(p.name || 'Герой') + '">⚔️ Вызвать на бой</button>'
             : '') +
         '</div>' +
         '<span class="friend-card__footer-time"><span class="friend-card__footer-icon" aria-hidden="true">🕐</span> Обновлено: ' +
@@ -905,16 +916,35 @@ function friendsHookRenderGame() {
     if (typeof orig !== 'function') return;
     window.renderGame = function () {
         orig.apply(this, arguments);
-        if (player && player.friends && player.friends.playerId) {
+        if (player && player.friends) {
             scheduleFriendsProfilePush();
             startFriendsInvitePolling();
+            if (!player.friends.playerId && typeof ensureFriendsOnlineSession === 'function') {
+                ensureFriendsOnlineSession({ silent: true });
+            }
         }
     };
     window.__friendsRenderHooked = true;
 }
 
+function bindFriendsDuelClickDelegation() {
+    if (window.__friendsDuelClickBound) return;
+    document.addEventListener('click', function (e) {
+        const btn = e.target && e.target.closest ? e.target.closest('.friend-duel-btn') : null;
+        if (!btn) return;
+        const id = btn.getAttribute('data-pvp-challenge-id');
+        const name = btn.getAttribute('data-pvp-challenge-name') || 'друг';
+        if (id && typeof challengeFriendToPvP === 'function') {
+            e.preventDefault();
+            challengeFriendToPvP(id, name);
+        }
+    });
+    window.__friendsDuelClickBound = true;
+}
+
 friendsHookSaveGame();
 friendsHookRenderGame();
+bindFriendsDuelClickDelegation();
 
 window.showFriends = showFriends;
 window.syncFriendsProfile = syncFriendsProfile;

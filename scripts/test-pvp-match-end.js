@@ -41,6 +41,8 @@ assert(arenaSrc.includes('equipment: sanitizePvPEquipmentMap'), 'snapshot carrie
 assert(arenaSrc.includes('renderPvPEquipmentGrid'), 'arena equipment grid renderer');
 assert(arenaSrc.includes('pvp-fighters-board'), 'fighters board layout');
 assert(friendsSrc.includes('challengeFriendToPvP'), 'friends challenge button handler');
+assert(friendsSrc.includes('data-pvp-challenge-id'), 'duel button uses data attrs not broken onclick');
+assert(friendsSrc.includes('bindFriendsDuelClickDelegation'), 'duel click delegation');
 assert(friendsSrc.includes('showBattleInviteModal'), 'battle invite modal');
 assert(friendsSrc.includes('/api/v1/pvp/invites/poll'), 'invite poll endpoint client');
 assert(arenaSrc.includes('startPvPChallengeHost'), 'host from invite session');
