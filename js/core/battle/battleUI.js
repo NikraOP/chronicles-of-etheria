@@ -16,7 +16,12 @@ function buildStagingRosterPortraitHtml(m) {
 
 function buildStagingMonsterRosterHtml(candidates, isFixed) {
     if (!candidates || !candidates.length) {
-        return '<p class="battle-staging-roster-empty">В этой локации нет противников.</p>';
+        return '<div class="battle-staging-roster battle-staging-roster--empty">' +
+            '<div class="battle-staging-roster-head">' +
+                '<h3 class="battle-staging-roster-title">👹 Кто может выйти против вас</h3>' +
+            '</div>' +
+            '<p class="battle-staging-roster-empty">В этой локации нет противников.</p>' +
+            '</div>';
     }
     let list = '';
     for (let i = 0; i < candidates.length; i++) {
@@ -30,10 +35,15 @@ function buildStagingMonsterRosterHtml(candidates, isFixed) {
     const hint = isFixed
         ? 'Противник определён событием — появится после «В бой».'
         : 'Конкретный враг выбирается случайно из списка при нажатии «В бой».';
+    const count = candidates.length;
+    const countLabel = count === 1 ? '1 вариант' : count + ' вариантов';
     return '<div class="battle-staging-roster">' +
-        '<h3 class="battle-staging-roster-title">' + title + '</h3>' +
+        '<div class="battle-staging-roster-head">' +
+            '<h3 class="battle-staging-roster-title">' + title + '</h3>' +
+            '<p class="battle-staging-roster-hint">' + hint + '</p>' +
+            '<span class="battle-staging-roster-count">' + countLabel + '</span>' +
+        '</div>' +
         '<ul class="battle-staging-roster-list">' + list + '</ul>' +
-        '<p class="battle-staging-roster-hint">' + hint + '</p>' +
         '</div>';
 }
 
@@ -48,27 +58,29 @@ function renderBattleStaging() {
     const pHp = player.maxHealth > 0 ? (player.health / player.maxHealth * 100) : 100;
 
     const html = '<div class="battle-wrapper battle-wrapper--staging">' +
-        '<div class="battle-staging-header">' +
-            '<h2 class="battle-staging-title">⚔️ ' + escapeBattleHtml(loc.name) + '</h2>' +
-            '<p class="battle-staging-sub">Возможные противники слева. Герой на месте боя — справа. Нажмите «В бой», чтобы встретить врага.</p>' +
-        '</div>' +
-        '<div class="battle-arena battle-arena--staging" style="background:' + bgStyle + ';" id="battleArena">' +
-            '<div class="combatant-wrapper battle-staging-roster-slot" id="stagingRosterSlot">' +
-                '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
+        '<div class="battle-staging-card">' +
+            '<div class="battle-staging-header">' +
+                '<h2 class="battle-staging-title">⚔️ ' + escapeBattleHtml(loc.name) + '</h2>' +
+                '<p class="battle-staging-sub">Список возможных противников — слева. Ваш герой занимает боевую позицию справа.</p>' +
             '</div>' +
-            '<div class="combatant-wrapper" id="playerWrapper">' +
-                '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
-                '<div class="combatant-info">' +
-                    '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
-                    '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
-                    '<div class="health-text">' + player.health + '/' + player.maxHealth +
-                        (player.class === 'Маг' ? ' | 💎' + player.mana + '/' + player.maxMana : '') + '</div>' +
+            '<div class="battle-arena battle-arena--staging" style="background:' + bgStyle + ';" id="battleArena">' +
+                '<div class="combatant-wrapper battle-staging-roster-slot" id="stagingRosterSlot">' +
+                    '<div class="battle-staging-roster-panel">' + rosterHtml + '</div>' +
+                '</div>' +
+                '<div class="combatant-wrapper battle-staging-player-slot" id="playerWrapper">' +
+                    '<div class="combatant-sprite" id="playerSprite"><span class="sprite-fallback">' + av + '</span></div>' +
+                    '<div class="combatant-info">' +
+                        '<div class="combatant-name" style="color:#2ecc71;">' + escapeBattleHtml(player.name) + '</div>' +
+                        '<div class="health-bar"><div class="health-fill player-hp" style="width:' + pHp + '%;"></div></div>' +
+                        '<div class="health-text">' + player.health + '/' + player.maxHealth +
+                            (player.class === 'Маг' ? ' | 💎' + player.mana + '/' + player.maxMana : '') + '</div>' +
+                    '</div>' +
                 '</div>' +
             '</div>' +
-        '</div>' +
-        '<div class="battle-staging-commit-wrap">' +
-            '<button type="button" class="action-btn battle-commit-btn" id="battleCommitBtn" onclick="commitBattleStart()">⚔️ В бой</button>' +
-            '<button type="button" class="action-btn battle-staging-leave-btn" onclick="fleeBattle()">↩️ Покинуть поле</button>' +
+            '<div class="battle-staging-commit-wrap">' +
+                '<button type="button" class="action-btn battle-commit-btn" id="battleCommitBtn" onclick="commitBattleStart()">⚔️ В бой</button>' +
+                '<button type="button" class="action-btn battle-staging-leave-btn" onclick="fleeBattle()">↩️ Покинуть поле</button>' +
+            '</div>' +
         '</div>' +
     '</div>';
 

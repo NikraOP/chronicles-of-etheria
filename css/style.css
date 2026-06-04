@@ -1288,125 +1288,192 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
     flex-direction: column;
 }
 .battle-wrapper--staging {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.battle-staging-card {
+    flex: 1;
     min-height: min(68vh, 640px);
     display: flex;
     flex-direction: column;
-    flex: 1;
     width: 100%;
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(232, 184, 74, 0.22);
+    background: linear-gradient(180deg, rgba(12, 10, 22, 0.96) 0%, rgba(8, 8, 16, 0.98) 100%);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
 }
 .battle-staging-header {
+    flex-shrink: 0;
     text-align: center;
-    margin-bottom: 12px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.2);
 }
 .battle-staging-title {
     font-family: var(--font-display);
     font-size: clamp(18px, 4vw, 22px);
     color: var(--gold-light);
     margin: 0 0 6px;
+    letter-spacing: 0.02em;
 }
 .battle-staging-sub {
     font-size: 12px;
     color: var(--text-secondary);
-    margin: 0;
-    line-height: 1.45;
-    max-width: 520px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0 auto;
+    line-height: 1.5;
+    max-width: 560px;
 }
 .battle-arena--staging {
     flex: 1;
+    min-height: 0;
     display: grid !important;
-    grid-template-columns: minmax(0, 1.75fr) minmax(170px, 220px);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
     grid-template-rows: 1fr;
-    align-items: end !important;
+    align-items: stretch !important;
     justify-content: stretch !important;
-    min-height: min(50vh, 400px);
-    padding: 20px 22px 24px;
-    gap: 18px 20px;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
+    min-height: min(48vh, 420px);
+    padding: 18px 20px;
+    gap: 16px 20px;
+    margin-bottom: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 .battle-staging-roster-slot {
     margin: 0 !important;
     width: 100% !important;
     max-width: none !important;
-    align-self: stretch;
+    align-self: stretch !important;
+    justify-self: stretch;
     z-index: 2;
     grid-column: 1;
     min-width: 0;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
 }
-.battle-arena--staging #playerWrapper {
+.battle-arena--staging .battle-staging-player-slot,
+.battle-arena--staging #playerWrapper.battle-staging-player-slot {
     margin: 0 !important;
-    margin-left: auto !important;
-    align-self: flex-end;
+    width: auto !important;
+    max-width: 100% !important;
+    align-self: end !important;
+    justify-self: center;
     grid-column: 2;
-    justify-self: end;
+    min-width: 0;
 }
 .battle-staging-roster-panel {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
     width: 100%;
     display: flex;
     align-items: stretch;
-    justify-content: center;
 }
 .battle-staging-roster {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
     width: 100%;
-    padding: 18px 20px;
-    background: rgba(8, 8, 16, 0.82);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(231, 76, 60, 0.4);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px;
+    background: rgba(6, 6, 14, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(231, 76, 60, 0.35);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow), inset 0 0 32px rgba(192, 57, 43, 0.12);
+    box-shadow: var(--shadow), inset 0 0 40px rgba(192, 57, 43, 0.1);
+}
+.battle-staging-roster-head {
+    flex-shrink: 0;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .battle-staging-roster-title {
-    margin: 0 0 12px;
-    font-size: 14px;
+    margin: 0 0 8px;
+    font-family: var(--font-display);
+    font-size: clamp(14px, 2.2vw, 16px);
     font-weight: 700;
     color: #f5b7b1;
-    text-align: center;
+    text-align: left;
+    line-height: 1.35;
+}
+.battle-staging-roster-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: left;
+    line-height: 1.5;
+}
+.battle-staging-roster-count {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    background: rgba(232, 184, 74, 0.12);
+    border: 1px solid rgba(232, 184, 74, 0.28);
+    border-radius: var(--radius-full);
+    padding: 4px 10px;
 }
 .battle-staging-roster-list {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 4px 2px 4px 0;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-height: min(48vh, 420px);
+    gap: 10px;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 .battle-staging-roster-item {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 14px 18px;
-    min-height: 96px;
-    background: rgba(255, 255, 255, 0.04);
+    gap: 16px;
+    padding: 12px 16px;
+    min-height: 92px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: border-color 0.2s, background 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 }
 .battle-staging-roster-item:hover {
-    background: rgba(231, 76, 60, 0.08);
-    border-color: rgba(231, 76, 60, 0.25);
+    background: rgba(231, 76, 60, 0.1);
+    border-color: rgba(231, 76, 60, 0.35);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
 }
 .battle-staging-roster-portrait {
-    width: 88px;
-    height: 88px;
+    width: 84px;
+    height: 84px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: radial-gradient(circle at 50% 80%, rgba(231, 76, 60, 0.12) 0%, rgba(0, 0, 0, 0.5) 70%);
+    border: 1px solid rgba(232, 184, 74, 0.2);
     border-radius: var(--radius-sm);
     overflow: hidden;
-    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.5);
 }
 .battle-staging-roster-portrait--emoji,
 .battle-staging-roster-portrait-fallback {
-    font-size: 40px;
+    font-size: 42px;
     line-height: 1;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
@@ -1420,25 +1487,27 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
 .battle-staging-roster-name {
     flex: 1;
     min-width: 0;
-    font-size: 16px;
+    font-size: clamp(14px, 2vw, 17px);
     font-weight: 600;
     color: var(--text-primary);
-    line-height: 1.4;
+    line-height: 1.45;
     text-align: left;
     white-space: normal;
+    overflow-wrap: anywhere;
     word-break: break-word;
 }
-.battle-staging-roster-hint {
-    margin: 14px 0 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-align: center;
-    line-height: 1.45;
-}
 .battle-staging-roster-empty {
-    font-size: 12px;
+    margin: 0;
+    padding: 24px 12px;
+    font-size: 13px;
     color: var(--text-secondary);
     text-align: center;
+    line-height: 1.5;
+}
+.battle-staging-roster--empty .battle-staging-roster-head {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 .battle-staging-commit-wrap {
     position: relative;
@@ -1449,12 +1518,12 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 18px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-    margin-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-    background: rgba(8, 10, 18, 0.96);
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    padding: 16px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    margin-top: 0;
+    border-top: 1px solid rgba(232, 184, 74, 0.15);
+    border-radius: 0;
+    background: rgba(6, 8, 14, 0.98);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .battle-commit-btn {
     width: min(100%, 320px);
@@ -1479,33 +1548,60 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
 }
 @media (min-width: 1100px) {
     .battle-arena--staging {
-        grid-template-columns: minmax(0, 2fr) minmax(180px, 240px);
-        padding: 22px 28px 26px;
+        grid-template-columns: minmax(0, 7.5fr) minmax(0, 2.5fr);
+        padding: 20px 24px;
+        gap: 20px 24px;
     }
-    .battle-staging-roster-title {
-        font-size: 15px;
+    .battle-staging-roster {
+        padding: 18px 22px;
     }
-    .battle-staging-roster-name {
-        font-size: 17px;
+    .battle-staging-roster-portrait {
+        width: 96px;
+        height: 96px;
+    }
+    .battle-staging-roster-item {
+        min-height: 104px;
+        padding: 14px 18px;
+        gap: 18px;
     }
 }
 @media (max-width: 768px) {
+    .battle-staging-card {
+        min-height: min(72vh, 680px);
+    }
+    .battle-staging-header {
+        padding: 14px 16px 10px;
+    }
     .battle-arena--staging {
         display: flex !important;
         flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-height: 360px;
-        padding: 16px 14px 20px;
-        gap: 14px;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        min-height: 0;
+        padding: 14px 14px 16px;
+        gap: 16px;
     }
     .battle-staging-roster-slot,
-    .battle-arena--staging #playerWrapper {
+    .battle-arena--staging .battle-staging-player-slot,
+    .battle-arena--staging #playerWrapper.battle-staging-player-slot {
         margin: 0 !important;
         width: 100% !important;
-        max-width: 100%;
-        align-self: center;
+        max-width: 100% !important;
+        align-self: stretch !important;
+        justify-self: stretch;
         grid-column: auto;
+    }
+    .battle-staging-roster-slot {
+        order: 1;
+        flex: 1;
+        min-height: 200px;
+    }
+    .battle-arena--staging .battle-staging-player-slot,
+    .battle-arena--staging #playerWrapper.battle-staging-player-slot {
+        order: 2;
+        flex-shrink: 0;
+        align-self: center !important;
+        max-width: 200px !important;
     }
     .battle-staging-roster-portrait {
         width: 72px;
@@ -1518,21 +1614,12 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
     .battle-staging-roster-item {
         gap: 14px;
         padding: 11px 14px;
-    }
-    .battle-arena--staging #playerWrapper {
-        order: 2;
-    }
-    .battle-staging-roster-slot {
-        order: 1;
+        min-height: 80px;
     }
 }
 @media (max-width: 600px) {
-    .battle-arena--staging { min-height: 300px; }
     .battle-staging-roster {
-        padding: 14px 16px;
-    }
-    .battle-staging-roster-list {
-        max-height: min(38vh, 280px);
+        padding: 14px 14px;
     }
     .battle-staging-roster-portrait {
         width: 64px;
@@ -1541,9 +1628,6 @@ body.battle-zone-active .main-content--battle-zone #dynamicContent {
     .battle-staging-roster-portrait--emoji,
     .battle-staging-roster-portrait-fallback {
         font-size: 32px;
-    }
-    .battle-staging-roster-name {
-        font-size: 14px;
     }
     .battle-commit-btn { padding: 14px 18px !important; font-size: 15px !important; }
 }
@@ -4351,6 +4435,69 @@ body.settings-open .main-header .settings-gear-btn {
     }
     .combatant-sprite .sprite-fallback {
         font-size: 48px;
+    }
+}
+
+/* ── Battle staging: overrides after global .battle-arena flex rules ── */
+.battle-arena.battle-arena--staging {
+    display: grid !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: stretch !important;
+    align-items: stretch !important;
+}
+.battle-arena--staging .battle-staging-roster-slot.combatant-wrapper {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+}
+.battle-arena--staging .battle-staging-player-slot.combatant-wrapper,
+.battle-arena--staging #playerWrapper.battle-staging-player-slot {
+    width: auto !important;
+    max-width: min(100%, 240px) !important;
+    margin: 0 !important;
+}
+@media (max-width: 768px) {
+    .battle-arena.battle-arena--staging {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+    }
+    .battle-arena--staging .battle-staging-roster-slot.combatant-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    .battle-arena--staging .battle-staging-player-slot.combatant-wrapper,
+    .battle-arena--staging #playerWrapper.battle-staging-player-slot {
+        width: 100% !important;
+        max-width: 200px !important;
+        margin: 0 auto !important;
+    }
+}
+@media (max-width: 599px) and (orientation: landscape) {
+    .battle-arena.battle-arena--staging {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        min-height: min(52vh, 280px) !important;
+        padding: 10px 12px !important;
+        gap: 10px !important;
+    }
+    .battle-arena--staging .battle-staging-roster-slot.combatant-wrapper {
+        width: 100% !important;
+        max-width: none !important;
+        order: 0 !important;
+    }
+    .battle-arena--staging .battle-staging-player-slot.combatant-wrapper,
+    .battle-arena--staging #playerWrapper.battle-staging-player-slot {
+        width: auto !important;
+        max-width: 100% !important;
+        order: 0 !important;
+        align-self: end !important;
     }
 }
 
