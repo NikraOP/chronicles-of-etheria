@@ -44,5 +44,13 @@ assert(ctx.resolveItemSellPrice({ name: 'Амулет бездны Бруйна'
 
 const html = ctx.buildShopSellItemCardHtml(items[0], 15);
 assert(html.indexOf('shop-item-card') !== -1, 'sell card uses shop classes');
+assert(html.indexOf('shop-item-card__stat-list') !== -1, 'sell card uses vertical stat list');
+assert(html.indexOf('shop-item-card__stat-line') !== -1, 'sell card has stat lines');
+
+const scrollItem = items.find(i => i.type === 'gather_scroll');
+const scrollHtml = ctx.buildShopSellItemCardHtml(scrollItem, 10);
+assert(scrollHtml.indexOf('Тир ресурсов') !== -1, 'gather scroll tier line');
+assert(scrollHtml.indexOf('Сборов') !== -1, 'gather scroll gathers line');
+assert(scrollHtml.split('shop-item-card__stat-line').length >= 3, 'gather scroll has multiple stat lines');
 
 console.log('test-shop-sell: OK');

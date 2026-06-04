@@ -1837,10 +1837,44 @@ body.gather-screen-flash::after {
     word-break: break-word;
 }
 .shop-item-card__stats {
+    margin-top: 6px;
+    min-width: 0;
+}
+.shop-item-card__stat-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.shop-item-card__stat-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    padding-left: 10px;
+    position: relative;
+    word-break: break-word;
+}
+.shop-item-card__stat-line::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+.shop-item-card__stat-empty {
     font-size: 11px;
     color: var(--text-secondary);
-    margin-top: 4px;
-    line-height: 1.35;
+    opacity: 0.7;
 }
 .shop-item-card__rarity {
     font-size: 10px;
@@ -2198,6 +2232,33 @@ h3 { font-size: 18px; }
     
     .shop-tabs { gap: 4px; }
     .shop-tab { padding: 4px 10px; font-size: 10px; }
+
+    #shopItems .shop-item-card .shop-item-card__row {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    #shopItems .shop-item-card__body {
+        flex: 1 1 calc(100% - 56px);
+        min-width: 0;
+    }
+    #shopItems .shop-item-card__price {
+        flex: 1 1 100%;
+        align-self: stretch;
+        text-align: left;
+        margin-top: 4px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+    #shopItems .shop-item-card__stat-line {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+    #shopItems .gather-scroll-shop-card .shop-item-card__stat-list {
+        gap: 5px;
+    }
+    #shopItems .gather-scroll-shop-card .shop-item-card__meta {
+        align-items: flex-start;
+    }
     
     .character-creation .class-option { width: 100px; }
     .class-option { width: 100px; padding: 8px; }
@@ -2245,11 +2306,16 @@ h3 { font-size: 18px; }
     
     .item-card { flex-direction: column; text-align: center; }
     #shopItems .shop-item-card .shop-item-card__row {
-        flex-direction: row;
         text-align: left;
     }
-    #shopItems .shop-item-card__price {
-        align-self: flex-start;
+    #shopItems .shop-item-card__stat-line {
+        padding-left: 9px;
+    }
+    #shopItems .shop-item-card__emoji {
+        font-size: 32px;
+    }
+    #shopItems .shop-item-card--buy {
+        padding: 12px;
     }
     .item-icon { margin: 0 auto; }
     

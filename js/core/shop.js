@@ -53,15 +53,22 @@ function renderGatherScrollShop() {
         const locked = player.level < meta.minPlayerLevel;
         const rarityColor = getRarityColor(meta.rarity);
         const mins = Math.round(meta.durationMs / 60000);
-        html += '<div class="item-card gather-scroll-shop-card" style="' + (canBuy ? 'cursor:pointer;' : 'opacity:0.75;') + 'background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:14px;" onclick="' +
+        html += '<div class="item-card shop-item-card shop-item-card--buy gather-scroll-shop-card' + (canBuy ? '' : ' shop-item-card--disabled') + '" onclick="' +
             (canBuy ? "buyGatherScroll('" + meta.name.replace(/'/g, "\\'") + "')" : '') + '">';
-        html += '<div style="display:flex;gap:12px;align-items:flex-start;">';
-        html += '<div style="font-size:40px;">' + meta.icon + '</div>';
-        html += '<div style="flex:1;"><div style="font-weight:700;color:' + rarityColor + ';">' + meta.name + '</div>';
-        html += '<div style="font-size:11px;margin:6px 0;">Тир ресурсов ≤ ' + meta.scrollTier + ' · ' + meta.maxGathers + ' сборов · ' + mins + ' мин · XP ×' + Math.round(meta.expMultiplier * 100) + '%</div>';
-        html += '<div style="font-size:10px;color:' + rarityColor + ';">' + getRarityDisplay(meta.rarity) + '</div>';
-        html += locked ? '<div style="font-size:10px;color:#e74c3c;margin-top:4px;">🔒 Ур. ' + meta.minPlayerLevel + '+</div>' : '';
-        html += '</div><div style="color:var(--gold);font-weight:700;">💰 ' + meta.shopPrice + '</div></div></div>';
+        html += '<div class="shop-item-card__row">';
+        html += '<div class="shop-item-card__icon"><div class="shop-item-card__emoji">' + meta.icon + '</div></div>';
+        html += '<div class="shop-item-card__body">';
+        html += '<div class="shop-item-card__name" style="color:' + rarityColor + ';">' + meta.name + '</div>';
+        html += '<div class="shop-item-card__stats"><ul class="shop-item-card__stat-list">';
+        html += '<li class="shop-item-card__stat-line">📜 Тир ресурсов ≤ ' + meta.scrollTier + '</li>';
+        html += '<li class="shop-item-card__stat-line">🔄 Сборов: ' + meta.maxGathers + '</li>';
+        html += '<li class="shop-item-card__stat-line">⏱️ ' + mins + ' мин</li>';
+        html += '<li class="shop-item-card__stat-line">✨ XP ×' + Math.round(meta.expMultiplier * 100) + '%</li>';
+        html += '</ul></div>';
+        html += '<div class="shop-item-card__meta"><span class="shop-item-card__rarity" style="color:' + rarityColor + ';">' + getRarityDisplay(meta.rarity) + '</span>';
+        if (locked) html += '<span class="shop-item-card__warn" style="margin:0;text-align:left;">🔒 Ур. ' + meta.minPlayerLevel + '+</span>';
+        html += '</div></div>';
+        html += '<div class="shop-item-card__price shop-item-card__price--gold">💰 ' + meta.shopPrice + '</div></div></div>';
     });
     html += '</div>';
     document.getElementById('shopItems').innerHTML = html;
@@ -146,9 +153,9 @@ function getRarityDisplay(rarity) {
     return displays[rarity] || '⚪ ' + rarity;
 }
 
-// Описание характеристик предмета
-function getItemStatsDescription(item) {
-    let stats = [];
+// Строки характеристик предмета (по одной на строку в карточке)
+function collectItemStatsLines(item) {
+    const stats = [];
     if (item.dmg) stats.push(`⚔️ Атака: +${item.dmg}`);
     if (item.def) stats.push(`🛡️ Защита: +${item.def}`);
     if (item.hp) stats.push(`❤️ Здоровье: +${item.hp}`);
@@ -158,11 +165,26 @@ function getItemStatsDescription(item) {
     if (item.mana) stats.push(`🔷 Мана: +${item.mana}`);
     if (item.effect === 'auto_gather' || item.type === 'gather_scroll') {
         const st = item.scrollTier || item.tier || 1;
-        stats.push(`📜 Тир ресурсов ≤ ${st} · ${item.maxGathers || '?'} сборов`);
+        stats.push(`📜 Тир ресурсов ≤ ${st}`);
+        stats.push(`🔄 Сборов: ${item.maxGathers || '?'}`);
     }
-    
-    if (stats.length === 0) return '—';
-    return stats.join(' · ');
+    return stats;
+}
+
+function renderItemStatsHtml(item) {
+    const lines = collectItemStatsLines(item);
+    if (lines.length === 0) {
+        return '<span class="shop-item-card__stat-empty">—</span>';
+    }
+    return '<ul class="shop-item-card__stat-list">' +
+        lines.map(line => '<li class="shop-item-card__stat-line">' + line + '</li>').join('') +
+        '</ul>';
+}
+
+function getItemStatsDescription(item) {
+    const lines = collectItemStatsLines(item);
+    if (lines.length === 0) return '—';
+    return lines.join(' · ');
 }
 
 function resolveItemSellPrice(item) {
@@ -222,7 +244,7 @@ function collectSellableInventoryItems() {
 }
 
 function buildShopSellItemCardHtml(item, sellPrice) {
-    const statsText = getItemStatsDescription(item);
+    const statsHtml = renderItemStatsHtml(item);
     const rarityColor = getRarityColor(item.rarity);
     const rarityDisplay = getRarityDisplay(item.rarity);
     const itemIconHtml = typeof renderItemIconHTML === 'function'
@@ -233,7 +255,7 @@ function buildShopSellItemCardHtml(item, sellPrice) {
         '<div class="shop-item-card__icon">' + itemIconHtml + '</div>' +
         '<div class="shop-item-card__body">' +
         '<div class="shop-item-card__name" style="color:' + rarityColor + ';">' + item.name + '</div>' +
-        '<div class="shop-item-card__stats">' + statsText + '</div>' +
+        '<div class="shop-item-card__stats">' + statsHtml + '</div>' +
         '<div class="shop-item-card__rarity" style="color:' + rarityColor + ';">' + rarityDisplay + '</div>' +
         '</div>' +
         '<div class="shop-item-card__price">💰 +' + sellPrice + '</div>' +
@@ -276,7 +298,10 @@ function renderSellResources() {
             ${resIcon}
             <div class="shop-item-card__body">
                 <div class="shop-item-card__name">${res}</div>
-                <div class="shop-item-card__stats">${count} шт. · ${price} за ед.</div>
+                <div class="shop-item-card__stats"><ul class="shop-item-card__stat-list">
+                    <li class="shop-item-card__stat-line">📦 ${count} шт.</li>
+                    <li class="shop-item-card__stat-line">💰 ${price} за ед.</li>
+                </ul></div>
             </div>
             <div class="shop-item-card__price shop-item-card__price--gold">💰 ${totalPrice}</div>
             </div></div>`;
@@ -361,7 +386,7 @@ function renderBuyItems(cat) {
         const canBuy = player.gold >= item.price && player.level >= item.lvl;
         const locked = player.level < item.lvl;
         
-        const statsText = getItemStatsDescription(item);
+        const statsHtml = renderItemStatsHtml(item);
         const rarityColor = getRarityColor(item.rarity);
         const rarityDisplay = getRarityDisplay(item.rarity);
         
@@ -378,7 +403,7 @@ function renderBuyItems(cat) {
                 <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(item, { size: 48, fallback: item.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (item.icon || '⚔️') + '</div>'}</div>
                 <div class="shop-item-card__body">
                     <div class="shop-item-card__name" style="color: ${rarityColor};">${item.name}</div>
-                    <div class="shop-item-card__stats">${statsText}</div>
+                    <div class="shop-item-card__stats">${statsHtml}</div>
                     <div class="shop-item-card__meta">
                         <span class="shop-item-card__rarity" style="color: ${rarityColor};">${rarityDisplay}</span>
                         <span>${levelStatus}</span>
