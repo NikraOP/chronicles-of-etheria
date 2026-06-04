@@ -676,7 +676,7 @@ function buildInitialPvPMatch(hostSnapshot, guestSnapshot) {
 }
 
 function sendPvPMessage(type, payload) {
-    if (pvpState.transport === 'cloud' && typeof pvpCloudSendMessage === 'function') {
+    if (typeof pvpCloudSendMessage === 'function' && pvpState && pvpState.transport === 'cloud') {
         pvpCloudSendMessage(type, payload);
         return true;
     }
@@ -1110,15 +1110,8 @@ function loadPvPIceServersForJoin() {
 function preloadPvPAssets() {
     if (pvpPreloadStarted) return;
     pvpPreloadStarted = true;
-    if (typeof shouldUsePvPCloudTransport === 'function' && shouldUsePvPCloudTransport()) {
-        const base = typeof getPvPCloudApiBase === 'function' ? getPvPCloudApiBase() : '';
-        if (base && typeof wakeCloudApi === 'function') wakeCloudApi(base);
-        return;
-    }
-    pvpSignalingBackend = 'mqtt';
-    loadPvPIceServersFast().catch(() => {});
-    loadPvPTransport('mqtt').catch(() => {});
-    loadPvPTransport('nostr').catch(() => {});
+    const base = typeof getPvPCloudApiBase === 'function' ? getPvPCloudApiBase() : '';
+    if (base && typeof wakeCloudApi === 'function') wakeCloudApi(base);
 }
 
 function extractPvPTurnConfig(iceServers) {
@@ -1256,27 +1249,20 @@ function renderPvPArena() {
     if (!el) return;
     const canStart = pvpState.role === 'host' && pvpState.status === 'connected' && pvpState.localReady && pvpState.remoteReady && !pvpState.match;
     const room = escapePvPText(pvpState.roomCode || '------');
-    const useCloud = typeof shouldUsePvPCloudTransport === 'function' && shouldUsePvPCloudTransport();
-    const transportLabel = typeof getPvPTransportLabel === 'function' ? getPvPTransportLabel() : (useCloud ? 'Облако' : 'P2P');
-    const transportClass = (pvpState.transport === 'cloud' || useCloud) ? 'pvp-transport-badge--cloud' : 'pvp-transport-badge--p2p';
-    const panelCloudClass = (pvpState.transport === 'cloud' || useCloud) ? ' pvp-panel--cloud' : '';
-    const apiHint = useCloud
-        ? 'Синхронизация ходов автоматически через облако (как «Друзья»). API: ' + escapePvPText(typeof getPvPCloudApiBase === 'function' ? getPvPCloudApiBase() : '')
-        : 'Режим P2P: MQTT/WebRTC. На GitHub Pages включите облако кнопкой ниже.';
+    const transportLabel = typeof getPvPTransportLabel === 'function' ? getPvPTransportLabel() : 'Сервер';
+    const apiBase = typeof getPvPCloudApiBase === 'function' ? getPvPCloudApiBase() : '';
+    const apiHint = 'PvP через наш сервер. Ходы синхронизируются автоматически. ' + escapePvPText(apiBase);
     const logs = pvpState.log.map(l => `<div class="pvp-log-entry ${safePvPClass(l.type || 'info')}"><span>${escapePvPText(l.time)}</span> ${escapePvPText(l.message)}</div>`).join('');
     el.innerHTML = `
-        <section class="pvp-panel${panelCloudClass}">
+        <section class="pvp-panel pvp-panel--cloud">
             <div class="pvp-header">
                 <div>
                     <h2>🏟️ PvP Арена 1 на 1</h2>
                     <p>${apiHint}</p>
-                    <span class="pvp-transport-badge ${transportClass}">${escapePvPText(transportLabel)}</span>
+                    <span class="pvp-transport-badge pvp-transport-badge--cloud">${escapePvPText(transportLabel)}</span>
                     <span class="pvp-sync-indicator" title="Синхронизация хода">☁️ Авто-синх</span>
                 </div>
                 <span class="pvp-status pvp-status-${safePvPClass(pvpState.status)}">${escapePvPText(getPvPStatusLabel())}</span>
-            </div>
-            <div class="pvp-toolbar" style="margin-bottom:12px;">
-                <button type="button" class="action-btn" onclick="togglePvPCloudMode()">${useCloud ? '☁️ Облако (вкл)' : '🔗 P2P (вкл)'}</button>
             </div>
 
             <div class="pvp-grid">
@@ -1311,20 +1297,10 @@ function renderPvPArena() {
                 <button class="action-btn" onclick="togglePvPReady()" ${pvpState.status === 'connected' ? '' : 'disabled'}>${pvpState.localReady ? 'Не готов' : 'Готов'}</button>
                 <button class="action-btn" onclick="hostStartPvPMatch()" ${canStart ? '' : 'disabled'}>Начать матч</button>
             </div>
-            <p class="pvp-hint">${useCloud ? 'После каждого хода состояние боя уходит в облако автоматически — кнопка «Синхронизировать» не нужна.' : 'PvP P2P: MQTT. Ctrl+Shift+R у обоих. Один код комнаты — хост и гость.'}</p>
-            <div class="pvp-metered-key-row">
-                <label class="pvp-room-label" for="pvpMeteredApiKey">Credential API Key (не Secret Key sk_…)</label>
-                <input id="pvpMeteredApiKey" class="hero-input pvp-code-input" type="password" autocomplete="off" placeholder="Show API Key у TURN credential в Metered">
-                <input id="pvpMeteredAppSlug" class="hero-input pvp-code-input" type="text" autocomplete="off" placeholder="Имя приложения (slug), если есть — mla2">
-                <button type="button" class="action-btn" onclick="savePvPMeteredApiKey()">Сохранить</button>
-            </div>
+            <p class="pvp-hint">Создайте комнату, передайте код другу. После каждого хода бой синхронизируется с сервером автоматически.</p>
             <div class="pvp-log">${logs || '<div class="pvp-log-entry">Журнал пуст.</div>'}</div>
         </section>
     `;
-    const keyInput = document.getElementById('pvpMeteredApiKey');
-    if (keyInput && getEffectiveMeteredApiKey()) {
-        keyInput.placeholder = 'Ключ сохранён (пустое поле + Сохранить = удалить)';
-    }
 }
 
 function renderPvPPlayerCard(title, snapshot, ready) {
@@ -1853,17 +1829,13 @@ function createPvPRoom() {
     pvpState.status = 'hosting';
     pvpLog('Создаём комнату...', 'info');
     renderPvPArena();
-    if (typeof shouldUsePvPCloudTransport === 'function' && shouldUsePvPCloudTransport()) {
-        enterPvPCloudAsHost(pvpState.roomCode)
-            .then(function () { renderPvPArena(); })
-            .catch(function (err) {
-                if (typeof handlePvPError === 'function') handlePvPError(err);
-                else pvpLog(String(err && err.message || err), 'error');
-                renderPvPArena();
-            });
-        return;
-    }
-    joinPvPTransportRoom(pvpState.roomCode, sessionId);
+    enterPvPCloudAsHost(pvpState.roomCode)
+        .then(function () { renderPvPArena(); })
+        .catch(function (err) {
+            if (typeof handlePvPError === 'function') handlePvPError(err);
+            else pvpLog(String(err && err.message || err), 'error');
+            renderPvPArena();
+        });
 }
 
 function joinPvPRoom() {
@@ -1882,17 +1854,13 @@ function joinPvPRoom() {
     pvpState.status = 'connecting';
     pvpLog('Подключаемся к комнате...', 'info');
     renderPvPArena();
-    if (typeof shouldUsePvPCloudTransport === 'function' && shouldUsePvPCloudTransport()) {
-        enterPvPCloudAsGuest(code)
-            .then(function () { renderPvPArena(); })
-            .catch(function (err) {
-                if (typeof handlePvPError === 'function') handlePvPError(err);
-                else pvpLog(String(err && err.message || err), 'error');
-                renderPvPArena();
-            });
-        return;
-    }
-    joinPvPTransportRoom(code, sessionId);
+    enterPvPCloudAsGuest(code)
+        .then(function () { renderPvPArena(); })
+        .catch(function (err) {
+            if (typeof handlePvPError === 'function') handlePvPError(err);
+            else pvpLog(String(err && err.message || err), 'error');
+            renderPvPArena();
+        });
 }
 
 function handlePvPMessage(msg) {

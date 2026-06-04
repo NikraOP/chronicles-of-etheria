@@ -14,19 +14,18 @@
         ? 'https://5-42-103-145.sslip.io'
         : 'http://localhost:8790';
 
-    if (onGitHubPages) {
-        global.ETHERIA_FRIENDS_BACKEND = 'auto';
-        global.ETHERIA_PVP_USE_CLOUD = true;
-        if (typeof document !== 'undefined' && typeof global.wakeCloudApi === 'function') {
-            var apiBase = global.ETHERIA_FRIENDS_HTTP_API;
-            function warmEtheriaCloudApi() {
-                global.wakeCloudApi(apiBase);
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', warmEtheriaCloudApi);
-            } else {
-                warmEtheriaCloudApi();
-            }
+    global.ETHERIA_FRIENDS_BACKEND = 'auto';
+    global.ETHERIA_PVP_USE_CLOUD = true;
+
+    if (typeof document !== 'undefined' && typeof global.wakeCloudApi === 'function') {
+        var apiBase = global.ETHERIA_FRIENDS_HTTP_API;
+        function warmEtheriaCloudApi() {
+            global.wakeCloudApi(apiBase);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', warmEtheriaCloudApi);
+        } else {
+            warmEtheriaCloudApi();
         }
     }
 })(typeof window !== 'undefined' ? window : globalThis);

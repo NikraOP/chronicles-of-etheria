@@ -1,7 +1,6 @@
 /**
  * PvP через облако (тот же API, что и друзья): комнаты, опрос, авто-синхронизация ходов.
  */
-const PVP_CLOUD_LS_KEY = 'etheria_pvp_cloud_v1';
 const PVP_CLOUD_POLL_WAIT_SEC = 22;
 const PVP_CLOUD_POLL_GAP_MS = 120;
 const PVP_MSG_VERSION = 2;
@@ -16,15 +15,9 @@ function isGitHubPagesHostPvp() {
     return host === 'nikraop.github.io' || /\.github\.io$/i.test(host);
 }
 
+/** PvP только через наш API (Timeweb), без P2P/MQTT. */
 function shouldUsePvPCloudTransport() {
-    if (typeof window !== 'undefined' && window.ETHERIA_PVP_FORCE_P2P === true) return false;
-    if (typeof window !== 'undefined' && window.ETHERIA_PVP_FORCE_CLOUD === true) return true;
-    try {
-        if (localStorage.getItem(PVP_CLOUD_LS_KEY) === '0') return false;
-        if (localStorage.getItem(PVP_CLOUD_LS_KEY) === '1') return true;
-    } catch (_) {}
-    if (typeof window !== 'undefined' && window.ETHERIA_PVP_USE_CLOUD === true) return true;
-    return isGitHubPagesHostPvp();
+    return true;
 }
 
 function getPvPCloudApiBase() {
@@ -32,9 +25,7 @@ function getPvPCloudApiBase() {
     if (typeof window !== 'undefined' && window.ETHERIA_FRIENDS_HTTP_API) {
         return String(window.ETHERIA_FRIENDS_HTTP_API).trim().replace(/\/+$/, '');
     }
-    return isGitHubPagesHostPvp()
-        ? 'https://etheria-friends-api.onrender.com'
-        : 'http://localhost:8790';
+    return 'http://localhost:8790';
 }
 
 function pvpCloudUrl(path) {
@@ -251,21 +242,8 @@ function leavePvPCloudTransport() {
     pvpCloudLastSeq = 0;
 }
 
-function togglePvPCloudMode() {
-    try {
-        const next = shouldUsePvPCloudTransport() ? '0' : '1';
-        localStorage.setItem(PVP_CLOUD_LS_KEY, next);
-    } catch (_) {}
-    if (typeof pvpLog === 'function') {
-        pvpLog(shouldUsePvPCloudTransport() ? 'Режим: облако (GitHub Pages)' : 'Режим: P2P (MQTT/WebRTC)', 'info');
-    }
-    if (typeof renderPvPArena === 'function') renderPvPArena();
-}
-
 function getPvPTransportLabel() {
-    if (pvpState && pvpState.transport === 'cloud') return 'Облако';
-    if (shouldUsePvPCloudTransport()) return 'Облако (авто)';
-    return 'P2P (MQTT)';
+    return 'Сервер';
 }
 
 window.shouldUsePvPCloudTransport = shouldUsePvPCloudTransport;
@@ -274,5 +252,4 @@ window.enterPvPCloudAsHost = enterPvPCloudAsHost;
 window.enterPvPCloudAsGuest = enterPvPCloudAsGuest;
 window.leavePvPCloudTransport = leavePvPCloudTransport;
 window.stopPvPCloudPolling = stopPvPCloudPolling;
-window.togglePvPCloudMode = togglePvPCloudMode;
 window.getPvPTransportLabel = getPvPTransportLabel;
