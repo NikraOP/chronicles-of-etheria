@@ -104,25 +104,43 @@ function wheelPickGoldPrize() {
     return golds[Math.floor(Math.random() * golds.length)];
 }
 
+// ─── Выбор из пула с процентами ───
+
+function wheelPickFromPool(pool) {
+    // Выбирает предмет из пула с учётом процентов (chance)
+    // pool = [{ name, slot, chance }, ...]
+    if (!pool || pool.length === 0) return null;
+    var roll = Math.random() * 100;
+    var cumulative = 0;
+    for (var i = 0; i < pool.length; i++) {
+        cumulative += pool[i].chance;
+        if (roll < cumulative) {
+            return {
+                name: pool[i].name,
+                slot: pool[i].slot
+            };
+        }
+    }
+    // На случай погрешности округления — возвращаем последний
+    return { name: pool[pool.length - 1].name, slot: pool[pool.length - 1].slot };
+}
+
 function wheelPickItemPrize() {
     var range = wheelGetLevelRange();
-    var itemPool = FORTUNE_WHEEL_PRIZES.itemsByLevel[range];
-    if (!itemPool) return null;
+    var pools = ITEM_POOLS[range];
+    if (!pools) return null;
 
-    // Случайный слот: weapon, helmet, chest, pants, boots
-    var slots = ['weapon', 'helmet', 'chest', 'pants', 'boots'];
-    var slot = slots[Math.floor(Math.random() * slots.length)];
+    // Выбираем случайный пул (1 из 3)
+    var poolNames = ['pool1', 'pool2', 'pool3'];
+    var poolName = poolNames[Math.floor(Math.random() * poolNames.length)];
+    var pool = pools[poolName];
+    if (!pool || pool.length === 0) return null;
 
-    var candidates;
-    if (slot === 'weapon') {
-        candidates = itemPool.weapon[player.class];
-    } else {
-        candidates = itemPool[slot];
-    }
-    if (!candidates || candidates.length === 0) return null;
+    // Выбираем предмет из пула с учётом процентов
+    var picked = wheelPickFromPool(pool);
+    if (!picked) return null;
 
-    var itemName = candidates[Math.floor(Math.random() * candidates.length)];
-    return wheelFindItemInDb(itemName, slot);
+    return wheelFindItemInDb(picked.name, picked.slot);
 }
 
 function wheelFindItemInDb(itemName, slot) {
@@ -136,13 +154,30 @@ function wheelFindItemInDb(itemName, slot) {
                 if (weapons[i].name === itemName) return JSON.parse(JSON.stringify(weapons[i]));
             }
         }
-    } else {
+    } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
         var armor = EQUIPMENT_DB.armor[slot];
         if (armor) {
             for (var i = 0; i < armor.length; i++) {
                 if (armor[i].name === itemName) return JSON.parse(JSON.stringify(armor[i]));
             }
         }
+    }
+    // Для consumable — создаём простой предмет
+    if (slot === 'consumable') {
+        var consumables = {
+            'Зелье здоровья': { name: 'Зелье здоровья', slot: 'consumable', heal: 50, rarity: 'Обычный' },
+            'Малое зелье здоровья': { name: 'Малое зелье здоровья', slot: 'consumable', heal: 25, rarity: 'Обычный' },
+            'Большое зелье здоровья': { name: 'Большое зелье здоровья', slot: 'consumable', heal: 100, rarity: 'Необычный' },
+            'Малое зелье маны': { name: 'Малое зелье маны', slot: 'consumable', mana: 25, rarity: 'Обычный' },
+            'Зелье маны': { name: 'Зелье маны', slot: 'consumable', mana: 50, rarity: 'Обычный' },
+            'Большое зелье маны': { name: 'Большое зелье маны', slot: 'consumable', mana: 100, rarity: 'Необычный' },
+            'Эликсир силы': { name: 'Эликсир силы', slot: 'consumable', dmg: 10, rarity: 'Редкий' },
+            'Эликсир защиты': { name: 'Эликсир защиты', slot: 'consumable', def: 10, rarity: 'Редкий' },
+            'Эликсир неуязвимости': { name: 'Эликсир неуязвимости', slot: 'consumable', def: 25, rarity: 'Эпический' },
+            'Эликсир берсерка': { name: 'Эликсир берсерка', slot: 'consumable', dmg: 20, rarity: 'Эпический' },
+            'Божественный эликсир': { name: 'Божественный эликсир', slot: 'consumable', dmg: 30, def: 30, rarity: 'Мифический' }
+        };
+        if (consumables[itemName]) return JSON.parse(JSON.stringify(consumables[itemName]));
     }
     return null;
 }
@@ -151,6 +186,32 @@ function wheelGetRarePrize() {
     var name = FORTUNE_WHEEL_PRIZES.rareItem[player.class];
     if (!name) return null;
     return wheelFindItemInDb(name, 'weapon');
+}
+
+// ─── Проверка процентов в пулах (для отладки) ───
+
+function wheelValidatePools() {
+    if (typeof ITEM_POOLS === 'undefined') {
+        console.warn('⚠️ ITEM_POOLS не загружен');
+        return;
+    }
+    var allOk = true;
+    for (var range in ITEM_POOLS) {
+        var pools = ITEM_POOLS[range];
+        for (var pName in pools) {
+            var pool = pools[pName];
+            var sum = 0;
+            for (var i = 0; i < pool.length; i++) {
+                sum += pool[i].chance;
+            }
+            if (Math.abs(sum - 100) > 0.01) {
+                console.error('❌ ' + range + ' ' + pName + ': сумма = ' + sum + ' (должна быть 100)');
+                allOk = false;
+            }
+        }
+    }
+    if (allOk) console.log('✅ Все пулы ITEM_POOLS валидны (сумма chance = 100)');
+    return allOk;
 }
 
 // ─── Выдача приза ───
@@ -363,6 +424,9 @@ function showWheelOfFortune() {
     // Фоновая синхронизация с сервером (если сервер жив — скорректируем дрифт)
     wheelTryServerSync();
 
+    // Валидация пулов (лог в консоль)
+    wheelValidatePools();
+
     // Таймер обновления UI каждую секунду
     if (_wheelSyncInterval) clearInterval(_wheelSyncInterval);
     _wheelSyncInterval = setInterval(function() {
@@ -544,3 +608,5 @@ window.wheelSpin = wheelSpin;
 window.wheelCleanup = wheelCleanup;
 window.wheelCanSpin = wheelCanSpin;
 window.wheelGetCurrentMskTime = wheelGetCurrentMskTime;
+window.wheelPickFromPool = wheelPickFromPool;
+window.wheelValidatePools = wheelValidatePools;
