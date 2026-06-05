@@ -384,15 +384,15 @@ const DUNGEONS_DB = [
         theme: { bgColor: 'linear-gradient(135deg, #1a0818, #030208)' }
     },
     {
-        id: 'void_voe',
+        id: 'void-teni',
         name: 'Тенистая роща',
         icon: '🌳',
         mode: 'duo',
         minLevel: 22,
         maxLevel: 30,
         recommendedLevel: 26,
-        backgroundId: 'fungal_depths',
-        monsterPool: ['shadow_stalker', 'twilight_whisp', 'venom_frog', 'shadow_elf', 'living_vine', 'treant_elder', 'ancient_ent'],
+        backgroundId: 'void_voe',
+        monsterPool: ['shadow_stalker', 'twilight_whisp', 'venom_frog', 'shadow_elf',  'treant_elder', 'ancient_ent'],
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 14,
