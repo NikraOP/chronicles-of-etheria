@@ -194,6 +194,11 @@ function finalizeCharacter() {
             lastSyncAt: 0,
             cached: []
         },
+        wheelOfFortune: {
+            lastSpinTime: null,
+            serverTimeSync: null,
+            spinsToday: 0
+        },
         ...baseStats
     };
     

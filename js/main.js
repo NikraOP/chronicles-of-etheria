@@ -676,6 +676,14 @@ function migrateOldSave(playerData) {
         playerData.dungeonProgress.activeRun = null;
     }
 
+    if (!playerData.wheelOfFortune || typeof playerData.wheelOfFortune !== 'object') {
+        playerData.wheelOfFortune = {
+            lastSpinTime: null,
+            serverTimeSync: null,
+            spinsToday: 0
+        };
+    }
+
     if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
 
     return playerData;

@@ -1,0 +1,551 @@
+// wheelOfFortune.js — Колесо Фортуны (логика + UI)
+// ==================================================
+
+// ─── Синхронизация времени с сервером ───
+
+var _wheelServerUrl = 'https://etheria-friends-api.onrender.com';
+var _wheelSyncInterval = null;
+var _wheelLastServerTime = 0;        // серверный timestamp при последней синхронизации
+var _wheelLocalTimeAtSync = 0;        // локальный Date.now() в момент синхронизации
+
+function wheelSyncTime(callback) {
+    var url = _wheelServerUrl + '/api/v1/time';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 5000;
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data.ok && data.mskTime) {
+                    _wheelLastServerTime = data.mskTime;
+                    _wheelLocalTimeAtSync = Date.now();
+                    if (typeof callback === 'function') callback(null, data.mskTime);
+                    return;
+                }
+            } catch(e) {}
+        }
+        if (typeof callback === 'function') callback('sync_failed', null);
+    };
+    xhr.onerror = function() {
+        if (typeof callback === 'function') callback('network_error', null);
+    };
+    xhr.ontimeout = function() {
+        if (typeof callback === 'function') callback('timeout', null);
+    };
+    xhr.send();
+}
+
+function wheelGetCurrentMskTime() {
+    // Используем серверное время + локальную дельту
+    if (_wheelLastServerTime === 0) {
+        // Фолбэк: Date.now() всегда UTC, добавляем смещение MSK (+3ч)
+        var mskOffset = 3 * 60 * 60 * 1000;
+        return Date.now() + mskOffset;
+    }
+    var elapsed = Date.now() - _wheelLocalTimeAtSync;
+    return _wheelLastServerTime + elapsed;
+}
+
+// ─── Состояние колеса ───
+
+function wheelInitState() {
+    if (!player.wheelOfFortune) {
+        player.wheelOfFortune = {
+            lastSpinTime: null,
+            serverTimeSync: null,
+            spinsToday: 0
+        };
+    }
+    // Проверка: если lastSpinTime устарел (старше 24ч), сброс spinsToday
+    if (player.wheelOfFortune.lastSpinTime) {
+        var now = wheelGetCurrentMskTime();
+        var last = player.wheelOfFortune.lastSpinTime;
+        var day = 24 * 60 * 60 * 1000;
+        if (now - last > day) {
+            player.wheelOfFortune.spinsToday = 0;
+        }
+    }
+}
+
+function wheelCanSpin() {
+    wheelInitState();
+    var state = player.wheelOfFortune;
+    if (!state.lastSpinTime) return true;
+    var now = wheelGetCurrentMskTime();
+    var cooldown = (FORTUNE_WHEEL_PRIZES.cooldownHours || 1) * 60 * 60 * 1000;
+    return (now - state.lastSpinTime) >= cooldown;
+}
+
+function wheelGetTimeLeft() {
+    var state = player.wheelOfFortune;
+    if (!state || !state.lastSpinTime) return 0;
+    var now = wheelGetCurrentMskTime();
+    var cooldown = (FORTUNE_WHEEL_PRIZES.cooldownHours || 1) * 60 * 60 * 1000;
+    var elapsed = now - state.lastSpinTime;
+    return Math.max(0, Math.floor((cooldown - elapsed) / 1000));
+}
+
+function wheelRecordSpin() {
+    var now = wheelGetCurrentMskTime();
+    player.wheelOfFortune.lastSpinTime = now;
+    player.wheelOfFortune.serverTimeSync = now;
+    player.wheelOfFortune.spinsToday = (player.wheelOfFortune.spinsToday || 0) + 1;
+    saveGame();
+}
+
+// ─── Определение призов ───
+
+function wheelGetLevelRange() {
+    var lvl = player.level;
+    if (lvl <= 10) return '1-10';
+    if (lvl <= 20) return '11-20';
+    if (lvl <= 30) return '21-30';
+    if (lvl <= 40) return '31-40';
+    return '41-50+';
+}
+
+function wheelPickGoldPrize() {
+    var range = wheelGetLevelRange();
+    var golds = FORTUNE_WHEEL_PRIZES.goldByLevel[range];
+    if (!golds || golds.length === 0) return 10;
+    return golds[Math.floor(Math.random() * golds.length)];
+}
+
+function wheelPickItemPrize() {
+    var range = wheelGetLevelRange();
+    var itemPool = FORTUNE_WHEEL_PRIZES.itemsByLevel[range];
+    if (!itemPool) return null;
+
+    // Случайный слот: weapon, helmet, chest, pants, boots
+    var slots = ['weapon', 'helmet', 'chest', 'pants', 'boots'];
+    var slot = slots[Math.floor(Math.random() * slots.length)];
+
+    var candidates;
+    if (slot === 'weapon') {
+        candidates = itemPool.weapon[player.class];
+    } else {
+        candidates = itemPool[slot];
+    }
+    if (!candidates || candidates.length === 0) return null;
+
+    var itemName = candidates[Math.floor(Math.random() * candidates.length)];
+    return wheelFindItemInDb(itemName, slot);
+}
+
+function wheelFindItemInDb(itemName, slot) {
+    // Поиск предмета в EQUIPMENT_DB
+    if (!window.EQUIPMENT_DB) return null;
+
+    if (slot === 'weapon') {
+        var weapons = EQUIPMENT_DB.weapons[player.class];
+        if (weapons) {
+            for (var i = 0; i < weapons.length; i++) {
+                if (weapons[i].name === itemName) return JSON.parse(JSON.stringify(weapons[i]));
+            }
+        }
+    } else {
+        var armor = EQUIPMENT_DB.armor[slot];
+        if (armor) {
+            for (var i = 0; i < armor.length; i++) {
+                if (armor[i].name === itemName) return JSON.parse(JSON.stringify(armor[i]));
+            }
+        }
+    }
+    return null;
+}
+
+function wheelGetRarePrize() {
+    var name = FORTUNE_WHEEL_PRIZES.rareItem[player.class];
+    if (!name) return null;
+    return wheelFindItemInDb(name, 'weapon');
+}
+
+// ─── Выдача приза ───
+
+function wheelAwardPrize(segmentIndex) {
+    // segmentIndex 0-7:
+    // 0 = джекпот (редкий предмет)
+    // 1-4 = золото (4 сектора)
+    // 5-7 = предмет (3 сектора)
+
+    if (segmentIndex === 0) {
+        // Джекпот: редкий предмет с шансом 2%, иначе золото x1.5
+        if (Math.random() < FORTUNE_WHEEL_PRIZES.rareItemChance) {
+            var rareItem = wheelGetRarePrize();
+            if (rareItem) {
+                wheelGiveItemToPlayer(rareItem);
+                addMessage('🎡 ДЖЕКПОТ! Вы получили: ' + rareItem.name + ' (' + FORTUNE_WHEEL_PRIZES.itemRarity + ')!', 'success');
+                return { type: 'item', item: rareItem, jackpot: true };
+            }
+        }
+        // Утешительный приз: золото x1.5
+        var consolationGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.consolationMultiplier);
+        player.gold += consolationGold;
+        addMessage('🎡 Колесо Фортуны: +' + consolationGold + ' золота (утешительный приз)!', 'info');
+        saveGame();
+        return { type: 'gold', amount: consolationGold, jackpot: false };
+    }
+
+    if (segmentIndex >= 1 && segmentIndex <= 4) {
+        // Золото
+        var gold = wheelPickGoldPrize();
+        player.gold += gold;
+        addMessage('🎡 Колесо Фортуны: +' + gold + ' золота!', 'success');
+        saveGame();
+        return { type: 'gold', amount: gold, jackpot: false };
+    }
+
+    if (segmentIndex >= 5 && segmentIndex <= 7) {
+        // Предмет
+        var item = wheelPickItemPrize();
+        if (item) {
+            wheelGiveItemToPlayer(item);
+            addMessage('🎡 Колесо Фортуны: +' + item.name + '!', 'success');
+            return { type: 'item', item: item, jackpot: false };
+        }
+        // Если предмет не найден — золото
+        var fallbackGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.fallbackMultiplier);
+        player.gold += fallbackGold;
+        addMessage('🎡 Колесо Фортуны: +' + fallbackGold + ' золота!', 'info');
+        saveGame();
+        return { type: 'gold', amount: fallbackGold, jackpot: false };
+    }
+
+    // fallback
+    var fGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.fallbackMultiplier);
+    player.gold += fGold;
+    saveGame();
+    return { type: 'gold', amount: fGold, jackpot: false };
+}
+
+function wheelGiveItemToPlayer(item) {
+    // Определяем тип предмета для pushCraftedItemToInventory
+    var slot = wheelDetectItemSlot(item);
+    if (!slot) {
+        // Если не можем определить — просто в инвентарь как оружие (фолбэк)
+        if (!player.inventory.weapons) player.inventory.weapons = [];
+        player.inventory.weapons.push(item);
+        saveGame();
+        return;
+    }
+
+    // Добавляем sellPrice если нет
+    if (!item.sellPrice && typeof getItemSellPrice === 'function') {
+        item.sellPrice = getItemSellPrice(item);
+    }
+
+    if (slot === 'weapon') {
+        if (!player.inventory.weapons) player.inventory.weapons = [];
+        player.inventory.weapons.push(item);
+    } else if (slot === 'helmet') {
+        if (!player.inventory.helmets) player.inventory.helmets = [];
+        player.inventory.helmets.push(item);
+    } else if (slot === 'chest') {
+        if (!player.inventory.chests) player.inventory.chests = [];
+        player.inventory.chests.push(item);
+    } else if (slot === 'pants') {
+        if (!player.inventory.pants) player.inventory.pants = [];
+        player.inventory.pants.push(item);
+    } else if (slot === 'boots') {
+        if (!player.inventory.boots) player.inventory.boots = [];
+        player.inventory.boots.push(item);
+    }
+    saveGame();
+}
+
+function wheelDetectItemSlot(item) {
+    if (!item) return null;
+    // Проверка по полю, если есть
+    if (item.slot) return item.slot;
+    // Проверка по названию
+    var name = (item.name || '').toLowerCase();
+    if (name.includes('меч') || name.includes('топор') || name.includes('клинок') ||
+        name.includes('молот') || name.includes('посох') || name.includes('скипетр') ||
+        name.includes('жезл') || name.includes('лук') || name.includes('арбалет')) {
+        return 'weapon';
+    }
+    if (name.includes('шлем') || name.includes('корона')) return 'helmet';
+    if (name.includes('нагрудник') || name.includes('броня') || name.includes('доспех') ||
+        name.includes('кираса') || name.includes('панцирь')) return 'chest';
+    if (name.includes('понож') || name.includes('набедрен')) return 'pants';
+    if (name.includes('сапог') || name.includes('сандал') || name.includes('башмак')) return 'boots';
+    return null;
+}
+
+// ─── Анимация вращения ───
+// TARGET_ANGLES: для каждого сегмента (0-7) — угол, на который надо повернуть,
+// чтобы указатель (сверху) указывал на этот сегмент.
+var WHEEL_TARGET_ANGLES = [337.5, 292.5, 247.5, 202.5, 157.5, 112.5, 67.5, 22.5];
+var _wheelRotation = 0;
+var _isSpinning = false;
+
+function spinWheelAnimation(targetIndex, callback) {
+    var wheel = document.getElementById('wheel');
+    if (!wheel) return;
+
+    var extraSpins = 3 + Math.floor(Math.random() * 3);
+    var targetRotation = extraSpins * 360 + WHEEL_TARGET_ANGLES[targetIndex];
+
+    while (targetRotation <= _wheelRotation) {
+        targetRotation += 360;
+    }
+    _wheelRotation = targetRotation;
+
+    wheel.classList.add('wheel--spinning');
+    wheel.style.transition = 'none';
+    void wheel.offsetWidth; // force reflow
+    wheel.style.transition = 'transform 2.8s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+    wheel.style.transform = 'rotate(' + targetRotation + 'deg)';
+
+    var settled = false;
+    function finish() {
+        if (settled) return;
+        settled = true;
+        wheel.classList.remove('wheel--spinning');
+        wheel.removeEventListener('transitionend', finish);
+        if (typeof callback === 'function') callback();
+    }
+
+    wheel.addEventListener('transitionend', finish);
+    setTimeout(finish, 3500);
+}
+
+// ─── Партиклы ───
+
+function createWheelParticles() {
+    var container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;';
+    document.body.appendChild(container);
+
+    var colors = ['#e8b84a', '#f59e42', '#a78bfa', '#fff'];
+    for (var i = 0; i < 30; i++) {
+        var p = document.createElement('div');
+        var size = 4 + Math.random() * 8;
+        var color = colors[Math.floor(Math.random() * colors.length)];
+        var angle = Math.random() * Math.PI * 2;
+        var velocity = 100 + Math.random() * 300;
+        var tx = Math.cos(angle) * velocity;
+        var ty = Math.sin(angle) * velocity;
+
+        p.style.cssText = 'position:absolute;left:50%;top:50%;'
+            + 'width:' + size + 'px;height:' + size + 'px;'
+            + 'background:' + color + ';border-radius:50%;'
+            + 'box-shadow:0 0 8px ' + color + ';'
+            + 'animation:wheelParticleFade 1.2s ease-out forwards;'
+            + '--tx:' + tx + 'px;--ty:' + ty + 'px;';
+        container.appendChild(p);
+    }
+
+    setTimeout(function () { container.remove(); }, 1500);
+}
+
+// ─── UI: отображение колеса ───
+
+var WHEEL_SEGMENTS = [
+    { icon: '💎', name: 'Джекпот',  color: '#e8b84a' },
+    { icon: '🪙', name: 'Золото',   color: '#f59e42' },
+    { icon: '💰', name: 'Золото',   color: '#f0c040' },
+    { icon: '🪙', name: 'Золото',   color: '#d4a030' },
+    { icon: '💰', name: 'Золото',   color: '#e8a030' },
+    { icon: '⚔️', name: 'Предмет',  color: '#4da6ff' },
+    { icon: '🛡️', name: 'Предмет',  color: '#5db0ff' },
+    { icon: '👑', name: 'Предмет',  color: '#6dbaff' }
+];
+
+function showWheelOfFortune() {
+    if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
+    if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
+    if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
+    if (typeof stopGathering === 'function') stopGathering();
+
+    // Синхронизируем время с сервером
+    wheelSyncTime(function(err, mskTime) {
+        if (err) {
+            addMessage('⚠️ Не удалось синхронизировать время. Используется локальное время.', 'warning');
+        }
+        wheelRenderWheel();
+        wheelInitState();
+        wheelUpdateUiState();
+
+        // Запускаем таймер обновления
+        if (_wheelSyncInterval) clearInterval(_wheelSyncInterval);
+        _wheelSyncInterval = setInterval(function() {
+            wheelUpdateUiState();
+        }, 1000);
+    });
+}
+
+function wheelRenderWheel() {
+    var segDeg = 45;
+    var stops = [];
+    for (var i = 0; i < WHEEL_SEGMENTS.length; i++) {
+        stops.push(WHEEL_SEGMENTS[i].color + ' ' + (i * segDeg) + 'deg ' + ((i + 1) * segDeg) + 'deg');
+    }
+    var gradient = 'conic-gradient(from 0deg, ' + stops.join(', ') + ')';
+
+    var labelsHtml = '';
+    for (var i = 0; i < WHEEL_SEGMENTS.length; i++) {
+        var angleRad = ((i * 45 + 22.5) * Math.PI) / 180;
+        var r = 36;
+        var x = 50 + r * Math.sin(angleRad);
+        var y = 50 - r * Math.cos(angleRad);
+        labelsHtml += '<div class="wheel__label" style="left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%">'
+            + '<div class="wheel__label-icon">' + WHEEL_SEGMENTS[i].icon + '</div>'
+            + '<div class="wheel__label-name">' + WHEEL_SEGMENTS[i].name + '</div>'
+            + '</div>';
+    }
+
+    var dividersHtml = '';
+    for (var i = 0; i < WHEEL_SEGMENTS.length; i++) {
+        dividersHtml += '<div class="wheel__divider" style="transform:rotate(' + (i * 45) + 'deg)"></div>';
+    }
+
+    var html = ''
+        + '<h2 style="text-align:center;margin-bottom:4px;">🎡 Колесо Фортуны</h2>'
+        + '<p style="text-align:center;color:var(--text-secondary);font-size:12px;margin-bottom:16px;line-height:1.4;">Испытай удачу!<br>Крути колесо и получай награды.<br><span style="font-size:10px;color:var(--gold);">Доступна 1 крутка в час</span></p>'
+        + '<div class="wheel-of-fortune">'
+        +   '<div class="wheel-container">'
+        +     '<div class="wheel" id="wheel">'
+        +       '<div class="wheel__pointer">◆</div>'
+        +       '<div class="wheel__bg" style="background:' + gradient + '"></div>'
+        +       dividersHtml
+        +       '<div class="wheel__labels-area">' + labelsHtml + '</div>'
+        +       '<button class="wheel__center-btn" id="wheelSpinBtn" onclick="wheelSpin()">🎡<br>Крутить!</button>'
+        +     '</div>'
+        +     '<div class="wheel__timer" id="wheelTimer">⏱️ Синхронизация...</div>'
+        +   '</div>'
+        + '</div>'
+        + '<div style="text-align:center;margin-top:12px;">'
+        +   '<button class="action-btn" onclick="wheelCleanup();renderGame()" style="padding:8px 24px;">↩️ Назад</button>'
+        + '</div>';
+
+    document.getElementById('dynamicContent').innerHTML = html;
+    _wheelRotation = 0;
+    _isSpinning = false;
+    window._wheelSegments = WHEEL_SEGMENTS;
+}
+
+function wheelUpdateUiState() {
+    var wheel = document.getElementById('wheel');
+    var btn = document.getElementById('wheelSpinBtn');
+    var timer = document.getElementById('wheelTimer');
+    if (!timer) return;
+
+    wheelInitState();
+    var canSpin = wheelCanSpin();
+    var timeLeft = wheelGetTimeLeft();
+
+    if (canSpin && !_isSpinning) {
+        timer.textContent = '🎡 Готово! Крути колесо!';
+        timer.className = 'wheel__timer wheel__timer--ready';
+        if (wheel) wheel.classList.remove('wheel--dimmed');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '🎡<br>Крутить!';
+        }
+    } else if (!_isSpinning) {
+        var mins = Math.floor(timeLeft / 60);
+        var secs = Math.floor(timeLeft % 60);
+        timer.textContent = '⏱️ Следующая крутка через: '
+            + (mins < 10 ? '0' : '') + mins + ':'
+            + (secs < 10 ? '0' : '') + secs;
+        timer.className = 'wheel__timer';
+        if (wheel) wheel.classList.add('wheel--dimmed');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳<br>Ждите';
+        }
+    }
+}
+
+function wheelSpin() {
+    if (_isSpinning) return;
+    var btn = document.getElementById('wheelSpinBtn');
+    if (!btn || btn.disabled) return;
+
+    if (!wheelCanSpin()) {
+        addMessage('⏳ Колесо ещё не готово! Подождите.', 'warning');
+        return;
+    }
+
+    _isSpinning = true;
+    btn.innerHTML = '🌀<br>Вращается...';
+    btn.disabled = true;
+
+    // Выбираем случайный сегмент (0-7)
+    var targetIndex = Math.floor(Math.random() * 8);
+
+    spinWheelAnimation(targetIndex, function() {
+        _isSpinning = false;
+
+        // Записываем крутку
+        wheelRecordSpin();
+
+        // Выдаём приз
+        var result = wheelAwardPrize(targetIndex);
+
+        // Показываем результат
+        var seg = WHEEL_SEGMENTS[targetIndex];
+        var segName = seg ? seg.name : 'Приз';
+
+        var wheelEl = document.getElementById('wheel');
+        if (wheelEl) wheelEl.classList.add('wheel--result');
+        createWheelParticles();
+
+        var modalTitle = '🎡 Колесо Фортуны';
+        var modalIcon = result.jackpot ? '💎' : (result.type === 'gold' ? '💰' : '📦');
+        var modalBody;
+
+        if (result.jackpot) {
+            modalBody = '<div style="text-align:center;">'
+                + '<span style="font-size:48px;">💎</span>'
+                + '<h3 style="color:var(--gold-light);margin:10px 0;">ДЖЕКПОТ!</h3>'
+                + '<p style="font-size:18px;font-weight:700;">' + result.item.name + '</p>'
+                + '<p style="color:var(--gold);font-size:14px;">' + FORTUNE_WHEEL_PRIZES.itemRarity + '</p>'
+                + '</div>';
+        } else if (result.type === 'gold') {
+            modalBody = '<div style="text-align:center;">'
+                + '<span style="font-size:48px;">💰</span>'
+                + '<h3 style="margin:10px 0;">+' + result.amount + ' золота!</h3>'
+                + (result.jackpot === false && targetIndex === 0
+                    ? '<p style="color:var(--text-secondary);font-size:13px;">🎡 Джекпот не выпал, но золото утешает!</p>'
+                    : '')
+                + '</div>';
+        } else {
+            modalBody = '<div style="text-align:center;">'
+                + '<span style="font-size:48px;">📦</span>'
+                + '<h3 style="margin:10px 0;">' + result.item.name + '</h3>'
+                + '<p style="color:var(--text-secondary);font-size:13px;">Предмет добавлен в инвентарь</p>'
+                + '</div>';
+        }
+
+        showModal(modalTitle, modalIcon, modalBody, 'Забрать!', function() {
+            if (wheelEl) wheelEl.classList.remove('wheel--result');
+            wheelUpdateUiState();
+        });
+
+        setTimeout(function() {
+            if (wheelEl) wheelEl.classList.remove('wheel--result');
+        }, 4000);
+
+        // Обновляем UI после награды
+        wheelUpdateUiState();
+    });
+}
+
+function wheelCleanup() {
+    if (_wheelSyncInterval) {
+        clearInterval(_wheelSyncInterval);
+        _wheelSyncInterval = null;
+    }
+    _isSpinning = false;
+}
+
+// Экспорт функций
+window.showWheelOfFortune = showWheelOfFortune;
+window.wheelSpin = wheelSpin;
+window.wheelCleanup = wheelCleanup;
+window.wheelSyncTime = wheelSyncTime;
+window.wheelCanSpin = wheelCanSpin;
+window.wheelGetCurrentMskTime = wheelGetCurrentMskTime;

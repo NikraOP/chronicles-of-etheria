@@ -120,6 +120,21 @@ const server = createServer(async (req, res) => {
             return;
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/v1/time') {
+            // MSK time (UTC+3) for Wheel of Fortune
+            const now = Date.now();
+            const mskOffset = 3 * 60 * 60 * 1000; // UTC+3
+            const mskNow = now + mskOffset;
+            json(res, 200, {
+                ok: true,
+                serverTime: now,
+                mskTime: mskNow,
+                mskOffset: 3,
+                timestamp: new Date(now).toISOString()
+            }, origin);
+            return;
+        }
+
         if (req.method === 'GET' && url.pathname.startsWith('/api/v1/profile/')) {
             const playerId = accounts.sanitizeId(url.pathname.split('/').pop());
             const snap = await accounts.loadPublicSnapshot(playerId);
