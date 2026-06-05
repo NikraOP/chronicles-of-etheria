@@ -698,6 +698,10 @@ function migrateOldSave(playerData) {
     }
 
     if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
+    
+    if (!playerData.potionQuickSlots || !Array.isArray(playerData.potionQuickSlots)) {
+        playerData.potionQuickSlots = ['potion', 'mana_potion', 'food'];
+    }
 
     return playerData;
 }

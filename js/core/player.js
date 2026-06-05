@@ -202,6 +202,7 @@ function finalizeCharacter() {
             lastSpinDate: '',
             spinHistory: []
         },
+        potionQuickSlots: ['potion', 'mana_potion', 'food'], // 3 слота быстрого доступа к зельям
         ...baseStats
     };
     

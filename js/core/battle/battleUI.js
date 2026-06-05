@@ -343,6 +343,7 @@ function renderBattle(options) {
         buildDungeonAllyCombatantHtml() +
         '</div>' +
         '</div>' + (typeof buildBattleAbilityHotbarHtml === 'function' ? buildBattleAbilityHotbarHtml() : '') +
+        buildPotionQuickRowHtml() +
         '<div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
         showItemCooldownsInBattle() +
         logHTML + '</div>';
@@ -977,6 +978,134 @@ function showShieldEffect(target, value) {
     setTimeout(() => el.remove(), 800);
 }
 
+// ── Вторая строка быстрого доступа: зелья ──
+// 3 слота, конфигурируются в player.potionQuickSlots
+// Каждый слот показывает тип зелья, иконку и количество в инвентаре
+function buildPotionQuickRowHtml() {
+    if (!player || !player.potionQuickSlots) return '';
+    if (window.pvpBattleActive) return '';
+
+    var slots = player.potionQuickSlots;
+    if (!slots || slots.length === 0) return '';
+
+    var typeConfig = {
+        'potion':      { icon: '🧪', name: 'Здоровье', color: '#4ade80' },
+        'mana_potion': { icon: '💎', name: 'Мана',     color: '#a78bfa' },
+        'food':        { icon: '🍖', name: 'Еда',       color: '#f59e42' },
+        'elixir':      { icon: '💪', name: 'Эликсир',   color: '#fbbf24' },
+        'scroll':      { icon: '📜', name: 'Свиток',    color: '#60a5fa' }
+    };
+
+    var hasAny = false;
+    for (var i = 0; i < slots.length; i++) {
+        if (slots[i] && getPotionCount(slots[i]) > 0) { hasAny = true; break; }
+    }
+    if (!hasAny) return '';
+
+    var html = '<div class="potion-quick-row"><div class="potion-quick-row__label">🧪 Быстрый доступ</div><div class="potion-quick-row__slots">';
+    for (var j = 0; j < slots.length; j++) {
+        var type = slots[j];
+        if (!type) {
+            html += '<div class="potion-quick-row__slot potion-quick-row__slot--empty"></div>';
+            continue;
+        }
+        var cfg = typeConfig[type] || { icon: '❓', name: '?', color: '#888' };
+        var count = getPotionCount(type);
+        var cd = getPotionCooldownSec(type);
+        var disabled = (count <= 0);
+        var cdText = cd > 0 ? ' ⏳' + cd + 'с' : '';
+
+        html += '<button class="potion-quick-row__slot' +
+            (disabled ? ' potion-quick-row__slot--empty' : '') +
+            '" onclick="usePotionFromQuickSlot(\'' + type + '\')"' +
+            ' title="' + cfg.name + ': ' + count + ' шт."' +
+            (disabled ? ' disabled' : '') +
+            ' style="border-color:' + cfg.color + '">' +
+            '<span class="potion-quick-row__icon">' + cfg.icon + '</span>' +
+            '<span class="potion-quick-row__count">' + count + '</span>' +
+            (cd > 0 ? '<span class="potion-quick-row__cd">⏳' + cd + 'с</span>' : '') +
+            '</button>';
+    }
+    html += '</div></div>';
+    return html;
+}
+
+function getPotionCount(type) {
+    if (!player || !player.inventory) return 0;
+    var map = {
+        'potion': (player.inventory.potions || []).length,
+        'mana_potion': (player.inventory.manaPotions || []).length,
+        'food': (player.inventory.foods || []).length,
+        'elixir': (player.inventory.elixirs || []).length,
+        'scroll': (player.inventory.scrolls || []).length
+    };
+    return map[type] || 0;
+}
+
+function getPotionCooldownSec(type) {
+    var cooldownKey = 'item_' + type;
+    if (window.getItemCooldown && typeof window.getItemCooldown === 'function') {
+        var cd = window.getItemCooldown(cooldownKey);
+        if (cd > 0) return Math.ceil(cd / 1000);
+    }
+    return 0;
+}
+
+// Использование зелья из быстрого слота
+function usePotionFromQuickSlot(type) {
+    if (!currentMonster) return;
+    if (typeof useConsumable !== 'function') return;
+    var map = {
+        'potion': 'potion',
+        'mana_potion': 'mana_potion',
+        'food': 'food',
+        'elixir': 'elixir',
+        'scroll': 'scroll'
+    };
+    var cat = map[type] || type;
+    var arr = null;
+    if (cat === 'potion') arr = player.inventory.potions;
+    else if (cat === 'mana_potion') arr = player.inventory.manaPotions;
+    else if (cat === 'food') arr = player.inventory.foods;
+    else if (cat === 'elixir') arr = player.inventory.elixirs;
+    else if (cat === 'scroll') arr = player.inventory.scrolls;
+    if (!arr || arr.length === 0) return;
+    useConsumable(cat, 0); // используем первое доступное зелье этого типа
+}
+
+// Управление слотами быстрого доступа к зельям
+function getPotionQuickSlotIndex(type) {
+    if (!player || !player.potionQuickSlots) return -1;
+    return player.potionQuickSlots.indexOf(type);
+}
+
+function cyclePotionQuickSlot(type) {
+    if (!player || !player.potionQuickSlots) return;
+    var slots = player.potionQuickSlots;
+    var idx = slots.indexOf(type);
+
+    if (idx >= 0) {
+        // Уже в слоте — убираем
+        slots[idx] = null;
+        addMessage('⚡ ' + type + ' убран из быстрого доступа', 'info');
+    } else {
+        // Ищем пустой слот
+        var empty = -1;
+        for (var i = 0; i < slots.length; i++) { if (!slots[i]) { empty = i; break; } }
+        if (empty >= 0) {
+            slots[empty] = type;
+            addMessage('⚡ Назначен в слот ' + (empty + 1) + ' быстрого доступа', 'success');
+        } else {
+            // Все заняты — циклически заменяем первый
+            var old = slots[0];
+            slots[0] = type;
+            addMessage('⚡ Заменён слот 1 (' + (old || 'пусто') + ' → ' + type + ')', 'info');
+        }
+    }
+    saveGame();
+    if (typeof showInventory === 'function') showInventory();
+}
+
 function showItemCooldownsInBattle() {
     if (window.pvpBattleActive) return '';
     if (!player.inventory) return '';
@@ -1335,3 +1464,9 @@ window.updateBattleVitality = updateBattleVitality;
 window.updateBattlePackVitality = updateBattlePackVitality;
 window.floatDamageOnEnemyIndex = floatDamageOnEnemyIndex;
 window.updateBattleStatusPanels = updateBattleStatusPanels;
+window.buildPotionQuickRowHtml = buildPotionQuickRowHtml;
+window.getPotionCount = getPotionCount;
+window.getPotionCooldownSec = getPotionCooldownSec;
+window.usePotionFromQuickSlot = usePotionFromQuickSlot;
+window.getPotionQuickSlotIndex = getPotionQuickSlotIndex;
+window.cyclePotionQuickSlot = cyclePotionQuickSlot;

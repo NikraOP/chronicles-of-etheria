@@ -8577,3 +8577,72 @@ body.account-gate-active #app.account-gate-layout {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ── Potion Quick Row (вторая строка быстрого доступа в бою) ── */
+.potion-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  margin: 4px 0;
+}
+.potion-quick-row__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 90px;
+  text-align: right;
+  padding-right: 6px;
+}
+.potion-quick-row__slots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.potion-quick-row__slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 54px;
+  justify-content: center;
+  transition: all 0.2s;
+  user-select: none;
+}
+.potion-quick-row__slot:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-1px);
+}
+.potion-quick-row__slot:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.potion-quick-row__slot--empty {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+.potion-quick-row__icon {
+  font-size: 16px;
+}
+.potion-quick-row__count {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.potion-quick-row__cd {
+  font-size: 10px;
+  color: var(--orange);
+  font-weight: 700;
+}
+@media (max-width: 480px) {
+  .potion-quick-row { gap: 4px; padding: 4px 0; }
+  .potion-quick-row__label { min-width: 60px; font-size: 10px; }
+  .potion-quick-row__slot { padding: 3px 8px; font-size: 11px; min-width: 44px; }
+  .potion-quick-row__icon { font-size: 14px; }
+}
