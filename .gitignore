@@ -1,3 +1,6 @@
+# Kilo AI — только локально, не в репозиторий / GitHub Pages
+.kilo/
+
 # Cursor IDE — только локально, не в репозиторий / GitHub Pages
 .cursor/
 AGENTS.md

@@ -1,6 +1,0 @@
-{
-  "$schema": "https://app.kilo.ai/config.json",
-  "default_agent": "координатор-этерии",
-  "model": "deepseek/deepseek-v4-flash",
-  "snapshot": true
-}
