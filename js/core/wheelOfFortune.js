@@ -173,10 +173,13 @@ function wheelFindItemInDb(itemName, slot) {
             }
         }
     } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
-        var armor = EQUIPMENT_DB.armor[slot];
-        if (armor) {
-            for (var i = 0; i < armor.length; i++) {
-                if (armor[i].name === itemName) return JSON.parse(JSON.stringify(armor[i]));
+        var classKeys = Object.keys(EQUIPMENT_DB.armor);
+        for (var ck = 0; ck < classKeys.length; ck++) {
+            var armor = (EQUIPMENT_DB.armor[classKeys[ck]] || {})[slot];
+            if (armor) {
+                for (var i = 0; i < armor.length; i++) {
+                    if (armor[i].name === itemName) return JSON.parse(JSON.stringify(armor[i]));
+                }
             }
         }
     }
@@ -457,9 +460,12 @@ function wheelResolveItemIcon(itemName, slot) {
                 }
             }
         } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
-            var armors = EQUIPMENT_DB.armor[slot];
-            if (armors) for (var ai = 0; ai < armors.length; ai++) {
-                if (armors[ai].name === itemName) return armors[ai].icon || null;
+            var classKeys2 = Object.keys(EQUIPMENT_DB.armor);
+            for (var ck2 = 0; ck2 < classKeys2.length; ck2++) {
+                var armors = (EQUIPMENT_DB.armor[classKeys2[ck2]] || {})[slot];
+                if (armors) for (var ai = 0; ai < armors.length; ai++) {
+                    if (armors[ai].name === itemName) return armors[ai].icon || null;
+                }
             }
         }
     }
@@ -630,8 +636,12 @@ function wheelRarityColor(itemName, slot) {
         var weps = EQUIPMENT_DB.weapons[player.class];
         if (weps) for (var i = 0; i < weps.length; i++) { if (weps[i].name === itemName) { item = weps[i]; break; } }
     } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
-        var armors = EQUIPMENT_DB.armor[slot];
-        if (armors) for (var i = 0; i < armors.length; i++) { if (armors[i].name === itemName) { item = armors[i]; break; } }
+        var classKeys3 = Object.keys(EQUIPMENT_DB.armor);
+        for (var ck3 = 0; ck3 < classKeys3.length; ck3++) {
+            var armors = (EQUIPMENT_DB.armor[classKeys3[ck3]] || {})[slot];
+            if (armors) for (var i = 0; i < armors.length; i++) { if (armors[i].name === itemName) { item = armors[i]; break; } }
+            if (item) break;
+        }
     }
     if (item && item.rarity && RARITY_COLORS[item.rarity]) return RARITY_COLORS[item.rarity];
     return '#ccc';

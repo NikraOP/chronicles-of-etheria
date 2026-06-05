@@ -28,8 +28,10 @@ function buildItemImgRegistry() {
             });
         }
         if (EQUIPMENT_DB.armor) {
-            Object.keys(EQUIPMENT_DB.armor).forEach(function (slot) {
-                (EQUIPMENT_DB.armor[slot] || []).forEach(registerItemDef);
+            Object.keys(EQUIPMENT_DB.armor).forEach(function (cls) {
+                Object.keys(EQUIPMENT_DB.armor[cls]).forEach(function (slot) {
+                    (EQUIPMENT_DB.armor[cls][slot] || []).forEach(registerItemDef);
+                });
             });
         }
     }

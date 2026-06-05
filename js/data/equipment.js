@@ -1,5 +1,6 @@
 // equipment.js - Исправленная версия (Древние и Божественные ТОЛЬКО в крафте)
 // img: путь к PNG от корня сайта, напр. 'assets/items/steel-sword.png' (пусто = emoji icon)
+// armor теперь по классам (как weapons). Броня Мага с img из png/armor/mage/.
 
 const EQUIPMENT_DB = {
     weapons: {
@@ -83,53 +84,145 @@ const EQUIPMENT_DB = {
         ]
     },
     armor: {
-        'helmet': [
-            {name:'Стальной шлем',rarity:'Обычный',lvl:1,price:100,dmg:0,def:10,hp:12,crit:0,critDmg:0,dodge:0,icon:'⛑️',img:'png/armor/mage/mage_armor_01.png'},
-            {name:'Закаленный шлем',rarity:'Необычный',lvl:5,price:200,dmg:0,def:14,hp:20,crit:2,critDmg:0,dodge:0,icon:'🪖',img:'png/armor/mage/mage_armor_02.png'},
-            {name:'Шлем рыцаря',rarity:'Редкий',lvl:10,price:380,dmg:0,def:20,hp:30,crit:4,critDmg:0,dodge:0,icon:'👑',img:'png/armor/mage/mage_armor_09.png'},
-            {name:'Титановый шлем',rarity:'Эпический',lvl:15,price:700,dmg:0,def:28,hp:45,crit:6,critDmg:0,dodge:0,icon:'🛡️',img:'png/armor/mage/mage_armor_10.png'},
-            
-            {name:'Шлем доблести',rarity:'Легендарный',lvl:20,price:1200,dmg:5,def:32,hp:60,crit:5,critDmg:0,dodge:0,icon:'⭐',img:'png/armor/mage/mage_armor_17.png'},
-            {name:'Шлем мудреца',rarity:'Легендарный',lvl:25,price:2000,dmg:0,def:38,hp:80,crit:8,critDmg:0,dodge:3,icon:'🧙',img:'png/armor/mage/mage_armor_18.png'},
-            {name:'Корона бессмертных',rarity:'Мифический',lvl:30,price:3800,dmg:0,def:48,hp:110,crit:10,critDmg:0,dodge:5,icon:'👑',img:'png/armor/mage/mage_armor_19.png'},
-            
-            // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! ТОЛЬКО КРАФТ =====
-        ],
-        'chest': [
-            {name:'Стальной нагрудник',rarity:'Обычный',lvl:1,price:180,dmg:0,def:20,hp:25,crit:0,critDmg:0,dodge:0,icon:'🛡️',img:'png/armor/mage/mage_armor_03.png'},
-            {name:'Закаленная броня',rarity:'Необычный',lvl:5,price:350,dmg:0,def:28,hp:40,crit:0,critDmg:0,dodge:1,icon:'⚔️',img:'png/armor/mage/mage_armor_04.png'},
-            {name:'Драконья броня',rarity:'Редкий',lvl:10,price:650,dmg:0,def:36,hp:60,crit:0,critDmg:8,dodge:0,icon:'🐉',img:'png/armor/mage/mage_armor_11.png'},
-            {name:'Титановый доспех',rarity:'Эпический',lvl:15,price:1200,dmg:0,def:48,hp:90,crit:0,critDmg:0,dodge:3,icon:'💪',img:'png/armor/mage/mage_armor_12.png'},
-            
-            {name:'Броня бессмертных',rarity:'Легендарный',lvl:20,price:2000,dmg:5,def:56,hp:120,crit:0,critDmg:10,dodge:0,icon:'🌟',img:'png/armor/mage/mage_armor_20.png'},
-            {name:'Кираса воина света',rarity:'Легендарный',lvl:25,price:3000,dmg:8,def:64,hp:150,crit:0,critDmg:0,dodge:4,icon:'✨',img:'png/armor/mage/mage_armor_21.png'},
-            {name:'Панцирь титана',rarity:'Мифический',lvl:30,price:4800,dmg:0,def:78,hp:200,crit:0,critDmg:0,dodge:6,icon:'🦾',img:'png/armor/mage/mage_armor_22.png'},
-            
-            // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! =====
-        ],
-        'pants': [
-            {name:'Стальные поножи',rarity:'Обычный',lvl:1,price:120,dmg:0,def:14,hp:18,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_05.png'},
-            {name:'Закаленные поножи',rarity:'Необычный',lvl:5,price:240,dmg:0,def:20,hp:28,crit:0,critDmg:0,dodge:2,icon:'🦵',img:'png/armor/mage/mage_armor_06.png'},
-            {name:'Поножи рыцаря',rarity:'Редкий',lvl:10,price:450,dmg:0,def:26,hp:42,crit:3,critDmg:0,dodge:0,icon:'⚡',img:'png/armor/mage/mage_armor_13.png'},
-            {name:'Титановые поножи',rarity:'Эпический',lvl:15,price:850,dmg:0,def:34,hp:60,crit:0,critDmg:0,dodge:5,icon:'🔩',img:'png/armor/mage/mage_armor_14.png'},
-            
-            {name:'Поножи бессмертного',rarity:'Легендарный',lvl:20,price:1500,dmg:3,def:40,hp:80,crit:0,critDmg:0,dodge:6,icon:'✨',img:'png/armor/mage/mage_armor_23.png'},
-            {name:'Набедренники ярости',rarity:'Легендарный',lvl:25,price:2500,dmg:5,def:46,hp:100,crit:5,critDmg:0,dodge:0,icon:'⚡',img:'png/armor/mage/mage_armor_24.png'},
-            {name:'Поножи вечности',rarity:'Мифический',lvl:30,price:3800,dmg:0,def:56,hp:130,crit:0,critDmg:0,dodge:8,icon:'🔱',img:'png/armor/mage/mage_armor_25.png'},
-            
-            // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! =====
-        ],
-        'boots': [
-            {name:'Стальные сапоги',rarity:'Обычный',lvl:1,price:80,dmg:0,def:7,hp:0,crit:0,critDmg:0,dodge:2,icon:'👢',img:'png/armor/mage/mage_armor_07.png'},
-            {name:'Сапоги скорости',rarity:'Необычный',lvl:5,price:160,dmg:0,def:10,hp:12,crit:0,critDmg:0,dodge:6,icon:'👟',img:'png/armor/mage/mage_armor_08.png'},
-            {name:'Сапоги странника',rarity:'Редкий',lvl:10,price:300,dmg:0,def:13,hp:20,crit:0,critDmg:0,dodge:10,icon:'🥾',img:'png/armor/mage/mage_armor_15.png'},
-            {name:'Крылатые сандалии',rarity:'Эпический',lvl:15,price:550,dmg:0,def:16,hp:35,crit:0,critDmg:0,dodge:14,icon:'🪽',img:'png/armor/mage/mage_armor_16.png'},
-            
-            {name:'Сапоги ветра',rarity:'Легендарный',lvl:20,price:1000,dmg:0,def:20,hp:50,crit:0,critDmg:0,dodge:18,icon:'💨',img:'png/armor/mage/mage_armor_26.png'},
-            {name:'Сапоги телепортации',rarity:'Легендарный',lvl:25,price:1800,dmg:0,def:24,hp:70,crit:3,critDmg:0,dodge:22,icon:'🌀',img:'png/armor/mage/mage_armor_27.png'},
-            {name:'Сапоги вселенной',rarity:'Мифический',lvl:30,price:3000,dmg:0,def:30,hp:100,crit:0,critDmg:0,dodge:27,icon:'🌠',img:'png/armor/mage/mage_armor_28.png'},
-            
-            // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! =====
-        ]
+        'Воин': {
+            // === БАЗОВЫЕ (уровни 1-10) ===
+            'helmet': [
+                {name:'Стальной шлем',rarity:'Обычный',lvl:1,price:100,dmg:0,def:10,hp:11,crit:0,critDmg:0,dodge:0,icon:'⛑️',img:''},
+                {name:'Закаленный шлем',rarity:'Необычный',lvl:5,price:200,dmg:0,def:14,hp:20,crit:2,critDmg:0,dodge:0,icon:'🪖',img:''},
+                {name:'Шлем рыцаря',rarity:'Редкий',lvl:10,price:400,dmg:0,def:20,hp:30,crit:5,critDmg:0,dodge:0,icon:'👑',img:''},
+                {name:'Титановый шлем',rarity:'Эпический',lvl:15,price:750,dmg:0,def:28,hp:45,crit:7,critDmg:0,dodge:0,icon:'🛡️',img:''},
+                {name:'Шлем доблести',rarity:'Легендарный',lvl:20,price:1300,dmg:5,def:32,hp:61,crit:6,critDmg:0,dodge:0,icon:'⭐',img:''},
+                {name:'Корона бессмертных',rarity:'Мифический',lvl:30,price:4000,dmg:0,def:49,hp:112,crit:12,critDmg:0,dodge:5,icon:'👑',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Венец древних знаний',...},
+                // {name:'Шлем просветленного',...},
+                // {name:'Корона власти',...},
+                // {name:'Венец всевластия',...},
+            ],
+            'chest': [
+                {name:'Стальной нагрудник',rarity:'Обычный',lvl:1,price:180,dmg:0,def:20,hp:25,crit:0,critDmg:0,dodge:0,icon:'🛡️',img:''},
+                {name:'Закаленная броня',rarity:'Необычный',lvl:5,price:380,dmg:0,def:28,hp:40,crit:0,critDmg:0,dodge:0,icon:'⚔️',img:''},
+                {name:'Драконья броня',rarity:'Редкий',lvl:10,price:700,dmg:0,def:36,hp:61,crit:0,critDmg:10,dodge:0,icon:'🐉',img:''},
+                {name:'Титановый доспех',rarity:'Эпический',lvl:15,price:1300,dmg:0,def:49,hp:91,crit:0,critDmg:0,dodge:3,icon:'💪',img:''},
+                {name:'Броня бессмертных',rarity:'Легендарный',lvl:20,price:2200,dmg:5,def:56,hp:122,crit:0,critDmg:12,dodge:0,icon:'🌟',img:''},
+                {name:'Панцирь титана',rarity:'Мифический',lvl:30,price:5200,dmg:0,def:79,hp:204,crit:0,critDmg:0,dodge:5,icon:'🦾',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Доспех перворожденных',...},
+                // {name:'Броня вознесения',...},
+                // {name:'Доспех абсолюта',...},
+                // {name:'Панцирь божества',...},
+            ],
+            'pants': [
+                {name:'Стальные поножи',rarity:'Обычный',lvl:1,price:130,dmg:0,def:14,hp:18,crit:0,critDmg:0,dodge:0,icon:'👖',img:''},
+                {name:'Закаленные поножи',rarity:'Необычный',lvl:5,price:260,dmg:0,def:20,hp:28,crit:0,critDmg:0,dodge:1,icon:'🦵',img:''},
+                {name:'Поножи рыцаря',rarity:'Редкий',lvl:10,price:480,dmg:0,def:26,hp:42,crit:4,critDmg:0,dodge:0,icon:'⚡',img:''},
+                {name:'Титановые поножи',rarity:'Эпический',lvl:15,price:900,dmg:0,def:34,hp:61,crit:0,critDmg:0,dodge:5,icon:'🔩',img:''},
+                {name:'Поножи бессмертного',rarity:'Легендарный',lvl:20,price:1600,dmg:3,def:40,hp:81,crit:0,critDmg:0,dodge:5,icon:'✨',img:''},
+                {name:'Поножи вечности',rarity:'Мифический',lvl:30,price:4000,dmg:0,def:56,hp:132,crit:0,critDmg:0,dodge:8,icon:'🔱',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Поножи древнего героя',...},
+                // {name:'Набедренники возмездия',...},
+                // {name:'Поножи просветленного',...},
+                // {name:'Набедренники творца',...},
+            ],
+            'boots': [
+                {name:'Стальные сапоги',rarity:'Обычный',lvl:1,price:80,dmg:0,def:6,hp:0,crit:0,critDmg:0,dodge:1,icon:'👢',img:''},
+                {name:'Сапоги скорости',rarity:'Необычный',lvl:5,price:170,dmg:0,def:10,hp:11,crit:0,critDmg:0,dodge:5,icon:'👟',img:''},
+                {name:'Сапоги странника',rarity:'Редкий',lvl:10,price:320,dmg:0,def:13,hp:20,crit:0,critDmg:0,dodge:10,icon:'🥾',img:''},
+                {name:'Крылатые сандалии',rarity:'Эпический',lvl:15,price:600,dmg:0,def:16,hp:35,crit:0,critDmg:0,dodge:14,icon:'🪽',img:''},
+                {name:'Сапоги ветра',rarity:'Легендарный',lvl:20,price:1100,dmg:0,def:20,hp:51,crit:0,critDmg:0,dodge:18,icon:'💨',img:''},
+                {name:'Сапоги вселенной',rarity:'Мифический',lvl:30,price:3200,dmg:0,def:30,hp:102,crit:0,critDmg:0,dodge:27,icon:'🌠',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Сандалии древнего ветра',...},
+                // {name:'Сапоги вознесения',...},
+                // {name:'Сандалии абсолютной скорости',...},
+                // {name:'Сандалии творца',...},
+            ]
+        },
+        'Маг': {
+            'helmet': [
+                {name:'Хлопковый капюшон',rarity:'Необычный',lvl:3,price:120,dmg:0,def:3,hp:11,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_02.png'},
+                {name:'Шёлковый капюшон',rarity:'Редкий',lvl:8,price:300,dmg:0,def:6,hp:22,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_06.png'},
+                {name:'Мифриловый капюшон',rarity:'Эпический',lvl:14,price:650,dmg:0,def:11,hp:35,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_10.png'},
+                {name:'Звёздный капюшон',rarity:'Мифический',lvl:25,price:2200,dmg:0,def:22,hp:61,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_14.png'},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Капюшон звёздного пророка',...},
+                // {name:'Диадема небесного чародея',...},
+                // {name:'Венец манапотока',...},
+                // {name:'Корона первозданной мудрости',...},
+            ],
+            'chest': [
+                {name:'Хлопковая мантия',rarity:'Необычный',lvl:3,price:200,dmg:0,def:5,hp:20,crit:0,critDmg:0,dodge:0,icon:'👘',img:'png/armor/mage/mage_armor_01.png'},
+                {name:'Шёлковая мантия',rarity:'Редкий',lvl:8,price:550,dmg:0,def:10,hp:35,crit:0,critDmg:0,dodge:0,icon:'👘',img:'png/armor/mage/mage_armor_05.png'},
+                {name:'Мифриловое одеяние',rarity:'Эпический',lvl:14,price:1100,dmg:0,def:18,hp:56,crit:0,critDmg:0,dodge:0,icon:'✨',img:'png/armor/mage/mage_armor_09.png'},
+                {name:'Звёздное одеяние',rarity:'Мифический',lvl:25,price:3500,dmg:0,def:32,hp:91,crit:0,critDmg:0,dodge:0,icon:'🌟',img:'png/armor/mage/mage_armor_13.png'},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Мантия древнего архимага',...},
+                // {name:'Одеяние звёздного суверена',...},
+                // {name:'Роба божественного прорицания',...},
+                // {name:'Мантия творца миров',...},
+            ],
+            'pants': [
+                {name:'Хлопковые штаны',rarity:'Необычный',lvl:3,price:100,dmg:0,def:3,hp:10,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_03.png'},
+                {name:'Шёлковые штаны',rarity:'Редкий',lvl:8,price:280,dmg:0,def:5,hp:18,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_07.png'},
+                {name:'Мифриловые штаны',rarity:'Эпический',lvl:14,price:600,dmg:0,def:10,hp:28,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_11.png'},
+                {name:'Звёздные штаны',rarity:'Мифический',lvl:25,price:2000,dmg:0,def:18,hp:51,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_15.png'},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Штаны древнего мудреца',...},
+                // {name:'Порты магического вознесения',...},
+                // {name:'Штаны звёздного паломника',...},
+                // {name:'Набедренники тайницы',...},
+            ],
+            'boots': [
+                {name:'Хлопковые сапоги',rarity:'Необычный',lvl:3,price:100,dmg:0,def:3,hp:0,crit:0,critDmg:0,dodge:3,icon:'👢',img:'png/armor/mage/mage_armor_04.png'},
+                {name:'Шёлковые сапоги',rarity:'Редкий',lvl:8,price:250,dmg:0,def:5,hp:0,crit:0,critDmg:0,dodge:5,icon:'👢',img:'png/armor/mage/mage_armor_08.png'},
+                {name:'Мифриловые сапоги',rarity:'Эпический',lvl:14,price:550,dmg:0,def:10,hp:0,crit:0,critDmg:0,dodge:5,icon:'👢',img:'png/armor/mage/mage_armor_12.png'},
+                {name:'Звёздные сапоги',rarity:'Мифический',lvl:25,price:1800,dmg:0,def:18,hp:0,crit:0,critDmg:0,dodge:8,icon:'👢',img:'png/armor/mage/mage_armor_16.png'},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Сапоги лунного шага',...},
+                // {name:'Тапочки эфирного странника',...},
+                // {name:'Сапоги манавихря',...},
+                // {name:'Тапочки созидателя',...},
+            ]
+        },
+        'Лучник': {
+            'helmet': [
+                {name:'Кожаный шлем',rarity:'Обычный',lvl:1,price:70,dmg:0,def:4,hp:8,crit:0,critDmg:0,dodge:3,icon:'🎭',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Капюшон древнего следопыта',...},
+                // {name:'Койф звёздного охотника',...},
+                // {name:'Шлем небесного лучника',...},
+                // {name:'Корона меткого стрелка',...},
+            ],
+            'chest': [
+                {name:'Кожаная куртка',rarity:'Обычный',lvl:1,price:120,dmg:0,def:5,hp:11,crit:0,critDmg:0,dodge:4,icon:'🧥',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Кираса древнего охотника',...},
+                // {name:'Панцирь ветра',...},
+                // {name:'Грудник левиафана',...},
+                // {name:'Броня перворожденного лучника',...},
+            ],
+            'pants': [
+                {name:'Кожаные поножи',rarity:'Обычный',lvl:1,price:80,dmg:0,def:4,hp:10,crit:0,critDmg:0,dodge:3,icon:'👖',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Поножи древнего следопыта',...},
+                // {name:'Наголенники меткого выстрела',...},
+                // {name:'Поножи небесного стремления',...},
+                // {name:'Набедренники древнего ветра',...},
+            ],
+            'boots': [
+                {name:'Кожаные сапоги',rarity:'Обычный',lvl:1,price:60,dmg:0,def:4,hp:0,crit:0,critDmg:0,dodge:5,icon:'👢',img:''},
+                {name:'Сапоги скорости',rarity:'Необычный',lvl:5,price:170,dmg:0,def:10,hp:11,crit:0,critDmg:0,dodge:5,icon:'👟',img:''},
+                {name:'Сапоги странника',rarity:'Редкий',lvl:10,price:320,dmg:0,def:13,hp:20,crit:0,critDmg:0,dodge:10,icon:'🥾',img:''},
+                {name:'Крылатые сандалии',rarity:'Эпический',lvl:15,price:600,dmg:0,def:16,hp:35,crit:0,critDmg:0,dodge:14,icon:'🪽',img:''},
+                {name:'Сапоги ветра',rarity:'Легендарный',lvl:20,price:1100,dmg:0,def:20,hp:51,crit:0,critDmg:0,dodge:18,icon:'💨',img:''},
+                {name:'Сапоги вселенной',rarity:'Мифический',lvl:30,price:3200,dmg:0,def:30,hp:102,crit:0,critDmg:0,dodge:27,icon:'🌠',img:''},
+                // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ — ТОЛЬКО КРАФТ =====
+                // {name:'Сандалии древнего ветра',...},
+                // {name:'Сапоги вознесения',...},
+                // {name:'Сандалии абсолютной скорости',...},
+                // {name:'Сандалии творца',...},
+            ]
+        }
     }
 };

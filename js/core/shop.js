@@ -377,7 +377,7 @@ function renderBuyItems(cat) {
     if (cat === 'weapons') {
         items = [...(EQUIPMENT_DB.weapons[player.class] || [])];
     } else {
-        items = [...(EQUIPMENT_DB.armor[cat] || [])];
+        items = [...((EQUIPMENT_DB.armor[player.class] || {})[cat] || [])];
     }
     
     if (items.length === 0) {
@@ -601,7 +601,7 @@ function buyItemKeepOpen(cat, name) {
     if (cat === 'weapons') {
         items = EQUIPMENT_DB.weapons[player.class] || [];
     } else {
-        items = EQUIPMENT_DB.armor[cat] || [];
+        items = (EQUIPMENT_DB.armor[player.class] || {})[cat] || [];
     }
     
     const item = items.find(i => i.name === name);
