@@ -197,8 +197,10 @@ function finalizeCharacter() {
         },
         wheelOfFortune: {
             lastSpinTime: null,
-            serverTimeSync: null,
-            spinsToday: 0
+            nextSpinTime: null,
+            spinsToday: 0,
+            lastSpinDate: '',
+            spinHistory: []
         },
         ...baseStats
     };

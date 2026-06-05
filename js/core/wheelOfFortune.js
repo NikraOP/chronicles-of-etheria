@@ -11,25 +11,47 @@ function wheelGetCurrentMskTime() {
     return Date.now() + 3 * 60 * 60 * 1000; // UTC+3
 }
 
-// ─── Состояние колеса ───
+// ─── Состояние колеса (находится в player.wheelOfFortune) ───
+// Поля:
+//   lastSpinTime    — timestamp последней крутки (null = никогда)
+//   nextSpinTime    — timestamp когда можно крутить снова
+//   spinsToday      — счётчик круток за сегодня
+//   lastSpinDate    — дата последней крутки "YYYY-MM-DD" (для сброса счётчика)
+//   spinHistory     — массив последних результатов [{time, type, name, amount}]
+// ==================================================================
 
 function wheelInitState() {
-    if (!player.wheelOfFortune) {
+    if (!player.wheelOfFortune || typeof player.wheelOfFortune !== 'object') {
         player.wheelOfFortune = {
             lastSpinTime: null,
-            serverTimeSync: null,
-            spinsToday: 0
+            nextSpinTime: null,
+            spinsToday: 0,
+            lastSpinDate: '',
+            spinHistory: []
         };
     }
-    // Проверка: если lastSpinTime устарел (старше 24ч), сброс spinsToday
-    if (player.wheelOfFortune.lastSpinTime) {
-        var now = wheelGetCurrentMskTime();
-        var last = player.wheelOfFortune.lastSpinTime;
-        var day = 24 * 60 * 60 * 1000;
-        if (now - last > day) {
-            player.wheelOfFortune.spinsToday = 0;
-        }
+    var state = player.wheelOfFortune;
+
+    // Обеспечиваем все поля
+    if (state.nextSpinTime === undefined) state.nextSpinTime = null;
+    if (state.lastSpinDate === undefined) state.lastSpinDate = '';
+    if (!state.spinHistory) state.spinHistory = [];
+
+    // Сброс дневного счётчика если прошёл день
+    var today = wheelGetCurrentMskDate();
+    if (state.lastSpinDate && state.lastSpinDate !== today) {
+        state.spinsToday = 0;
+        state.lastSpinDate = today;
     }
+    if (!state.lastSpinDate) state.lastSpinDate = today;
+}
+
+function wheelGetCurrentMskDate() {
+    var msk = wheelGetCurrentMskTime();
+    var d = new Date(msk);
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
 }
 
 function wheelCanSpin() {
@@ -42,20 +64,62 @@ function wheelCanSpin() {
 }
 
 function wheelGetTimeLeft() {
+    // Сколько секунд осталось до следующей крутки
+    wheelInitState();
     var state = player.wheelOfFortune;
-    if (!state || !state.lastSpinTime) return 0;
+    if (!state.lastSpinTime) return 0;
     var now = wheelGetCurrentMskTime();
     var cooldown = (FORTUNE_WHEEL_PRIZES.cooldownHours || 1) * 60 * 60 * 1000;
     var elapsed = now - state.lastSpinTime;
-    return Math.max(0, Math.floor((cooldown - elapsed) / 1000));
+    return Math.max(0, Math.ceil((cooldown - elapsed) / 1000));
 }
 
 function wheelRecordSpin() {
+    wheelInitState();
     var now = wheelGetCurrentMskTime();
-    player.wheelOfFortune.lastSpinTime = now;
-    player.wheelOfFortune.serverTimeSync = now;
-    player.wheelOfFortune.spinsToday = (player.wheelOfFortune.spinsToday || 0) + 1;
+    var state = player.wheelOfFortune;
+    state.lastSpinTime = now;
+    state.nextSpinTime = now + (FORTUNE_WHEEL_PRIZES.cooldownHours || 1) * 60 * 60 * 1000;
+    state.lastSpinDate = wheelGetCurrentMskDate();
+    state.spinsToday = (state.spinsToday || 0) + 1;
+    // Ограничиваем историю 20 записями
+    while (state.spinHistory.length >= 20) state.spinHistory.shift();
     saveGame();
+}
+
+function wheelAddToHistory(entry) {
+    if (!player.wheelOfFortune || !player.wheelOfFortune.spinHistory) return;
+    player.wheelOfFortune.spinHistory.push(entry);
+    while (player.wheelOfFortune.spinHistory.length > 20) {
+        player.wheelOfFortune.spinHistory.shift();
+    }
+}
+
+// Вызывается при загрузке игры (из main.js init) для проверки целостности
+function wheelRestoreAfterLoad() {
+    wheelInitState();
+    var state = player.wheelOfFortune;
+    // Если nextSpinTime устарел — сбрасываем флаг
+    if (state.nextSpinTime && wheelGetCurrentMskTime() >= state.nextSpinTime) {
+        state.nextSpinTime = null;
+    }
+}
+
+// Вызывается при смене персонажа (resetGame, import):
+// останавливает текущий таймер и сбрасывает состояние для нового персонажа
+function wheelOnCharacterSwitch() {
+    if (_wheelSyncInterval) {
+        clearInterval(_wheelSyncInterval);
+        _wheelSyncInterval = null;
+    }
+    if (_wheelRAF) {
+        cancelAnimationFrame(_wheelRAF);
+        _wheelRAF = null;
+    }
+    _isSpinning = false;
+    _wheelRotation = 0;
+    _wheelDebugLog = [];
+    // Не трогаем player.wheelOfFortune — оно уже новое (от нового персонажа)
 }
 
 // ─── Определение призов ───
@@ -858,6 +922,14 @@ function wheelSpin() {
             // Неизвестный тип — фолбэк (джекпот)
             result = wheelAwardJackpot();
         }
+
+        // Запись в историю
+        wheelAddToHistory({
+            time: wheelGetCurrentMskTime(),
+            type: result.type,
+            name: result.type === 'gold' ? ('+' + result.amount + ' золота') : (result.item ? result.item.name : '?'),
+            jackpot: result.jackpot || false
+        });
 
         // Показываем результат
         var seg = WHEEL_SEGMENTS[targetIndex];

@@ -27,6 +27,8 @@ function initLegacyLocalGame() {
                 updateAllAbilities();
                 resetBaseStats();
                 clampPlayerVitalsAfterLoad();
+                // Восстановление таймера колеса фортуны после загрузки
+                if (typeof wheelRestoreAfterLoad === 'function') wheelRestoreAfterLoad();
                 renderGame();
                 console.log('Сохранение загружено, скинов:', player.unlockedSkins?.length || 0);
                 return;
@@ -680,9 +682,19 @@ function migrateOldSave(playerData) {
     if (!playerData.wheelOfFortune || typeof playerData.wheelOfFortune !== 'object') {
         playerData.wheelOfFortune = {
             lastSpinTime: null,
-            serverTimeSync: null,
-            spinsToday: 0
+            nextSpinTime: null,
+            spinsToday: 0,
+            lastSpinDate: '',
+            spinHistory: []
         };
+    } else {
+        // Дополняем недостающие поля у старых сейвов
+        var w = playerData.wheelOfFortune;
+        if (w.nextSpinTime === undefined) w.nextSpinTime = null;
+        if (w.lastSpinDate === undefined) w.lastSpinDate = '';
+        if (!Array.isArray(w.spinHistory)) w.spinHistory = [];
+        // Удаляем устаревшее поле
+        if ('serverTimeSync' in w) delete w.serverTimeSync;
     }
 
     if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
