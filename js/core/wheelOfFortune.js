@@ -323,11 +323,36 @@ function wheelDetectItemSlot(item) {
 }
 
 // ─── Анимация вращения (requestAnimationFrame) ───
-// Принцип: начальная скорость, затухание 5-10% каждый кадр,
-// остановка при скорости < порога, определение сегмента по углу.
+// ==================================================
+// СИСТЕМА КООРДИНАТ КОЛЕСА:
+//   0° — верх (12 часов), там же стрелка ◆ (неподвижна, вне .wheel-wrapper)
+//   conic-gradient(from 0deg, ...) — цвета сегментов от 0° ПО ЧАСОВОЙ:
+//     сегмент 0 = 0°-45°, сегмент 1 = 45°-90°, ..., сегмент 7 = 315°-360°
+//   transform: rotate(R° CW) — колесо вращается ПО ЧАСОВОЙ
+//
+// ФОРМУЛА ОПРЕДЕЛЕНИЯ СЕГМЕНТА:
+//   При rotate(R° CW) точка 0° градиента сдвинута на R° CW.
+//   Указатель (0°) видит точку градиента (360 - R) % 360.
+//   currentAngle = normalize(R) = R % 360 из [0, 360)
+//   gradientAngle = (360 - currentAngle) % 360 — что видит указатель
+//   segmentIndex = floor(gradientAngle / 45)
+//
+// ПРИМЕРЫ:
+//   R=0°   → gradientAngle=0°   → segment=0 (джекпот)
+//   R=45°  → gradientAngle=315° → segment=7 (последний предмет)
+//   R=360° → gradientAngle=0°   → segment=0 (полный оборот — снова джекпот)
+//
+// ВАЖНО: Обратный порядок сегментов (7,6,5,...) — нормально.
+//   При вращении CW колеса сегменты проходят под указателем
+//   именно в этом порядке (из-за conic-gradient + transform).
+//   Распределение остаётся равномерным (~12.5% на сегмент).
+// ==================================================
 var _wheelRotation = 0;
 var _isSpinning = false;
 var _wheelRAF = null;
+// Отладочный режим: включить console.log при остановке
+var WHEEL_DEBUG = false;
+var _wheelDebugLog = [];      // история последних круток для отладки
 
 function spinWheelAnimation(callback) {
     var wheel = document.getElementById('wheel');
@@ -338,16 +363,15 @@ function spinWheelAnimation(callback) {
     var extraAngle = Math.floor(Math.random() * 360);    // 0-359
     var desiredTotal = fullTurns * 360 + extraAngle;     // 1800-3960°
 
-    // Параметры затухания
+    // Параметры затухания (чем ближе decay к 1, тем дольше крутится)
     var decay = 0.975 + Math.random() * 0.015;            // 0.975-0.99
     var threshold = 0.15;                                 // °/frame — порог остановки
-    // Начальная скорость: чтобы в сумме геометрической прогрессии ≈ desiredTotal
-    // Сумма: startVel / (1 - decay). Отсюда startVel = desiredTotal * (1 - decay)
+    // Сумма геом. прогрессии: startVel / (1 - decay) ≈ desiredTotal
     var initialVel = Math.max(8, desiredTotal * (1 - decay));
 
     if (_wheelRAF) cancelAnimationFrame(_wheelRAF);
 
-    wheel.style.transition = 'none';  // отключаем CSS transition
+    wheel.style.transition = 'none';
     wheel.classList.add('wheel--spinning');
 
     var vel = initialVel;
@@ -356,24 +380,52 @@ function spinWheelAnimation(callback) {
     function frame() {
         if (!document.getElementById('wheel')) return;
 
-        rot += vel;                         // поворот колеса (с текущей скоростью)
-        vel *= decay;                      // затухание скорости на следующий кадр
+        rot += vel;                      // поворот на текущей скорости
+        vel *= decay;                    // затухание для следующего кадра
 
         wheel.style.transform = 'rotate(' + rot + 'deg)';
 
         if (vel > threshold) {
             _wheelRAF = requestAnimationFrame(frame);
         } else {
-            // Колесо остановилось
+            // ── Колесо остановилось ──
             wheel.classList.remove('wheel--spinning');
             _wheelRotation = rot;
             _wheelRAF = null;
 
-            // Определяем сегмент по углу остановки
+            // 1. Нормализуем угол: rot % 360 → [0, 360)
             var currentAngle = ((rot % 360) + 360) % 360;
+            // 2. Что видит указатель (0°) после поворота CW:
+            //    точка градиента (360 - currentAngle) % 360
             var gradientAngle = ((360 - currentAngle) % 360 + 360) % 360;
+            // 3. Сегмент: каждый сегмент ровно 45°
+            //    Используем целочисленное деление — на границах
+            //    (ровно 45°, 90° и т.д.) попадаем в следующий сегмент
             var segmentIndex = Math.floor(gradientAngle / 45);
+            // Защита: при gradientAngle=360° → segmentIndex=8 → 0
             if (segmentIndex >= 8) segmentIndex = 0;
+
+            // ОТЛАДКА
+            if (WHEEL_DEBUG) {
+                var seg = window._wheelSegments && window._wheelSegments[segmentIndex];
+                console.log(
+                    '🎡 STOP | rot=' + rot.toFixed(1) +
+                    '° | angle=' + currentAngle.toFixed(1) +
+                    '° | gradient=' + gradientAngle.toFixed(1) +
+                    '° | segment=' + segmentIndex +
+                    (seg ? ' (' + (seg.segmentType || '?') + ': ' + (seg.name || seg.label || '?') + ')' : '')
+                );
+                // Сохраняем в историю (последние 20)
+                _wheelDebugLog.push({
+                    rot: Math.round(rot),
+                    angle: Math.round(currentAngle),
+                    gradient: Math.round(gradientAngle),
+                    segment: segmentIndex,
+                    type: seg ? seg.segmentType : '?',
+                    name: seg ? (seg.name || seg.label || '?') : '?'
+                });
+                if (_wheelDebugLog.length > 20) _wheelDebugLog.shift();
+            }
 
             if (typeof callback === 'function') callback(segmentIndex);
         }
@@ -504,6 +556,38 @@ function wheelResolveItemIcon(itemName, slot) {
 // WHEEL_SEGMENTS — будет перестраиваться при каждом рендере
 var WHEEL_SEGMENTS = [];
 
+// ─── Отладочные функции (вызови из консоли браузера) ───
+// wheelDebugOn()  — включить логирование каждой остановки
+// wheelDebugOff() — выключить
+// wheelDebugLog() — показать историю последних 20 круток
+// wheelTest(n)    — симуляция n случайных круток (без анимации)
+
+function wheelDebugOn()  { WHEEL_DEBUG = true; console.log('🔍 Отладка колеса ВКЛ'); }
+function wheelDebugOff() { WHEEL_DEBUG = false; console.log('🔍 Отладка колеса ВЫКЛ'); }
+function wheelDebugLog() {
+    console.table(_wheelDebugLog.length ? _wheelDebugLog : [{info:'Нет данных. Сделайте крутку с WHEEL_DEBUG=true'}]);
+}
+
+function wheelTest(count) {
+    count = count || 100;
+    var results = [0,0,0,0,0,0,0,0];
+    console.log('🧪 Симуляция ' + count + ' круток...');
+    for (var i = 0; i < count; i++) {
+        var rot = 1800 + Math.floor(Math.random() * 2160); // 5-10 оборотов + 0-359
+        var ca = ((rot % 360) + 360) % 360;
+        var ga = ((360 - ca) % 360 + 360) % 360;
+        var si = Math.floor(ga / 45);
+        if (si >= 8) si = 0;
+        results[si]++;
+    }
+    console.log('Распределение (ожидаемо ~' + (count/8).toFixed(0) + ' на сегмент):');
+    for (var j = 0; j < 8; j++) {
+        var pct = (results[j] / count * 100).toFixed(1);
+        console.log('  Сегмент ' + j + ': ' + results[j] + ' (' + pct + '%)');
+    }
+    return results;
+}
+
 function showWheelOfFortune() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
@@ -527,7 +611,11 @@ function showWheelOfFortune() {
 
 function wheelRenderWheel() {
     // Строим динамические сегменты
+    // Порядок в массиве: 0=джекпот, 1-4=золото, 5-7=предметы
+    // На conic-gradient: seg[0] от 0° до 45°, seg[1] от 45° до 90°, ...
+    // Стрелка ◆ на 0° (12ч), неподвижна (в .wheel-wrapper вне .wheel)
     WHEEL_SEGMENTS = wheelBuildSegments();
+    window._wheelSegments = WHEEL_SEGMENTS; // для отладки из консоли
 
     var segDeg = 45;
     var stops = [];
@@ -849,3 +937,8 @@ window.wheelCanSpin = wheelCanSpin;
 window.wheelGetCurrentMskTime = wheelGetCurrentMskTime;
 window.wheelPickFromPool = wheelPickFromPool;
 window.wheelValidatePools = wheelValidatePools;
+// Отладка
+window.wheelDebugOn = wheelDebugOn;
+window.wheelDebugOff = wheelDebugOff;
+window.wheelDebugLog = wheelDebugLog;
+window.wheelTest = wheelTest;
