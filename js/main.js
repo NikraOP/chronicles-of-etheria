@@ -560,6 +560,7 @@ function handleImportSave(event) {
 // Сохранения — только в Настройках → вкладка «Игра»
 
 const originalRenderGame = renderGame;
+window._originalRenderGame = originalRenderGame;
 renderGame = function() {
     originalRenderGame();
     setTimeout(addSkinsButton, 150);

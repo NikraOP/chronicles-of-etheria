@@ -462,12 +462,14 @@ function scrollCraftProgressIntoView() {
 
 function getProfessionBonuses(tier) {
     const effectiveLevel = (tier - 1) * 10 + 5;
+    // craftQualityBonus: тир-зависимая таблица, чтобы крафтовая броня была ~на 15% лучше магазинной
+    const craftQualityByTier = { 1: 0.03, 2: 0.05, 3: 0.08, 4: 0.10, 5: 0.12, 6: 0.15 };
     return {
         gatherSpeedBonus: Math.min(0.5, effectiveLevel * 0.01),
         doubleGatherChance: Math.min(0.5, effectiveLevel * 0.01),
         expBonus: Math.min(1.0, effectiveLevel * 0.02),
         rareResourceChance: Math.min(0.3, effectiveLevel * 0.006),
-        craftQualityBonus: Math.min(0.5, effectiveLevel * 0.01),
+        craftQualityBonus: craftQualityByTier[tier] || 0,
         materialSaveChance: Math.min(0.3, effectiveLevel * 0.006)
     };
 }
@@ -515,12 +517,13 @@ function finishCraftProgress(session) {
         stopCraftProgress();
         return;
     }
-    consumeCraftMaterials(session.scaledMaterials, session.bonuses.materialSaveChance);
+    // Материалы НЕ списываем здесь — их проверит и спишет completeCrafting()
     pendingCraftData = {
         profId: session.profId,
         recipe: session.normRecipe,
         adjustedExp: session.adjustedExp,
         bonuses: session.bonuses,
+        scaledMaterials: session.scaledMaterials,
         batchCount: 1
     };
     const slot = document.getElementById('craftProgressSlot');
@@ -672,8 +675,22 @@ function completeCrafting(profId, options) {
     if (!prof) return;
     normalizeProfessionProf(prof);
     
-    const { recipe, adjustedExp, bonuses, batchCount } = pendingCraftData;
+    const { recipe, adjustedExp, bonuses, scaledMaterials, batchCount } = pendingCraftData;
     const count = Math.max(1, parseInt(batchCount, 10) || 1);
+
+    // БАГ 8 fix: проверяем наличие материалов повторно перед выдачей предмета
+    if (!hasRecipeMaterials(recipe, count)) {
+        addMessage('❌ Недостаточно материалов для крафта! Ресурсы были потрачены до завершения.', 'error');
+        pendingCraftData = null;
+        if (!options.silent) showCraftingRecipes(profId);
+        return;
+    }
+
+    // Списываем материалы только после успешной проверки
+    if (scaledMaterials) {
+        consumeCraftMaterials(scaledMaterials, bonuses.materialSaveChance);
+    }
+
     let qualityMsgShown = false;
 
     for (let i = 0; i < count; i++) {
@@ -926,7 +943,10 @@ function startCraftProgress(profId, recipeName, cardEl) {
     }
 
     const baseSec = normRecipe.time || normRecipe.exp || 5;
-    const adjustedTime = Math.max(2, Math.floor(baseSec * (1 - bonuses.gatherSpeedBonus)));
+    // ПРЕД 8 fix: обычные предметы крафтятся в 3 раза дольше; Древние/Божественные — без изменений (300/600 с)
+    const isSpecial = normRecipe.rarity === 'Древний' || normRecipe.rarity === 'Божественный';
+    const scaledBase = isSpecial ? baseSec : Math.floor(baseSec * 3);
+    const adjustedTime = Math.max(2, Math.floor(scaledBase * (1 - bonuses.gatherSpeedBonus)));
     const perExp = normRecipe.exp || normRecipe.time || 0;
     const scaledMaterials = scaleRecipeMaterials(materials, 1);
 

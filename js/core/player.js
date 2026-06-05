@@ -149,6 +149,7 @@ function finalizeCharacter() {
         maxExperience: 320,
         gold: 150,
         victories: 0,
+        pvpRating: 1000,
         location: 'Сумеречный лес',
         professions: {},
         resources: {},
@@ -452,6 +453,9 @@ function showModal(title, icon, message, buttonText, callback) {
     `;
     modal.style.display = 'flex';
     window.modalCallback = callback;
+    modal.onclick = function(e) {
+        if (e.target === modal) closeModal();
+    };
 }
 
 function closeModal() {
@@ -460,6 +464,22 @@ function closeModal() {
     if (window.modalCallback) {
         window.modalCallback();
         window.modalCallback = null;
+    }
+}
+
+function updateSidebarGoldExp() {
+    var statItems = document.querySelectorAll('.sidebar .stat-item');
+    for (var i = 0; i < statItems.length; i++) {
+        var icon = statItems[i].querySelector('.stat-icon');
+        if (!icon) continue;
+        var txt = icon.textContent || '';
+        var valEl = statItems[i].querySelector('.stat-value');
+        if (!valEl) continue;
+        if (txt.indexOf('💰') !== -1) {
+            valEl.textContent = player.gold;
+        } else if (txt.indexOf('⭐') !== -1) {
+            valEl.textContent = player.experience + '/' + player.maxExperience;
+        }
     }
 }
 
@@ -481,6 +501,7 @@ window.selectGender = selectGender;
 window.selectBranch = selectBranch;
 window.finalizeCharacter = finalizeCharacter;
 window.closeModal = closeModal;
+window.updateSidebarGoldExp = updateSidebarGoldExp;
 window.getAvatar = getAvatar;
 window.resolveGameAssetUrl = resolveGameAssetUrl;
 window.getGameAssetBaseUrl = getGameAssetBaseUrl;

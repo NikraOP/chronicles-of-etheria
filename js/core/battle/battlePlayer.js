@@ -1012,7 +1012,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
         addBattleLog(`💪 Инстинкт выживания! Вы не умрёте от одного удара!`, 'success');
     }
     
-    let critChance = player.criticalChance + (a.critBonus || 0);
+    let critChance = Math.min(50, player.criticalChance + (a.critBonus || 0));
     let crit = a.guaranteedCrit || nextCritGuaranteed || Math.random() * 100 <= critChance;
     if (nextCritGuaranteed) nextCritGuaranteed = false;
     if (crit && !a.guaranteedCrit) {
@@ -1032,14 +1032,34 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     
     if (a.doubleHit) {
-        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * 2;
+        let totalDmg = 0;
+        for (let i = 0; i < 2; i++) {
+            let hitDmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100));
+            if (Math.random() * 100 <= Math.min(50, player.criticalChance + (a.critBonus || 0))) {
+                hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));
+            }
+            hitDmg = Math.floor(hitDmg * getWeakspotDamageMultiplier());
+            hitDmg = calculateDamageWithShred(hitDmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+            totalDmg += Math.max(1, hitDmg);
+        }
+        dmg = totalDmg;
         addBattleLog(`🏹 Двойной выстрел!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 2);
         }
     }
     if (a.tripleHit) {
-        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * 3;
+        let totalDmg = 0;
+        for (let i = 0; i < 3; i++) {
+            let hitDmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100));
+            if (Math.random() * 100 <= Math.min(50, player.criticalChance + (a.critBonus || 0))) {
+                hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));
+            }
+            hitDmg = Math.floor(hitDmg * getWeakspotDamageMultiplier());
+            hitDmg = calculateDamageWithShred(hitDmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+            totalDmg += Math.max(1, hitDmg);
+        }
+        dmg = totalDmg;
         addBattleLog(`🏹 Тройной выстрел!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * 3);
@@ -1047,7 +1067,17 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
     }
     if (a.quadHit) {
         const hits = a.hitCount || 4;
-        dmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100)) * hits;
+        let totalDmg = 0;
+        for (let i = 0; i < hits; i++) {
+            let hitDmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * a.dmg / 100));
+            if (Math.random() * 100 <= Math.min(50, player.criticalChance + (a.critBonus || 0))) {
+                hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));
+            }
+            hitDmg = Math.floor(hitDmg * getWeakspotDamageMultiplier());
+            hitDmg = calculateDamageWithShred(hitDmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
+            totalDmg += Math.max(1, hitDmg);
+        }
+        dmg = totalDmg;
         addBattleLog(`🏹 ${hits} выстрела!`, 'info');
         if (a.manaPerHit && player.class === 'Маг') {
             player.mana = Math.min(player.maxMana, player.mana + a.manaPerHit * hits);
@@ -1067,7 +1097,7 @@ function executeUseBattleAbilityAtTarget(index, targetKind, targetIndex) {
             const step = a.multiHit.ramp ?? a.multiHit.increment ?? 0;
             let hitDmg = applyLessonAbilityDmgMult(Math.floor(getPlayerEffectiveAttack() * (a.multiHit.baseDmg + h * step) / 100));
             if (a.multiHit.critRamp) {
-                if (Math.random() * 100 <= (player.criticalChance + h * a.multiHit.critRamp)) {
+                if (Math.random() * 100 <= Math.min(50, player.criticalChance + h * a.multiHit.critRamp)) {
                     hitDmg = Math.floor(hitDmg * (getPlayerCritDamagePercent() / 100));
                     totalDmg += hitDmg;
                     addBattleLog(`💥 ${h + 1}-й удар КРИТИЧЕСКИЙ (${hitDmg})!`, 'crit');

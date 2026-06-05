@@ -109,8 +109,9 @@ function installDungeonVictoryModalHook() {
     const baseShowModal = showModal;
     window.showModal = function (title, icon, message, buttonText, callback) {
         let wrapped = callback;
-        if (dungeonRunSession && dungeonRunSession._awaitingVictory && title && String(title).indexOf('Победа') !== -1) {
+        if (dungeonRunSession && dungeonRunSession._awaitingVictory && window._isDungeonVictory) {
             wrapped = function () {
+                window._isDungeonVictory = false;
                 dungeonRunSession._awaitingVictory = false;
                 if (typeof callback === 'function') callback();
                 const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;

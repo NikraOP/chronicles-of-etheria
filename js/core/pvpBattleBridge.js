@@ -619,16 +619,37 @@
 
     window.pvpFinishPvPBattle = function (localWon, fromRemoteSync) {
         if (!window.pvpBattleActive && !fromRemoteSync) return;
+        const wasActive = window.pvpBattleActive;
         window.pvpBattleActive = false;
         window.pvpDodgeSkipOpponent = false;
+
+        // PvP rating update (only on first call; duo dungeons never enter this path)
+        let ratingDelta = 0;
+        if (wasActive && typeof player !== 'undefined' && player) {
+            if (typeof player.pvpRating !== 'number' || isNaN(player.pvpRating)) player.pvpRating = 1000;
+            ratingDelta = localWon ? 25 : -25;
+            player.pvpRating = Math.max(0, player.pvpRating + ratingDelta);
+            if (typeof saveGame === 'function') saveGame();
+        }
+
         const name = localWon ? 'Победа в PvP!' : 'Поражение в PvP';
         const icon = localWon ? '🏆' : '💀';
-        const msg = localWon ? 'Вы победили в PvP арене!' : 'Вы проиграли PvP матч.';
+        let msg = localWon ? 'Вы победили в PvP арене!' : 'Вы проиграли PvP матч.';
+        if (ratingDelta !== 0) {
+            const sign = ratingDelta > 0 ? '+' : '';
+            const color = ratingDelta > 0 ? '#4caf50' : '#f44336';
+            msg += '<br><span style="color:' + color + '">Рейтинг: ' + sign + ratingDelta + ' (' + player.pvpRating + ')</span>';
+        }
         currentMonster = null;
         isPlayerTurn = true;
         window._strikeAnimActive = false;
         pvpState.status = 'ended';
-        if (typeof pvpLog === 'function') pvpLog(localWon ? 'Победа!' : 'Поражение.', localWon ? 'success' : 'error');
+        if (typeof pvpLog === 'function') {
+            pvpLog(localWon ? 'Победа!' : 'Поражение.', localWon ? 'success' : 'error');
+            if (ratingDelta !== 0) {
+                pvpLog('Рейтинг PvP: ' + (ratingDelta > 0 ? '+' : '') + ratingDelta + ' → ' + player.pvpRating, 'info');
+            }
+        }
         if (typeof showModal === 'function') {
             showModal(name, icon, msg, 'В лобби', () => {
                 if (typeof showPvPArena === 'function') showPvPArena();

@@ -172,8 +172,12 @@ function settlePendingCriticalGather() {
 }
 
 function stopGathering() {
+    var wasActive = gatheringRafId !== null || isGatheringLocked;
     stopGatheringAnimation();
     stopAutoGatherSession();
+    if (wasActive && typeof addMessage === 'function') {
+        addMessage('⚠️ Сбор ресурсов прерван!', 'warning');
+    }
 }
 
 function getProfessionBonuses(tier) {

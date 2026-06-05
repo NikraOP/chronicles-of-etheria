@@ -662,15 +662,7 @@ function refreshCurrentCategory() {
     const goldSpan = document.getElementById('shopGoldAmount');
     if (goldSpan) goldSpan.textContent = player.gold;
     
-    const statItems = document.querySelectorAll('.stat-item');
-    for (let item of statItems) {
-        const iconSpan = item.querySelector('.stat-icon');
-        if (iconSpan && iconSpan.textContent === '💰') {
-            const valueDiv = item.querySelector('.stat-value');
-            if (valueDiv) valueDiv.textContent = player.gold;
-            break;
-        }
-    }
+    if (typeof updateSidebarGoldExp === 'function') updateSidebarGoldExp();
     
     showShopCategory(window.currentShopCategory);
 }

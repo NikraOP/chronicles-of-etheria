@@ -1209,8 +1209,9 @@ function friendsHookSaveGame() {
 
 function friendsHookRenderGame() {
     if (window.__friendsRenderHooked) return;
-    const orig = window.renderGame;
+    const orig = window._originalRenderGame || window.renderGame;
     if (typeof orig !== 'function') return;
+    if (!window._originalRenderGame) window._originalRenderGame = orig;
     window.renderGame = function () {
         orig.apply(this, arguments);
         if (player && player.friends) {

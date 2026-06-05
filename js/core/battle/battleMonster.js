@@ -339,7 +339,21 @@ function applyMonsterTurnEndTicks() {
         });
     }
     player.temporaryEffects = player.temporaryEffects.filter(e => {
-        if (e.dur && !(e.type && e.type.startsWith('debuff_'))) e.dur--;
+        if (e.dur && !(e.type && e.type.startsWith('debuff_'))) {
+            e.dur--;
+            if (e.dur <= 0) {
+                e.shield = 0;
+                e.atk = 0;
+                e.def = 0;
+                e.dodge = 0;
+                e.crit = 0;
+                e.immune = false;
+                e.reflect = 0;
+                e.counterChance = 0;
+                e.freezeOnHit = 0;
+                e.freeOnDodge = 0;
+            }
+        }
         if (e.regen) {
             const regenHeal = Math.floor(player.maxHealth * e.regen / 100);
             player.health = Math.min(player.maxHealth, player.health + regenHeal);

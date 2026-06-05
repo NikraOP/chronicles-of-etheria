@@ -68,7 +68,8 @@ function getPlayerCritDamagePercent(extraBonus) {
     let cd = player.criticalDamage + (extraBonus || 0);
     const critDmgBuff = player.temporaryEffects.find(e => e.critDmg);
     if (critDmgBuff && critDmgBuff.critDmg) cd += critDmgBuff.critDmg;
-    return cd;
+    const classLimit = (player.class === 'Разбойник') ? 200 : 250;
+    return Math.min(classLimit, cd);
 }
 
 function playerAttackMissesFromBlind() {

@@ -148,19 +148,14 @@ function getDungeonFloorGoldMult(floorIndex) {
     return 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorGoldStep || 0.1);
 }
 
-function getDungeonFloorExpMult(floorIndex) {
-    return 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorExpStep || 0.08);
-}
-
 function buildScaledEnemy(template, mults, dungeon, floorIndex) {
     const expMult = dungeon.expMult != null ? dungeon.expMult : 1;
-    const floorExp = getDungeonFloorExpMult(floorIndex);
     return {
         name: template.name,
         hp: Math.max(1, Math.floor(template.hp * mults.hp)),
         atk: Math.max(1, Math.floor(template.atk * mults.atk)),
         def: Math.max(0, Math.floor(template.def * mults.def)),
-        exp: Math.max(1, Math.floor(template.exp * mults.exp * expMult * floorExp)),
+        exp: Math.max(1, Math.floor(template.exp * mults.exp * expMult)),
         icon: template.icon || '👾',
         img: template.img || '',
         abilities: template.abilities ? template.abilities.slice() : []

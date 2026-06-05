@@ -140,7 +140,9 @@ function dungeonVictoryApplyAndModal() {
     renderGame();
     const rewardText = rewardLines.length ? '\n\n' + rewardLines.join('\n') : '';
     window._battleEndModalOpen = true;
+    window._isDungeonVictory = true;
     showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', function () {
+        window._isDungeonVictory = false;
         window._battleEndModalOpen = false;
         document.getElementById('dynamicContent').innerHTML = '';
         if (returnTo && returnTo !== '__dungeon_solo__' && returnTo !== '__dungeon_duo__' &&
