@@ -6,13 +6,18 @@ const ITEM_IMG_REGISTRY = {};
 
 function registerItemDef(def) {
     if (!def || !def.name) return;
-    const existing = ITEM_IMG_REGISTRY[def.name];
+    // Всегда перезаписываем, чтобы при повторных вызовах (из магазина)
+    // подхватывались актуальные icon/img из EQUIPMENT_DB
+    var icon = def.icon || '📦';
+    var img = def.img || '';
+    var existing = ITEM_IMG_REGISTRY[def.name];
     if (!existing) {
-        ITEM_IMG_REGISTRY[def.name] = { icon: def.icon || '📦', img: def.img || '' };
+        ITEM_IMG_REGISTRY[def.name] = { icon: icon, img: img };
         return;
     }
-    if (def.icon && !existing.icon) existing.icon = def.icon;
-    if (def.img && (!existing.img || existing.img.length < def.img.length)) existing.img = def.img;
+    // Обновляем если есть новые данные
+    if (def.icon) existing.icon = def.icon;
+    if (def.img) existing.img = def.img;
 }
 
 function buildItemImgRegistry() {

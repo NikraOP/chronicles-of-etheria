@@ -8358,6 +8358,27 @@ body.account-gate-active #app.account-gate-layout {
   margin: 0 auto;
 }
 
+.wheel-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.wheel-wrapper .wheel__pointer {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  color: var(--gold-light, #e8b84a);
+  filter:
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 12px rgba(168, 85, 247, 0.5));
+  z-index: 20;
+  pointer-events: none;
+  text-shadow: none;
+  line-height: 1;
+}
+
 .wheel {
   position: relative;
   width: min(78vw, 300px);
@@ -8487,22 +8508,6 @@ body.account-gate-active #app.account-gate-layout {
   box-shadow: none;
 }
 
-.wheel__pointer {
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 26px;
-  color: var(--gold-light, #e8b84a);
-  filter:
-    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 12px rgba(168, 85, 247, 0.5));
-  z-index: 15;
-  line-height: 1;
-  pointer-events: none;
-  text-shadow: none;
-}
-
 .wheel__timer {
   margin-top: 16px;
   font-size: 13px;
@@ -8557,7 +8562,7 @@ body.account-gate-active #app.account-gate-layout {
   }
   .wheel__label-icon { font-size: 13px; }
   .wheel__label-name { font-size: 8px; }
-  .wheel__pointer { font-size: 22px; top: -4px; }
+  .wheel-wrapper .wheel__pointer { font-size: 24px; top: -8px; }
   .wheel__timer { font-size: 12px; margin-top: 14px; }
   .wheel-prizes-info { font-size: 11px !important; }
 }

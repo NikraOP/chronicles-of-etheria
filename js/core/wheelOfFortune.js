@@ -324,23 +324,20 @@ var WHEEL_TARGET_ANGLES = [337.5, 292.5, 247.5, 202.5, 157.5, 112.5, 67.5, 22.5]
 var _wheelRotation = 0;
 var _isSpinning = false;
 
-function spinWheelAnimation(targetIndex, callback) {
+function spinWheelAnimation(callback) {
     var wheel = document.getElementById('wheel');
     if (!wheel) return;
 
-    // 5-8 полных оборотов для зрелищности
+    // 5-8 полных оборотов + случайный доворот (не привязано к сегменту)
     var extraSpins = 5 + Math.floor(Math.random() * 4);
-    var targetRotation = extraSpins * 360 + WHEEL_TARGET_ANGLES[targetIndex];
+    var extraAngle = Math.floor(Math.random() * 360); // 0-359
+    var targetRotation = _wheelRotation + extraSpins * 360 + extraAngle;
 
-    while (targetRotation <= _wheelRotation) {
-        targetRotation += 360;
-    }
     _wheelRotation = targetRotation;
 
     wheel.classList.add('wheel--spinning');
     wheel.style.transition = 'none';
     void wheel.offsetWidth; // force reflow
-    // Длительное вращение с замедлением: 5 секунд
     wheel.style.transition = 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
     wheel.style.transform = 'rotate(' + targetRotation + 'deg)';
 
@@ -350,12 +347,18 @@ function spinWheelAnimation(targetIndex, callback) {
         settled = true;
         wheel.classList.remove('wheel--spinning');
         wheel.removeEventListener('transitionend', finish);
-        if (typeof callback === 'function') callback();
+
+        // Определяем сегмент по углу остановки
+        var currentAngle = targetRotation % 360;
+        var gradientAngle = ((360 - currentAngle) % 360 + 360) % 360;
+        var segmentIndex = Math.floor(gradientAngle / 45);
+        // Защита от 8 (когда gradientAngle=360)
+        if (segmentIndex >= 8) segmentIndex = 0;
+
+        if (typeof callback === 'function') callback(segmentIndex);
     }
 
-    // Основной триггер — окончание CSS transition (колесо реально остановилось)
     wheel.addEventListener('transitionend', finish);
-    // Страховка на случай, если transitionend не сработал
     setTimeout(finish, 6000);
 }
 
@@ -535,12 +538,14 @@ function wheelRenderWheel() {
         + '<p style="text-align:center;color:var(--text-secondary);font-size:12px;margin-bottom:16px;line-height:1.4;">Испытай удачу!<br>Крути колесо и получай награды.<br><span style="font-size:10px;color:var(--gold);">Доступна 1 крутка в час</span></p>'
         + '<div class="wheel-of-fortune">'
         +   '<div class="wheel-container">'
-        +     '<div class="wheel" id="wheel">'
+        +     '<div class="wheel-wrapper" style="position:relative;display:inline-block;">'
         +       '<div class="wheel__pointer">◆</div>'
-        +       '<div class="wheel__bg" style="background:' + gradient + '"></div>'
-        +       dividersHtml
-        +       '<div class="wheel__labels-area">' + labelsHtml + '</div>'
-        +       '<button class="wheel__center-btn" id="wheelSpinBtn" onclick="wheelSpin()">🎡<br>Крутить!</button>'
+        +       '<div class="wheel" id="wheel">'
+        +         '<div class="wheel__bg" style="background:' + gradient + '"></div>'
+        +         dividersHtml
+        +         '<div class="wheel__labels-area">' + labelsHtml + '</div>'
+        +         '<button class="wheel__center-btn" id="wheelSpinBtn" onclick="wheelSpin()">🎡<br>Крутить!</button>'
+        +       '</div>'
         +     '</div>'
         +     '<div class="wheel__timer" id="wheelTimer">⏱️ Синхронизация...</div>'
         +   '</div>'
@@ -679,11 +684,11 @@ function wheelSpin() {
     btn.innerHTML = '🌀<br>Вращается...';
     btn.disabled = true;
 
-    // Выбираем случайный сегмент (0-7)
-    var targetIndex = Math.floor(Math.random() * 8);
-    var targetSeg = WHEEL_SEGMENTS[targetIndex];
+    // Анимация: крутим на случайный угол. После остановки определяем сегмент.
+    spinWheelAnimation(function(landedIndex) {
+        var targetIndex = landedIndex;
+        var targetSeg = WHEEL_SEGMENTS[targetIndex];
 
-    spinWheelAnimation(targetIndex, function() {
         _isSpinning = false;
 
         // Записываем крутку
