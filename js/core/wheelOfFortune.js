@@ -234,60 +234,22 @@ function wheelValidatePools() {
 
 // ─── Выдача приза ───
 
-function wheelAwardPrize(segmentIndex) {
-    // segmentIndex 0-7:
-    // 0 = джекпот (редкий предмет)
-    // 1-4 = золото (4 сектора)
-    // 5-7 = предмет (3 сектора)
-
-    if (segmentIndex === 0) {
-        // Джекпот: редкий предмет с шансом 2%, иначе золото x1.5
-        if (Math.random() < FORTUNE_WHEEL_PRIZES.rareItemChance) {
-            var rareItem = wheelGetRarePrize();
-            if (rareItem) {
-                wheelGiveItemToPlayer(rareItem);
-                addMessage('💎 ДЖЕКПОТ! ' + rareItem.name + ' (' + FORTUNE_WHEEL_PRIZES.itemRarity + ') — ' + wheelFormatItemStatsText(rareItem), 'success');
-                return { type: 'item', item: rareItem, jackpot: true };
-            }
+function wheelAwardJackpot() {
+    // Джекпот: редкий предмет с шансом 2%, иначе золото x1.5
+    if (Math.random() < FORTUNE_WHEEL_PRIZES.rareItemChance) {
+        var rareItem = wheelGetRarePrize();
+        if (rareItem) {
+            wheelGiveItemToPlayer(rareItem);
+            addMessage('💎 ДЖЕКПОТ! ' + rareItem.name + ' (' + FORTUNE_WHEEL_PRIZES.itemRarity + ') — ' + wheelFormatItemStatsText(rareItem), 'success');
+            return { type: 'item', item: rareItem, jackpot: true };
         }
-        // Утешительный приз: золото x1.5
-        var consolationGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.consolationMultiplier);
-        player.gold += consolationGold;
-        addMessage('🎡 Колесо Фортуны: +' + consolationGold + ' золота (утешительный приз)!', 'info');
-        saveGame();
-        return { type: 'gold', amount: consolationGold, jackpot: false };
     }
-
-    if (segmentIndex >= 1 && segmentIndex <= 4) {
-        // Золото
-        var gold = wheelPickGoldPrize();
-        player.gold += gold;
-        addMessage('🎡 Колесо Фортуны: +' + gold + ' золота!', 'success');
-        saveGame();
-        return { type: 'gold', amount: gold, jackpot: false };
-    }
-
-    if (segmentIndex >= 5 && segmentIndex <= 7) {
-        // Предмет
-        var item = wheelPickItemPrize();
-        if (item) {
-            wheelGiveItemToPlayer(item);
-            addMessage('🎡 Колесо Фортуны: ' + item.name + ' (' + (item.rarity || 'Обычный') + ') — ' + wheelFormatItemStatsText(item), 'success');
-            return { type: 'item', item: item, jackpot: false };
-        }
-        // Если предмет не найден — золото
-        var fallbackGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.fallbackMultiplier);
-        player.gold += fallbackGold;
-        addMessage('🎡 Колесо Фортуны: +' + fallbackGold + ' золота!', 'info');
-        saveGame();
-        return { type: 'gold', amount: fallbackGold, jackpot: false };
-    }
-
-    // fallback
-    var fGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.fallbackMultiplier);
-    player.gold += fGold;
+    // Утешительный приз: золото x1.5
+    var consolationGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.consolationMultiplier);
+    player.gold += consolationGold;
+    addMessage('🎡 Колесо Фортуны: +' + consolationGold + ' золота (утешительный приз)!', 'info');
     saveGame();
-    return { type: 'gold', amount: fGold, jackpot: false };
+    return { type: 'gold', amount: consolationGold, jackpot: false };
 }
 
 function wheelGiveItemToPlayer(item) {
@@ -428,16 +390,93 @@ function createWheelParticles() {
 
 // ─── UI: отображение колеса ───
 
-var WHEEL_SEGMENTS = [
-    { icon: '💎', name: 'Джекпот',  color: '#e8b84a' },
-    { icon: '🪙', name: 'Золото',   color: '#f59e42' },
-    { icon: '💰', name: 'Золото',   color: '#f0c040' },
-    { icon: '🪙', name: 'Золото',   color: '#d4a030' },
-    { icon: '💰', name: 'Золото',   color: '#e8a030' },
-    { icon: '⚔️', name: 'Предмет',  color: '#4da6ff' },
-    { icon: '🛡️', name: 'Предмет',  color: '#5db0ff' },
-    { icon: '👑', name: 'Предмет',  color: '#6dbaff' }
-];
+function wheelBuildSegments() {
+    // Динамические сегменты: заранее выбираем призы для показа на колесе
+    var range = wheelGetLevelRange();
+    var golds = FORTUNE_WHEEL_PRIZES.goldByLevel[range] || [10, 15, 20, 25];
+    var pools = ITEM_POOLS[range];
+    var poolNames = ['pool1', 'pool2', 'pool3'];
+
+    // 8 сегментов: 0=джекпот, 1-4=золото, 5-7=предметы
+    var segs = [];
+    // Джекпот
+    var rareName = FORTUNE_WHEEL_PRIZES.rareItem[player.class] || 'Джекпот';
+    var rareIcon = FORTUNE_WHEEL_PRIZES.rareItemIcons[player.class] || '💎';
+    segs.push({ icon: rareIcon, name: 'Джекпот', label: rareName, color: '#e8b84a', segmentType: 'jackpot' });
+
+    // Золото: 4 сегмента, каждый со своей суммой
+    var shuffledGolds = golds.slice();
+    // Перемешиваем
+    for (var gi = shuffledGolds.length - 1; gi > 0; gi--) {
+        var rj = Math.floor(Math.random() * (gi + 1));
+        var tmp = shuffledGolds[gi]; shuffledGolds[gi] = shuffledGolds[rj]; shuffledGolds[rj] = tmp;
+    }
+    for (var g = 0; g < 4; g++) {
+        var amount = shuffledGolds[g] || golds[g % golds.length];
+        segs.push({ icon: '💰', name: '+' + amount, label: '', color: g === 0 ? '#f59e42' : g === 1 ? '#f0c040' : g === 2 ? '#d4a030' : '#e8a030', segmentType: 'gold', amount: amount });
+    }
+
+    // Предметы: 3 сегмента, по одному из каждого пула
+    for (var p = 0; p < 3; p++) {
+        var pool = pools ? pools[poolNames[p]] : null;
+        var itemIcon = '📦';
+        var itemName = 'Предмет';
+        if (pool && pool.length > 0) {
+            var picked = wheelPickFromPool(pool);
+            if (picked) {
+                // Достаём icon из реестра или EQUIPMENT_DB
+                var icon = wheelResolveItemIcon(picked.name, picked.slot);
+                itemIcon = icon || '📦';
+                itemName = picked.name;
+            }
+        }
+        segs.push({ icon: itemIcon, name: itemName, label: '', color: p === 0 ? '#4da6ff' : p === 1 ? '#5db0ff' : '#6dbaff', segmentType: 'item', itemName: itemName });
+    }
+
+    return segs;
+}
+
+function wheelResolveItemIcon(itemName, slot) {
+    // Сначала проверяем реестр
+    if (typeof ITEM_IMG_REGISTRY !== 'undefined' && ITEM_IMG_REGISTRY[itemName]) {
+        return ITEM_IMG_REGISTRY[itemName].icon || null;
+    }
+    // Потом EQUIPMENT_DB
+    if (typeof EQUIPMENT_DB !== 'undefined') {
+        if (slot === 'weapon') {
+            var classKeys = Object.keys(EQUIPMENT_DB.weapons);
+            for (var ck = 0; ck < classKeys.length; ck++) {
+                var weps = EQUIPMENT_DB.weapons[classKeys[ck]];
+                for (var wi = 0; wi < weps.length; wi++) {
+                    if (weps[wi].name === itemName) return weps[wi].icon || null;
+                }
+            }
+        } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
+            var armors = EQUIPMENT_DB.armor[slot];
+            if (armors) for (var ai = 0; ai < armors.length; ai++) {
+                if (armors[ai].name === itemName) return armors[ai].icon || null;
+            }
+        }
+    }
+    // Consumable
+    var consumableIcons = {
+        'Зелье здоровья': '❤️',
+        'Малое зелье здоровья': '❤️',
+        'Большое зелье здоровья': '💚',
+        'Малое зелье маны': '💙',
+        'Зелье маны': '💎',
+        'Большое зелье маны': '💙',
+        'Эликсир силы': '💪',
+        'Эликсир защиты': '🛡️',
+        'Эликсир неуязвимости': '✨',
+        'Эликсир берсерка': '🔥',
+        'Божественный эликсир': '🌟'
+    };
+    return consumableIcons[itemName] || null;
+}
+
+// WHEEL_SEGMENTS — будет перестраиваться при каждом рендере
+var WHEEL_SEGMENTS = [];
 
 function showWheelOfFortune() {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
@@ -461,6 +500,9 @@ function showWheelOfFortune() {
 }
 
 function wheelRenderWheel() {
+    // Строим динамические сегменты
+    WHEEL_SEGMENTS = wheelBuildSegments();
+
     var segDeg = 45;
     var stops = [];
     for (var i = 0; i < WHEEL_SEGMENTS.length; i++) {
@@ -470,13 +512,16 @@ function wheelRenderWheel() {
 
     var labelsHtml = '';
     for (var i = 0; i < WHEEL_SEGMENTS.length; i++) {
+        var seg = WHEEL_SEGMENTS[i];
         var angleRad = ((i * 45 + 22.5) * Math.PI) / 180;
         var r = 36;
         var x = 50 + r * Math.sin(angleRad);
         var y = 50 - r * Math.cos(angleRad);
+        var labelText = seg.segmentType === 'gold' ? seg.name : (seg.segmentType === 'jackpot' ? 'Джекпот' : (seg.name || 'Предмет'));
+        var iconChar = seg.icon;
         labelsHtml += '<div class="wheel__label" style="left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%">'
-            + '<div class="wheel__label-icon">' + WHEEL_SEGMENTS[i].icon + '</div>'
-            + '<div class="wheel__label-name">' + WHEEL_SEGMENTS[i].name + '</div>'
+            + '<div class="wheel__label-icon">' + iconChar + '</div>'
+            + '<div class="wheel__label-name" style="font-size:' + (seg.segmentType === 'gold' ? '11px' : '7px') + ';">' + labelText + '</div>'
             + '</div>';
     }
 
@@ -636,6 +681,7 @@ function wheelSpin() {
 
     // Выбираем случайный сегмент (0-7)
     var targetIndex = Math.floor(Math.random() * 8);
+    var targetSeg = WHEEL_SEGMENTS[targetIndex];
 
     spinWheelAnimation(targetIndex, function() {
         _isSpinning = false;
@@ -643,8 +689,55 @@ function wheelSpin() {
         // Записываем крутку
         wheelRecordSpin();
 
-        // Выдаём приз
-        var result = wheelAwardPrize(targetIndex);
+        // Выдаём приз — используем данные ИЗ СЕГМЕНТА (что показано на колесе)
+        var result;
+        if (targetSeg.segmentType === 'jackpot') {
+            result = wheelAwardJackpot(); // джекпот с проверкой 2%
+        } else if (targetSeg.segmentType === 'gold') {
+            var goldAmt = targetSeg.amount || wheelPickGoldPrize();
+            player.gold += goldAmt;
+            addMessage('🎡 Колесо Фортуны: +' + goldAmt + ' золота!', 'success');
+            saveGame();
+            result = { type: 'gold', amount: goldAmt, jackpot: false };
+        } else if (targetSeg.segmentType === 'item') {
+            var itemName = targetSeg.itemName;
+            var item = wheelFindItemInDb(itemName, 'weapon');
+            if (!item) item = wheelFindItemInDb(itemName, 'helmet');
+            if (!item) item = wheelFindItemInDb(itemName, 'chest');
+            if (!item) item = wheelFindItemInDb(itemName, 'pants');
+            if (!item) item = wheelFindItemInDb(itemName, 'boots');
+            if (!item) {
+                // consumable
+                var consumables = {
+                    'Зелье здоровья': { name: 'Зелье здоровья', slot: 'consumable', heal: 50, rarity: 'Обычный' },
+                    'Малое зелье здоровья': { name: 'Малое зелье здоровья', slot: 'consumable', heal: 25, rarity: 'Обычный' },
+                    'Большое зелье здоровья': { name: 'Большое зелье здоровья', slot: 'consumable', heal: 100, rarity: 'Необычный' },
+                    'Малое зелье маны': { name: 'Малое зелье маны', slot: 'consumable', mana: 25, rarity: 'Обычный' },
+                    'Зелье маны': { name: 'Зелье маны', slot: 'consumable', mana: 50, rarity: 'Обычный' },
+                    'Большое зелье маны': { name: 'Большое зелье маны', slot: 'consumable', mana: 100, rarity: 'Необычный' },
+                    'Эликсир силы': { name: 'Эликсир силы', slot: 'consumable', dmg: 10, rarity: 'Редкий' },
+                    'Эликсир защиты': { name: 'Эликсир защиты', slot: 'consumable', def: 10, rarity: 'Редкий' },
+                    'Эликсир неуязвимости': { name: 'Эликсир неуязвимости', slot: 'consumable', def: 25, rarity: 'Эпический' },
+                    'Эликсир берсерка': { name: 'Эликсир берсерка', slot: 'consumable', dmg: 20, rarity: 'Эпический' },
+                    'Божественный эликсир': { name: 'Божественный эликсир', slot: 'consumable', dmg: 30, def: 30, rarity: 'Мифический' }
+                };
+                if (consumables[itemName]) item = JSON.parse(JSON.stringify(consumables[itemName]));
+            }
+            if (item) {
+                wheelGiveItemToPlayer(item);
+                addMessage('🎡 Колесо Фортуны: ' + item.name + ' (' + (item.rarity || 'Обычный') + ') — ' + wheelFormatItemStatsText(item), 'success');
+                result = { type: 'item', item: item, jackpot: false };
+            } else {
+                // Фолбэк: золото
+                var fGold = Math.floor(wheelPickGoldPrize() * FORTUNE_WHEEL_PRIZES.fallbackMultiplier);
+                player.gold += fGold;
+                saveGame();
+                result = { type: 'gold', amount: fGold, jackpot: false };
+            }
+        } else {
+            // Неизвестный тип — фолбэк (джекпот)
+            result = wheelAwardJackpot();
+        }
 
         // Показываем результат
         var seg = WHEEL_SEGMENTS[targetIndex];

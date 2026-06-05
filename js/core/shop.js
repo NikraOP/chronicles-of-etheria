@@ -408,12 +408,19 @@ function renderBuyItems(cat) {
             levelStatus = `<span style="color: #e74c3c;">🔒 Требуется ${item.lvl} уровень (ещё ${levelDiff})</span>`;
         }
         
-        const shopDisplayItem = typeof enrichItemForDisplay === 'function'
+        // Принудительно проставляем иконку для брони (как в крафтах)
+        var itemIcon = item.icon || '';
+        if (!itemIcon && cat !== 'weapons') {
+            var iconMap = { 'helmet': '⛑️', 'chest': '🛡️', 'pants': '👖', 'boots': '👢' };
+            itemIcon = iconMap[cat] || '🛡️';
+        }
+        var shopDisplayItem = typeof enrichItemForDisplay === 'function'
             ? enrichItemForDisplay(item)
             : item;
+        if (!shopDisplayItem.icon) shopDisplayItem.icon = itemIcon;
         html += `<div class="item-card shop-item-card shop-item-card--buy${canBuy ? '' : ' shop-item-card--disabled'}" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
             <div class="shop-item-card__row">
-                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(shopDisplayItem, { size: 48, fallback: shopDisplayItem.icon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (shopDisplayItem.icon || '⚔️') + '</div>'}</div>
+                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(shopDisplayItem, { size: 48, fallback: itemIcon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (itemIcon || '📦') + '</div>'}</div>
                 <div class="shop-item-card__body">
                     <div class="shop-item-card__name" style="color: ${rarityColor};">${item.name}</div>
                     <div class="shop-item-card__stats">${statsHtml}</div>
