@@ -91,7 +91,7 @@ const ROOM_ARCHETYPES = {
 };
 
 const DUNGEON_BACKGROUNDS = {
-    void_voe: { image: './backgrounds/dungeon/bg-peo.png', bgColor: 'linear-gradient(135deg, #12081a, #050208)' },
+    void_voe: { image: './backgrounds/dungeon/bg-peo.jpg', bgColor: 'linear-gradient(135deg, #12081a, #050208)' },
     infernal: { image: './backgrounds/dungeon/bg-crypt.png', bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)' },
     crystal_cavern: { image: './backgrounds/dungeon/bg-crystal.png', bgColor: 'linear-gradient(135deg, #2a1a4a, #12082a)' },
     fungal_depths: { image: './backgrounds/dungeon/bg-cave-brown.png', bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)' },
