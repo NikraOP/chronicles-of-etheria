@@ -44,10 +44,10 @@ const CRAFTING_RECIPES = {
             {name:'Корона бессмертных',icon:'👑',img:'',tier:5,exp:700,time:13,resources:{'Адамантит':8,'Алмаз':3},type:'helmet',class:'Воин',rarity:'Мифический',def:58,hp:132,crit:12,dodge:6,baseDef:58},
             
             // Древние/Божественные шлемы - ТОЛЬКО КРАФТ
-            {name:'Венец древних знаний',icon:'📜',img:'',tier:6,exp:800,time:15,resources:{'Орихалк':6,'Звездный камень':2},type:'helmet',class:'Воин',rarity:'Древний',def:70,hp:168,crit:14,critDmg:12,baseDef:70},
-            {name:'Шлем просветленного',icon:'💫',img:'',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'helmet',class:'Воин',rarity:'Божественный',def:84,hp:216,crit:18,dodge:6,baseDef:84},
-            {name:'Корона власти',icon:'👑',img:'',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'helmet',class:'Воин',rarity:'Божественный',def:96,hp:276,dmg:12,crit:22,baseDef:96},
-            {name:'Венец всевластия',icon:'⚜️',img:'',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'helmet',class:'Воин',rarity:'Божественный',def:118,hp:348,crit:24,critDmg:18,baseDef:118},
+            {name:'Венец древних знаний',icon:'📜',img:'',tier:6,exp:800,time:300,resources:{'Орихалк':6,'Звездный камень':2},type:'helmet',class:'Воин',rarity:'Древний',def:70,hp:168,crit:14,critDmg:12,baseDef:70},
+            {name:'Шлем просветленного',icon:'💫',img:'',tier:6,exp:900,time:600,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'helmet',class:'Воин',rarity:'Божественный',def:84,hp:216,crit:18,dodge:6,baseDef:84},
+            {name:'Корона власти',icon:'👑',img:'',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'helmet',class:'Воин',rarity:'Божественный',def:96,hp:276,dmg:12,crit:22,baseDef:96},
+            {name:'Венец всевластия',icon:'⚜️',img:'',tier:6,exp:1200,time:600,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'helmet',class:'Воин',rarity:'Божественный',def:118,hp:348,crit:24,critDmg:18,baseDef:118},
             
             // Нагрудники
             {name:'Стальной нагрудник',icon:'🛡️',img:'',tier:1,exp:70,time:5,resources:{'Железная руда':8},type:'chest',class:'Воин',rarity:'Обычный',def:24,hp:30,baseDef:24},
@@ -58,10 +58,10 @@ const CRAFTING_RECIPES = {
             {name:'Панцирь титана',icon:'🦾',img:'',tier:5,exp:800,time:15,resources:{'Адамантит':10,'Алмаз':5},type:'chest',class:'Воин',rarity:'Мифический',def:94,hp:240,dodge:7,baseDef:94},
             
             // Древние/Божественные нагрудники - ТОЛЬКО КРАФТ
-            {name:'Доспех перворожденных',icon:'🌌',img:'',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звездный камень':3,'Адамантит':6},type:'chest',class:'Воин',rarity:'Древний',def:110,hp:300,critDmg:18,dodge:10,baseDef:110},
-            {name:'Броня вознесения',icon:'✨',img:'',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'chest',class:'Воин',rarity:'Божественный',def:132,hp:372,dmg:12,dodge:12,baseDef:132},
-            {name:'Доспех абсолюта',icon:'💫',img:'',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'chest',class:'Воин',rarity:'Божественный',def:156,hp:456,critDmg:24,dodge:14,baseDef:156},
-            {name:'Панцирь божества',icon:'🌟',img:'',tier:6,exp:1500,time:20,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':6},type:'chest',class:'Воин',rarity:'Божественный',def:186,hp:564,dmg:18,dodge:18,baseDef:186},
+            {name:'Доспех перворожденных',icon:'🌌',img:'',tier:6,exp:900,time:300,resources:{'Орихалк':8,'Звездный камень':3,'Адамантит':6},type:'chest',class:'Воин',rarity:'Древний',def:110,hp:300,critDmg:18,dodge:10,baseDef:110},
+            {name:'Броня вознесения',icon:'✨',img:'',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звездный камень':3,'Камень душ':3},type:'chest',class:'Воин',rarity:'Божественный',def:132,hp:372,dmg:12,dodge:12,baseDef:132},
+            {name:'Доспех абсолюта',icon:'💫',img:'',tier:6,exp:1200,time:600,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'chest',class:'Воин',rarity:'Божественный',def:156,hp:456,critDmg:24,dodge:14,baseDef:156},
+            {name:'Панцирь божества',icon:'🌟',img:'',tier:6,exp:1500,time:600,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':6},type:'chest',class:'Воин',rarity:'Божественный',def:186,hp:564,dmg:18,dodge:18,baseDef:186},
             
             // Поножи
             {name:'Стальные поножи',icon:'👖',img:'',tier:1,exp:45,time:4,resources:{'Железная руда':5},type:'pants',class:'Воин',rarity:'Обычный',def:17,hp:22,baseDef:17},
@@ -72,10 +72,10 @@ const CRAFTING_RECIPES = {
             {name:'Поножи вечности',icon:'🔱',img:'',tier:5,exp:600,time:12,resources:{'Адамантит':8,'Алмаз':3},type:'pants',class:'Воин',rarity:'Мифический',def:67,hp:156,dodge:10,baseDef:67},
             
             // Древние/Божественные поножи - ТОЛЬКО КРАФТ
-            {name:'Поножи древнего героя',icon:'🌌',img:'',tier:6,exp:700,time:13,resources:{'Орихалк':6,'Звездный камень':3},type:'pants',class:'Воин',rarity:'Древний',def:82,hp:204,critDmg:12,dodge:12,baseDef:82},
-            {name:'Набедренники возмездия',icon:'⚡',img:'',tier:6,exp:800,time:14,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Воин',rarity:'Божественный',def:96,hp:264,dmg:10,crit:6,dodge:14,baseDef:96},
-            {name:'Поножи просветленного',icon:'💫',img:'',tier:6,exp:900,time:15,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Воин',rarity:'Божественный',def:115,hp:336,critDmg:18,dodge:17,baseDef:115},
-            {name:'Набедренники творца',icon:'🔱',img:'',tier:6,exp:1100,time:16,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'pants',class:'Воин',rarity:'Божественный',def:138,hp:432,dmg:14,dodge:22,baseDef:138},
+            {name:'Поножи древнего героя',icon:'🌌',img:'',tier:6,exp:700,time:300,resources:{'Орихалк':6,'Звездный камень':3},type:'pants',class:'Воин',rarity:'Древний',def:82,hp:204,critDmg:12,dodge:12,baseDef:82},
+            {name:'Набедренники возмездия',icon:'⚡',img:'',tier:6,exp:800,time:600,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Воин',rarity:'Божественный',def:96,hp:264,dmg:10,crit:6,dodge:14,baseDef:96},
+            {name:'Поножи просветленного',icon:'💫',img:'',tier:6,exp:900,time:600,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Воин',rarity:'Божественный',def:115,hp:336,critDmg:18,dodge:17,baseDef:115},
+            {name:'Набедренники творца',icon:'🔱',img:'',tier:6,exp:1100,time:600,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'pants',class:'Воин',rarity:'Божественный',def:138,hp:432,dmg:14,dodge:22,baseDef:138},
             
             // Сапоги
             {name:'Стальные сапоги',icon:'👢',img:'',tier:1,exp:40,time:3,resources:{'Железная руда':3},type:'boots',class:'Воин',rarity:'Обычный',def:8,dodge:2,baseDef:8},
@@ -86,10 +86,10 @@ const CRAFTING_RECIPES = {
             {name:'Сапоги вселенной',icon:'🌠',img:'',tier:5,exp:500,time:15,resources:{'Адамантит':6,'Алмаз':3},type:'boots',class:'Воин',rarity:'Мифический',def:36,hp:120,dodge:32,baseDef:36},
             
             // Древние/Божественные сапоги - ТОЛЬКО КРАФТ
-            {name:'Сандалии древнего ветра',icon:'🌬️',img:'',tier:6,exp:600,time:16,resources:{'Орихалк':6,'Звездный камень':3},type:'boots',class:'Воин',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
-            {name:'Сапоги вознесения',icon:'💫',img:'',tier:6,exp:700,time:17,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Воин',rarity:'Божественный',def:53,hp:204,dmg:6,dodge:48,baseDef:53},
-            {name:'Сандалии абсолютной скорости',icon:'⚡',img:'',tier:6,exp:800,time:18,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Воин',rarity:'Божественный',def:62,hp:264,crit:6,dodge:56,baseDef:62},
-            {name:'Сандалии творца',icon:'🔱',img:'',tier:6,exp:1000,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'boots',class:'Воин',rarity:'Божественный',def:77,hp:336,dmg:10,critDmg:12,dodge:66,baseDef:77}
+            {name:'Сандалии древнего ветра',icon:'🌬️',img:'',tier:6,exp:600,time:300,resources:{'Орихалк':6,'Звездный камень':3},type:'boots',class:'Воин',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
+            {name:'Сапоги вознесения',icon:'💫',img:'',tier:6,exp:700,time:600,resources:{'Орихалк':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Воин',rarity:'Божественный',def:53,hp:204,dmg:6,dodge:48,baseDef:53},
+            {name:'Сандалии абсолютной скорости',icon:'⚡',img:'',tier:6,exp:800,time:600,resources:{'Орихалк':9,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Воин',rarity:'Божественный',def:62,hp:264,crit:6,dodge:56,baseDef:62},
+            {name:'Сандалии творца',icon:'🔱',img:'',tier:6,exp:1000,time:600,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'boots',class:'Воин',rarity:'Божественный',def:77,hp:336,dmg:10,critDmg:12,dodge:66,baseDef:77}
         ]
     },
 
@@ -128,26 +128,26 @@ const CRAFTING_RECIPES = {
             {name:'Сапоги вселенной',icon:'🌠',img:'',tier:5,exp:500,time:15,resources:{'Драконья чешуя':6,'Закалённая кожа':8,'Шкура дракона':2,'Алмаз':3},type:'boots',class:'Лучник',rarity:'Мифический',def:36,hp:120,dodge:32,baseDef:36},
 
             // Древние/Божественные шлем, нагрудник, поножи — ТОЛЬКО КРАФТ
-            {name:'Капюшон древнего следопыта',icon:'🎯',img:'',tier:6,exp:800,time:15,resources:{'Шкура титана':3,'Шкура левиафана':2,'Древесина мирового древа':4,'Звездный камень':2},type:'helmet',class:'Лучник',rarity:'Древний',def:52,hp:144,crit:16,dodge:10,baseDef:52},
-            {name:'Койф звёздного охотника',icon:'🏹',img:'',tier:6,exp:900,time:16,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Звездный камень':3,'Орихалк':4},type:'helmet',class:'Лучник',rarity:'Божественный',def:67,hp:192,crit:20,dodge:12,baseDef:67},
-            {name:'Шлем небесного лучника',icon:'⭐',img:'',tier:6,exp:1000,time:17,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Звездный камень':3,'Орихалк':6,'Камень душ':2},type:'helmet',class:'Лучник',rarity:'Божественный',def:77,hp:240,dmg:8,crit:22,dodge:14,baseDef:77},
-            {name:'Корона меткого стрелка',icon:'👑',img:'',tier:6,exp:1200,time:18,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Звездный камень':5,'Орихалк':8,'Камень душ':3},type:'helmet',class:'Лучник',rarity:'Божественный',def:94,hp:300,crit:26,critDmg:14,dodge:16,baseDef:94},
+            {name:'Капюшон древнего следопыта',icon:'🎯',img:'',tier:6,exp:800,time:300,resources:{'Шкура титана':3,'Шкура левиафана':2,'Древесина мирового древа':4,'Звездный камень':2},type:'helmet',class:'Лучник',rarity:'Древний',def:52,hp:144,crit:16,dodge:10,baseDef:52},
+            {name:'Койф звёздного охотника',icon:'🏹',img:'',tier:6,exp:900,time:600,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Звездный камень':3,'Орихалк':4},type:'helmet',class:'Лучник',rarity:'Божественный',def:67,hp:192,crit:20,dodge:12,baseDef:67},
+            {name:'Шлем небесного лучника',icon:'⭐',img:'',tier:6,exp:1000,time:600,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Звездный камень':3,'Орихалк':6,'Камень душ':2},type:'helmet',class:'Лучник',rarity:'Божественный',def:77,hp:240,dmg:8,crit:22,dodge:14,baseDef:77},
+            {name:'Корона меткого стрелка',icon:'👑',img:'',tier:6,exp:1200,time:600,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Звездный камень':5,'Орихалк':8,'Камень душ':3},type:'helmet',class:'Лучник',rarity:'Божественный',def:94,hp:300,crit:26,critDmg:14,dodge:16,baseDef:94},
 
-            {name:'Кираса древнего охотника',icon:'🌌',img:'',tier:6,exp:900,time:16,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Древесина мирового древа':5,'Орихалк':4},type:'chest',class:'Лучник',rarity:'Древний',def:82,hp:252,critDmg:14,dodge:14,baseDef:82},
-            {name:'Панцирь ветра',icon:'💨',img:'',tier:6,exp:1000,time:17,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Древесина мирового древа':6,'Орихалк':6,'Звездный камень':3},type:'chest',class:'Лучник',rarity:'Божественный',def:106,hp:312,dmg:8,dodge:16,baseDef:106},
-            {name:'Грудник левиафана',icon:'🐋',img:'',tier:6,exp:1200,time:18,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Древесина мирового древа':6,'Орихалк':8,'Звездный камень':5,'Камень душ':3},type:'chest',class:'Лучник',rarity:'Божественный',def:125,hp:384,critDmg:18,dodge:18,baseDef:125},
-            {name:'Броня перворожденного лучника',icon:'🌟',img:'',tier:6,exp:1500,time:20,resources:{'Шкура титана':6,'Шкура левиафана':4,'Драконья чешуя':8,'Древесина мирового древа':8,'Орихалк':10,'Звездный камень':6,'Камень душ':5},type:'chest',class:'Лучник',rarity:'Божественный',def:149,hp:468,dmg:12,critDmg:22,dodge:22,baseDef:149},
+            {name:'Кираса древнего охотника',icon:'🌌',img:'',tier:6,exp:900,time:300,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Древесина мирового древа':5,'Орихалк':4},type:'chest',class:'Лучник',rarity:'Древний',def:82,hp:252,critDmg:14,dodge:14,baseDef:82},
+            {name:'Панцирь ветра',icon:'💨',img:'',tier:6,exp:1000,time:600,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Древесина мирового древа':6,'Орихалк':6,'Звездный камень':3},type:'chest',class:'Лучник',rarity:'Божественный',def:106,hp:312,dmg:8,dodge:16,baseDef:106},
+            {name:'Грудник левиафана',icon:'🐋',img:'',tier:6,exp:1200,time:600,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Древесина мирового древа':6,'Орихалк':8,'Звездный камень':5,'Камень душ':3},type:'chest',class:'Лучник',rarity:'Божественный',def:125,hp:384,critDmg:18,dodge:18,baseDef:125},
+            {name:'Броня перворожденного лучника',icon:'🌟',img:'',tier:6,exp:1500,time:600,resources:{'Шкура титана':6,'Шкура левиафана':4,'Драконья чешуя':8,'Древесина мирового древа':8,'Орихалк':10,'Звездный камень':6,'Камень душ':5},type:'chest',class:'Лучник',rarity:'Божественный',def:149,hp:468,dmg:12,critDmg:22,dodge:22,baseDef:149},
 
-            {name:'Поножи древнего следопыта',icon:'🦵',img:'',tier:6,exp:700,time:13,resources:{'Шкура титана':3,'Шкура левиафана':2,'Драконья чешуя':4,'Звездный камень':2},type:'pants',class:'Лучник',rarity:'Древний',def:62,hp:180,critDmg:10,dodge:16,baseDef:62},
-            {name:'Наголенники меткого выстрела',icon:'⚡',img:'',tier:6,exp:800,time:14,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Орихалк':6,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Лучник',rarity:'Божественный',def:77,hp:228,dmg:6,crit:8,dodge:18,baseDef:77},
-            {name:'Поножи небесного стремления',icon:'💫',img:'',tier:6,exp:900,time:15,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Орихалк':8,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Лучник',rarity:'Божественный',def:92,hp:288,critDmg:16,dodge:22,baseDef:92},
-            {name:'Набедренники древнего ветра',icon:'🔱',img:'',tier:6,exp:1100,time:16,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'pants',class:'Лучник',rarity:'Божественный',def:110,hp:372,dmg:10,dodge:26,baseDef:110},
+            {name:'Поножи древнего следопыта',icon:'🦵',img:'',tier:6,exp:700,time:300,resources:{'Шкура титана':3,'Шкура левиафана':2,'Драконья чешуя':4,'Звездный камень':2},type:'pants',class:'Лучник',rarity:'Древний',def:62,hp:180,critDmg:10,dodge:16,baseDef:62},
+            {name:'Наголенники меткого выстрела',icon:'⚡',img:'',tier:6,exp:800,time:600,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':5,'Орихалк':6,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Лучник',rarity:'Божественный',def:77,hp:228,dmg:6,crit:8,dodge:18,baseDef:77},
+            {name:'Поножи небесного стремления',icon:'💫',img:'',tier:6,exp:900,time:600,resources:{'Шкура титана':5,'Шкура левиафана':3,'Драконья чешуя':6,'Орихалк':8,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Лучник',rarity:'Божественный',def:92,hp:288,critDmg:16,dodge:22,baseDef:92},
+            {name:'Набедренники древнего ветра',icon:'🔱',img:'',tier:6,exp:1100,time:600,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Орихалк':10,'Звездный камень':5,'Камень душ':5},type:'pants',class:'Лучник',rarity:'Божественный',def:110,hp:372,dmg:10,dodge:26,baseDef:110},
 
             // Древние/Божественные сапоги - ТОЛЬКО КРАФТ
-            {name:'Сандалии древнего ветра',icon:'🌬️',img:'',tier:6,exp:600,time:16,resources:{'Шкура титана':3,'Шкура левиафана':2,'Драконья чешуя':5,'Звездный камень':2},type:'boots',class:'Лучник',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
-            {name:'Сапоги вознесения',icon:'💫',img:'',tier:6,exp:700,time:17,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':6,'Звездный камень':3},type:'boots',class:'Лучник',rarity:'Божественный',def:53,hp:204,dodge:48,baseDef:53},
-            {name:'Сандалии абсолютной скорости',icon:'⚡',img:'',tier:6,exp:800,time:18,resources:{'Шкура титана':6,'Шкура левиафана':2,'Драконья чешуя':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Лучник',rarity:'Божественный',def:62,hp:264,dodge:56,baseDef:62},
-            {name:'Сандалии творца',icon:'🔱',img:'',tier:6,exp:1000,time:20,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Лучник',rarity:'Божественный',def:77,hp:336,dodge:66,baseDef:77}
+            {name:'Сандалии древнего ветра',icon:'🌬️',img:'',tier:6,exp:600,time:300,resources:{'Шкура титана':3,'Шкура левиафана':2,'Драконья чешуя':5,'Звездный камень':2},type:'boots',class:'Лучник',rarity:'Древний',def:43,hp:156,dodge:40,baseDef:43},
+            {name:'Сапоги вознесения',icon:'💫',img:'',tier:6,exp:700,time:600,resources:{'Шкура титана':4,'Шкура левиафана':2,'Драконья чешуя':6,'Звездный камень':3},type:'boots',class:'Лучник',rarity:'Божественный',def:53,hp:204,dodge:48,baseDef:53},
+            {name:'Сандалии абсолютной скорости',icon:'⚡',img:'',tier:6,exp:800,time:600,resources:{'Шкура титана':6,'Шкура левиафана':2,'Драконья чешуя':8,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Лучник',rarity:'Божественный',def:62,hp:264,dodge:56,baseDef:62},
+            {name:'Сандалии творца',icon:'🔱',img:'',tier:6,exp:1000,time:600,resources:{'Шкура титана':6,'Шкура левиафана':3,'Драконья чешуя':8,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Лучник',rarity:'Божественный',def:77,hp:336,dodge:66,baseDef:77}
         ]
     },
 
@@ -195,25 +195,25 @@ const CRAFTING_RECIPES = {
             {name:'Звёздные сапоги',icon:'👢',img:'png/armor/mage/mage_armor_16.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Мифический',def:22,dodge:10,mana:66,baseDef:22},
 
             // Древние/Божественные — ТОЛЬКО КРАФТ
-            {name:'Капюшон звёздного пророка',icon:'🔮',img:'png/armor/mage/mage_armor_17.png',tier:6,exp:800,time:15,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездный камень':2},type:'helmet',class:'Маг',rarity:'Древний',def:46,hp:132,mana:120,crit:18,critDmg:14,baseDef:46},
-            {name:'Диадема небесного чародея',icon:'✨',img:'png/armor/mage/mage_armor_18.png',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'helmet',class:'Маг',rarity:'Божественный',def:69,hp:168,mana:156,crit:22,dodge:4,baseDef:69},
-            {name:'Венец манапотока',icon:'💫',img:'png/armor/mage/mage_armor_19.png',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Камень душ':3},type:'helmet',class:'Маг',rarity:'Божественный',def:79,hp:216,mana:192,crit:26,critDmg:12,baseDef:79},
-            {name:'Корона первозданной мудрости',icon:'👑',img:'png/armor/mage/mage_armor_20.png',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5},type:'helmet',class:'Маг',rarity:'Божественный',def:97,hp:276,mana:240,crit:28,critDmg:18,baseDef:97},
+            {name:'Капюшон звёздного пророка',icon:'🔮',img:'png/armor/mage/mage_armor_17.png',tier:6,exp:800,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездный камень':2},type:'helmet',class:'Маг',rarity:'Древний',def:46,hp:132,mana:120,crit:18,critDmg:14,baseDef:46},
+            {name:'Диадема небесного чародея',icon:'✨',img:'png/armor/mage/mage_armor_18.png',tier:6,exp:900,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'helmet',class:'Маг',rarity:'Божественный',def:69,hp:168,mana:156,crit:22,dodge:4,baseDef:69},
+            {name:'Венец манапотока',icon:'💫',img:'png/armor/mage/mage_armor_19.png',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Камень душ':3},type:'helmet',class:'Маг',rarity:'Божественный',def:79,hp:216,mana:192,crit:26,critDmg:12,baseDef:79},
+            {name:'Корона первозданной мудрости',icon:'👑',img:'png/armor/mage/mage_armor_20.png',tier:6,exp:1200,time:600,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5},type:'helmet',class:'Маг',rarity:'Божественный',def:97,hp:276,mana:240,crit:28,critDmg:18,baseDef:97},
 
-            {name:'Мантия древнего архимага',icon:'🌌',img:'png/armor/mage/mage_armor_21.png',tier:6,exp:900,time:16,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Адамантит':4},type:'chest',class:'Маг',rarity:'Древний',def:72,hp:240,mana:192,critDmg:16,dodge:6,baseDef:72},
-            {name:'Одеяние звёздного суверена',icon:'✨',img:'png/armor/mage/mage_armor_22.png',tier:6,exp:1000,time:17,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Камень душ':3},type:'chest',class:'Маг',rarity:'Божественный',def:112,hp:300,mana:240,dodge:8,baseDef:112},
-            {name:'Роба божественного прорицания',icon:'🔮',img:'png/armor/mage/mage_armor_23.png',tier:6,exp:1200,time:18,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5},type:'chest',class:'Маг',rarity:'Божественный',def:133,hp:372,mana:288,critDmg:20,dodge:10,baseDef:133},
-            {name:'Мантия творца миров',icon:'🌟',img:'png/armor/mage/mage_armor_24.png',tier:6,exp:1500,time:20,resources:{'Орихалк':12,'Звёздный шёлк':9,'Звездный камень':6,'Камень душ':6,'Звездная пыльца':4},type:'chest',class:'Маг',rarity:'Божественный',def:158,hp:456,mana:336,crit:8,critDmg:24,dodge:12,baseDef:158},
+            {name:'Мантия древнего архимага',icon:'🌌',img:'png/armor/mage/mage_armor_21.png',tier:6,exp:900,time:300,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Адамантит':4},type:'chest',class:'Маг',rarity:'Древний',def:72,hp:240,mana:192,critDmg:16,dodge:6,baseDef:72},
+            {name:'Одеяние звёздного суверена',icon:'✨',img:'png/armor/mage/mage_armor_22.png',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Камень душ':3},type:'chest',class:'Маг',rarity:'Божественный',def:112,hp:300,mana:240,dodge:8,baseDef:112},
+            {name:'Роба божественного прорицания',icon:'🔮',img:'png/armor/mage/mage_armor_23.png',tier:6,exp:1200,time:600,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5},type:'chest',class:'Маг',rarity:'Божественный',def:133,hp:372,mana:288,critDmg:20,dodge:10,baseDef:133},
+            {name:'Мантия творца миров',icon:'🌟',img:'png/armor/mage/mage_armor_24.png',tier:6,exp:1500,time:600,resources:{'Орихалк':12,'Звёздный шёлк':9,'Звездный камень':6,'Камень душ':6,'Звездная пыльца':4},type:'chest',class:'Маг',rarity:'Божественный',def:158,hp:456,mana:336,crit:8,critDmg:24,dodge:12,baseDef:158},
 
-            {name:'Штаны древнего мудреца',icon:'📜',img:'png/armor/mage/mage_armor_25.png',tier:6,exp:700,time:13,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'pants',class:'Маг',rarity:'Древний',def:54,hp:168,mana:144,critDmg:10,dodge:8,baseDef:54},
-            {name:'Порты магического вознесения',icon:'💫',img:'png/armor/mage/mage_armor_26.png',tier:6,exp:800,time:14,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Маг',rarity:'Божественный',def:79,hp:216,mana:168,crit:10,dodge:10,baseDef:79},
-            {name:'Штаны звёздного паломника',icon:'🌠',img:'png/armor/mage/mage_armor_27.png',tier:6,exp:900,time:15,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Маг',rarity:'Божественный',def:94,hp:276,mana:204,critDmg:16,dodge:12,baseDef:94},
-            {name:'Набедренники тайницы',icon:'🔱',img:'png/armor/mage/mage_armor_28.png',tier:6,exp:1100,time:16,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5,'Звездная пыльца':3},type:'pants',class:'Маг',rarity:'Божественный',def:113,hp:348,mana:252,crit:8,dodge:14,baseDef:113},
+            {name:'Штаны древнего мудреца',icon:'📜',img:'png/armor/mage/mage_armor_25.png',tier:6,exp:700,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'pants',class:'Маг',rarity:'Древний',def:54,hp:168,mana:144,critDmg:10,dodge:8,baseDef:54},
+            {name:'Порты магического вознесения',icon:'💫',img:'png/armor/mage/mage_armor_26.png',tier:6,exp:800,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'pants',class:'Маг',rarity:'Божественный',def:79,hp:216,mana:168,crit:10,dodge:10,baseDef:79},
+            {name:'Штаны звёздного паломника',icon:'🌠',img:'png/armor/mage/mage_armor_27.png',tier:6,exp:900,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':5,'Камень душ':3},type:'pants',class:'Маг',rarity:'Божественный',def:94,hp:276,mana:204,critDmg:16,dodge:12,baseDef:94},
+            {name:'Набедренники тайницы',icon:'🔱',img:'png/armor/mage/mage_armor_28.png',tier:6,exp:1100,time:600,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5,'Звездная пыльца':3},type:'pants',class:'Маг',rarity:'Божественный',def:113,hp:348,mana:252,crit:8,dodge:14,baseDef:113},
 
-            {name:'Сапоги лунного шага',icon:'🌙',img:'png/armor/mage/mage_armor_29.png',tier:6,exp:600,time:13,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'boots',class:'Маг',rarity:'Древний',def:28,hp:120,mana:108,dodge:28,baseDef:28},
-            {name:'Тапочки эфирного странника',icon:'👣',img:'png/armor/mage/mage_armor_30.png',tier:6,exp:700,time:14,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Маг',rarity:'Божественный',def:43,hp:156,mana:132,dodge:36,baseDef:43},
-            {name:'Сапоги манавихря',icon:'💨',img:'png/armor/mage/mage_armor_31.png',tier:6,exp:800,time:15,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Маг',rarity:'Божественный',def:51,hp:204,mana:156,crit:8,dodge:42,baseDef:51},
-            {name:'Тапочки созидателя',icon:'⚡',img:'png/armor/mage/mage_armor_32.png',tier:6,exp:1000,time:16,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5,'Звездная пыльца':3},type:'boots',class:'Маг',rarity:'Божественный',def:63,hp:264,mana:180,critDmg:10,dodge:48,baseDef:63}
+            {name:'Сапоги лунного шага',icon:'🌙',img:'png/armor/mage/mage_armor_29.png',tier:6,exp:600,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'boots',class:'Маг',rarity:'Древний',def:28,hp:120,mana:108,dodge:28,baseDef:28},
+            {name:'Тапочки эфирного странника',icon:'👣',img:'png/armor/mage/mage_armor_30.png',tier:6,exp:700,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2},type:'boots',class:'Маг',rarity:'Божественный',def:43,hp:156,mana:132,dodge:36,baseDef:43},
+            {name:'Сапоги манавихря',icon:'💨',img:'png/armor/mage/mage_armor_31.png',tier:6,exp:800,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':5,'Камень душ':3},type:'boots',class:'Маг',rarity:'Божественный',def:51,hp:204,mana:156,crit:8,dodge:42,baseDef:51},
+            {name:'Тапочки созидателя',icon:'⚡',img:'png/armor/mage/mage_armor_32.png',tier:6,exp:1000,time:600,resources:{'Орихалк':10,'Звёздный шёлк':8,'Звездный камень':5,'Камень душ':5,'Звездная пыльца':3},type:'boots',class:'Маг',rarity:'Божественный',def:63,hp:264,mana:180,critDmg:10,dodge:48,baseDef:63}
         ]
     },
 
