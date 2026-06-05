@@ -342,7 +342,9 @@ function spinWheelAnimation(callback) {
     wheel.style.transform = 'rotate(' + targetRotation + 'deg)';
 
     var settled = false;
-    function finish() {
+    function finish(e) {
+        // Игнорируем transitionend от дочерних элементов (кнопка имеет transition:all 0.3s)
+        if (e && e.propertyName !== 'transform') return;
         if (settled) return;
         settled = true;
         wheel.classList.remove('wheel--spinning');
