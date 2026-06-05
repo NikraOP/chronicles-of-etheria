@@ -8390,7 +8390,7 @@ body.account-gate-active #app.account-gate-layout {
     0 0 0 8px rgba(26, 8, 40, 0.6),
     0 0 30px rgba(91, 33, 182, 0.25);
   overflow: hidden;
-  transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  /* transition убран — анимация через JS requestAnimationFrame */
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
   background: #1a0828;

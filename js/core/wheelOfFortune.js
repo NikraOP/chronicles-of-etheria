@@ -320,51 +320,64 @@ function wheelDetectItemSlot(item) {
     return null;
 }
 
-// ─── Анимация вращения ───
-// TARGET_ANGLES: для каждого сегмента (0-7) — угол, на который надо повернуть,
-// чтобы указатель (сверху) указывал на этот сегмент.
-var WHEEL_TARGET_ANGLES = [337.5, 292.5, 247.5, 202.5, 157.5, 112.5, 67.5, 22.5];
+// ─── Анимация вращения (requestAnimationFrame) ───
+// Принцип: начальная скорость, затухание 5-10% каждый кадр,
+// остановка при скорости < порога, определение сегмента по углу.
 var _wheelRotation = 0;
 var _isSpinning = false;
+var _wheelRAF = null;
 
 function spinWheelAnimation(callback) {
     var wheel = document.getElementById('wheel');
     if (!wheel) return;
 
-    // 5-8 полных оборотов + случайный доворот (не привязано к сегменту)
-    var extraSpins = 5 + Math.floor(Math.random() * 4);
-    var extraAngle = Math.floor(Math.random() * 360); // 0-359
-    var targetRotation = _wheelRotation + extraSpins * 360 + extraAngle;
+    // 5-10 полных оборотов + случайный доворот 0-359°
+    var fullTurns = 5 + Math.floor(Math.random() * 6);  // 5-10
+    var extraAngle = Math.floor(Math.random() * 360);    // 0-359
+    var desiredTotal = fullTurns * 360 + extraAngle;     // 1800-3960°
 
-    _wheelRotation = targetRotation;
+    // Параметры затухания
+    var decay = 0.975 + Math.random() * 0.015;            // 0.975-0.99
+    var threshold = 0.15;                                 // °/frame — порог остановки
+    // Начальная скорость: чтобы в сумме геометрической прогрессии ≈ desiredTotal
+    // Сумма: startVel / (1 - decay). Отсюда startVel = desiredTotal * (1 - decay)
+    var initialVel = Math.max(8, desiredTotal * (1 - decay));
 
+    if (_wheelRAF) cancelAnimationFrame(_wheelRAF);
+
+    wheel.style.transition = 'none';  // отключаем CSS transition
     wheel.classList.add('wheel--spinning');
-    wheel.style.transition = 'none';
-    void wheel.offsetWidth; // force reflow
-    wheel.style.transition = 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-    wheel.style.transform = 'rotate(' + targetRotation + 'deg)';
 
-    var settled = false;
-    function finish(e) {
-        // Игнорируем transitionend от дочерних элементов (кнопка имеет transition:all 0.3s)
-        if (e && e.propertyName !== 'transform') return;
-        if (settled) return;
-        settled = true;
-        wheel.classList.remove('wheel--spinning');
-        wheel.removeEventListener('transitionend', finish);
+    var vel = initialVel;
+    var rot = _wheelRotation;
 
-        // Определяем сегмент по углу остановки
-        var currentAngle = targetRotation % 360;
-        var gradientAngle = ((360 - currentAngle) % 360 + 360) % 360;
-        var segmentIndex = Math.floor(gradientAngle / 45);
-        // Защита от 8 (когда gradientAngle=360)
-        if (segmentIndex >= 8) segmentIndex = 0;
+    function frame() {
+        if (!document.getElementById('wheel')) return;
 
-        if (typeof callback === 'function') callback(segmentIndex);
+        rot += vel;                         // поворот колеса (с текущей скоростью)
+        vel *= decay;                      // затухание скорости на следующий кадр
+
+        wheel.style.transform = 'rotate(' + rot + 'deg)';
+
+        if (vel > threshold) {
+            _wheelRAF = requestAnimationFrame(frame);
+        } else {
+            // Колесо остановилось
+            wheel.classList.remove('wheel--spinning');
+            _wheelRotation = rot;
+            _wheelRAF = null;
+
+            // Определяем сегмент по углу остановки
+            var currentAngle = ((rot % 360) + 360) % 360;
+            var gradientAngle = ((360 - currentAngle) % 360 + 360) % 360;
+            var segmentIndex = Math.floor(gradientAngle / 45);
+            if (segmentIndex >= 8) segmentIndex = 0;
+
+            if (typeof callback === 'function') callback(segmentIndex);
+        }
     }
 
-    wheel.addEventListener('transitionend', finish);
-    setTimeout(finish, 6000);
+    _wheelRAF = requestAnimationFrame(frame);
 }
 
 // ─── Партиклы ───
@@ -817,6 +830,10 @@ function wheelCleanup() {
     if (_wheelSyncInterval) {
         clearInterval(_wheelSyncInterval);
         _wheelSyncInterval = null;
+    }
+    if (_wheelRAF) {
+        cancelAnimationFrame(_wheelRAF);
+        _wheelRAF = null;
     }
     _isSpinning = false;
 }
