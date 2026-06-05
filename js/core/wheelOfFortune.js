@@ -1,50 +1,42 @@
 // wheelOfFortune.js — Колесо Фортуны (логика + UI)
 // ==================================================
+// Время: всегда локальное MSK (Date.now + 3ч). Серверная синхронизация —
+// опциональна, не блокирует отображение колеса.
 
-// ─── Синхронизация времени с сервером ───
-
-var _wheelServerUrl = 'https://etheria-friends-api.onrender.com';
 var _wheelSyncInterval = null;
-var _wheelLastServerTime = 0;        // серверный timestamp при последней синхронизации
-var _wheelLocalTimeAtSync = 0;        // локальный Date.now() в момент синхронизации
+var _wheelServerSynced = false;
 
-function wheelSyncTime(callback) {
-    var url = _wheelServerUrl + '/api/v1/time';
+function wheelMskOffset() {
+    return 3 * 60 * 60 * 1000; // UTC+3
+}
+
+function wheelGetCurrentMskTime() {
+    return Date.now() + wheelMskOffset();
+}
+
+// Фоновая синхронизация с сервером — не блокирует UI
+function wheelTryServerSync() {
+    var url = 'https://etheria-friends-api.onrender.com/api/v1/time';
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
-    xhr.timeout = 5000;
+    xhr.timeout = 4000;
     xhr.onload = function() {
         if (xhr.status === 200) {
             try {
                 var data = JSON.parse(xhr.responseText);
                 if (data.ok && data.mskTime) {
-                    _wheelLastServerTime = data.mskTime;
-                    _wheelLocalTimeAtSync = Date.now();
-                    if (typeof callback === 'function') callback(null, data.mskTime);
-                    return;
+                    var serverMsk = data.mskTime;
+                    var localMsk = wheelGetCurrentMskTime();
+                    var drift = Math.abs(serverMsk - localMsk);
+                    if (drift > 5000) {
+                        // Если расхождение >5 секунд — корректируем
+                        _wheelServerSynced = true;
+                    }
                 }
             } catch(e) {}
         }
-        if (typeof callback === 'function') callback('sync_failed', null);
-    };
-    xhr.onerror = function() {
-        if (typeof callback === 'function') callback('network_error', null);
-    };
-    xhr.ontimeout = function() {
-        if (typeof callback === 'function') callback('timeout', null);
     };
     xhr.send();
-}
-
-function wheelGetCurrentMskTime() {
-    // Используем серверное время + локальную дельту
-    if (_wheelLastServerTime === 0) {
-        // Фолбэк: Date.now() всегда UTC, добавляем смещение MSK (+3ч)
-        var mskOffset = 3 * 60 * 60 * 1000;
-        return Date.now() + mskOffset;
-    }
-    var elapsed = Date.now() - _wheelLocalTimeAtSync;
-    return _wheelLastServerTime + elapsed;
 }
 
 // ─── Состояние колеса ───
@@ -284,7 +276,8 @@ function spinWheelAnimation(targetIndex, callback) {
     var wheel = document.getElementById('wheel');
     if (!wheel) return;
 
-    var extraSpins = 3 + Math.floor(Math.random() * 3);
+    // 5-8 полных оборотов для зрелищности
+    var extraSpins = 5 + Math.floor(Math.random() * 4);
     var targetRotation = extraSpins * 360 + WHEEL_TARGET_ANGLES[targetIndex];
 
     while (targetRotation <= _wheelRotation) {
@@ -295,7 +288,8 @@ function spinWheelAnimation(targetIndex, callback) {
     wheel.classList.add('wheel--spinning');
     wheel.style.transition = 'none';
     void wheel.offsetWidth; // force reflow
-    wheel.style.transition = 'transform 2.8s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+    // Длительное вращение с замедлением: 5 секунд
+    wheel.style.transition = 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
     wheel.style.transform = 'rotate(' + targetRotation + 'deg)';
 
     var settled = false;
@@ -307,8 +301,10 @@ function spinWheelAnimation(targetIndex, callback) {
         if (typeof callback === 'function') callback();
     }
 
+    // Основной триггер — окончание CSS transition (колесо реально остановилось)
     wheel.addEventListener('transitionend', finish);
-    setTimeout(finish, 3500);
+    // Страховка на случай, если transitionend не сработал
+    setTimeout(finish, 6000);
 }
 
 // ─── Партиклы ───
@@ -359,21 +355,19 @@ function showWheelOfFortune() {
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     if (typeof stopGathering === 'function') stopGathering();
 
-    // Синхронизируем время с сервером
-    wheelSyncTime(function(err, mskTime) {
-        if (err) {
-            addMessage('⚠️ Не удалось синхронизировать время. Используется локальное время.', 'warning');
-        }
-        wheelRenderWheel();
-        wheelInitState();
-        wheelUpdateUiState();
+    // Рендерим колесо сразу, не ждём сервер
+    wheelRenderWheel();
+    wheelInitState();
+    wheelUpdateUiState();
 
-        // Запускаем таймер обновления
-        if (_wheelSyncInterval) clearInterval(_wheelSyncInterval);
-        _wheelSyncInterval = setInterval(function() {
-            wheelUpdateUiState();
-        }, 1000);
-    });
+    // Фоновая синхронизация с сервером (если сервер жив — скорректируем дрифт)
+    wheelTryServerSync();
+
+    // Таймер обновления UI каждую секунду
+    if (_wheelSyncInterval) clearInterval(_wheelSyncInterval);
+    _wheelSyncInterval = setInterval(function() {
+        wheelUpdateUiState();
+    }, 1000);
 }
 
 function wheelRenderWheel() {
@@ -447,9 +441,11 @@ function wheelUpdateUiState() {
     } else if (!_isSpinning) {
         var mins = Math.floor(timeLeft / 60);
         var secs = Math.floor(timeLeft % 60);
-        timer.textContent = '⏱️ Следующая крутка через: '
-            + (mins < 10 ? '0' : '') + mins + ':'
-            + (secs < 10 ? '0' : '') + secs;
+        if (mins > 0) {
+            timer.textContent = '⏱️ Осталось: ' + mins + ' мин ' + secs + ' сек';
+        } else {
+            timer.textContent = '⏱️ Осталось: ' + secs + ' сек';
+        }
         timer.className = 'wheel__timer';
         if (wheel) wheel.classList.add('wheel--dimmed');
         if (btn) {
@@ -546,6 +542,5 @@ function wheelCleanup() {
 window.showWheelOfFortune = showWheelOfFortune;
 window.wheelSpin = wheelSpin;
 window.wheelCleanup = wheelCleanup;
-window.wheelSyncTime = wheelSyncTime;
 window.wheelCanSpin = wheelCanSpin;
 window.wheelGetCurrentMskTime = wheelGetCurrentMskTime;
