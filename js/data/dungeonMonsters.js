@@ -288,50 +288,113 @@ const DUNGEON_MONSTERS_DB = [
     },
     {
         id: 'shadow_stalker',
-        name: 'Теневой хищник',
+        name: 'Теневой акулёныш',
         icon: '🐾',
-        img: './monsters/wolf.png',
+        img: './monsters/dungeon/ten-akul.png',
         hp: 650,
         atk: 90,
         def: 16,
         exp: 120,
         tier: 'normal',
         abilities: [
-            { name: 'Когти тьмы', type: 'damage', multiplier: 1.25, chance: 75 },
+            { name: 'Копьё тьмы', type: 'damage', multiplier: 1.25, chance: 75 },
             { name: 'Скрытность', type: 'buff', effect: 'dodge', value: 20, duration: 2, chance: 35, cooldown: 3 }
         ]
     },
     {
-        id: 'living_vine',
-        name: 'Живая лоза',
+        id: 'twilight_whisp',
+        name: 'Теневой глаз',
+        icon: '✨',
+        img: './monsters/dungeon/ten-glas.png',
+        hp: 520,
+        atk: 76,
+        def: 12,
+        exp: 98,
+        tier: 'normal',
+        abilities: [
+            { name: 'Вспышка', type: 'damage', multiplier: 1.15, chance: 80 },
+            { name: 'Мерцание', type: 'buff', effect: 'dodge', value: 16, duration: 2, chance: 30, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'venom_frog',
+        name: 'Теневой паук',
+        icon: '🐸',
+        img: './monsters/dungeon/ten-spider.png',
+        hp: 580,
+        atk: 72,
+        def: 14,
+        exp: 105,
+        tier: 'normal',
+        abilities: [
+            { name: 'Кислотный плевок', type: 'dot', effect: 'poison', value: 6, duration: 2, chance: 45, cooldown: 2 },
+            { name: 'Прыжок', type: 'damage', multiplier: 1.2, chance: 70 }
+        ]
+    },
+    {
+        id: 'dark_vine',
+        name: 'Теневая горгания',
         icon: '🌿',
-        img: './monsters/spider.png',
-        hp: 890,
-        atk: 98,
-        def: 24,
-        exp: 168,
+        img: './monsters/dungeon/ten-gargon.png',
+        hp: 610,
+        atk: 82,
+        def: 18,
+        exp: 112,
+        tier: 'normal',
+        abilities: [
+            { name: 'Взгляд', type: 'damage', multiplier: 1.3, chance: 65 },
+            { name: 'Закаменение', type: 'debuff', effect: 'slow', value: 20, duration: 2, chance: 40, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'shadow_elf',
+        name: 'Теневой скорпион',
+        icon: '🧝',
+        img: './monsters/dungeon/ten-scorp.png',
+        hp: 850,
+        atk: 104,
+        def: 20,
+        exp: 155,
         tier: 'elite',
         abilities: [
-            { name: 'Удушающий захват', type: 'damage', multiplier: 1.4, chance: 60, cooldown: 2 },
-            { name: 'Шипы', type: 'dot', effect: 'poison', value: 10, duration: 3, chance: 50, cooldown: 2 },
-            { name: 'Разрастание', type: 'heal', value: 15, chance: 35, cooldown: 4 }
+            { name: 'Тёмный плевок', type: 'damage', multiplier: 1.35, chance: 65 },
+            { name: 'Лунное уклонение', type: 'buff', effect: 'dodge', value: 25, duration: 2, chance: 40, cooldown: 3 },
+            { name: 'Отравленное жало', type: 'dot', effect: 'poison', value: 9, duration: 2, chance: 48, cooldown: 2 }
         ]
     },
     {
         id: 'treant_elder',
-        name: 'Древний треант',
+        name: 'Древний минотавр',
         icon: '🌳',
-        img: './monsters/dungeon/spore-golem.png',
+        img: './monsters/dungeon/ten-mintowr.png',
         hp: 1320,
         atk: 106,
         def: 34,
         exp: 235,
         tier: 'floor_boss',
         abilities: [
-            { name: 'Корневой удар', type: 'damage', multiplier: 1.55, chance: 55, cooldown: 2 },
-            { name: 'Древесная броня', type: 'buff', effect: 'def', value: 50, duration: 2, chance: 45, cooldown: 4 },
-            { name: 'Шёпот леса', type: 'heal', value: 20, chance: 40, cooldown: 3 },
-            { name: 'Буйство природы', type: 'damage', multiplier: 0.7, hits: 4, chance: 42, cooldown: 3 }
+            { name: 'Топорный удар', type: 'damage', multiplier: 1.55, chance: 55, cooldown: 2 },
+            { name: 'Тёмная броня', type: 'buff', effect: 'def', value: 50, duration: 2, chance: 45, cooldown: 4 },
+            { name: 'Теневой ритуал', type: 'heal', value: 20, chance: 40, cooldown: 3 },
+            { name: 'Буйство теней', type: 'damage', multiplier: 0.7, hits: 4, chance: 42, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'ancient_ent',
+        name: 'Спайрикс',
+        icon: '🌳',
+        img: './monsters/dungeon/ten-zmei.png',
+        hp: 2200,
+        atk: 168,
+        def: 42,
+        exp: 380,
+        tier: 'final_boss',
+        abilities: [
+            { name: 'Опустошение', type: 'damage', multiplier: 2, chance: 55, cooldown: 2 },
+            { name: 'Призыв теней', type: 'damage', multiplier: 1.1, hits: 3, chance: 48, cooldown: 2 },
+            { name: 'Благословение затмения', type: 'heal', value: 25, chance: 38, cooldown: 4 },
+            { name: 'Гнев тенец', type: 'buff', effect: 'atk', value: 55, duration: 2, chance: 42, cooldown: 4 },
+            { name: 'Опутывающие лозы', type: 'debuff', effect: 'freeze', duration: 1, chance: 25, cooldown: 5 }
         ]
     }
 ];
