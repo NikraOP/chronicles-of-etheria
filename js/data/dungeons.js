@@ -381,6 +381,24 @@ const DUNGEONS_DB = [
         goldMult: 22,
         expMult: 1.55,
         theme: { bgColor: 'linear-gradient(135deg, #1a0818, #030208)' }
+    },
+    {
+        id: 'shadow_grove',
+        name: 'Тенистая роща',
+        icon: '🌳',
+        mode: 'duo',
+        minLevel: 22,
+        maxLevel: 30,
+        recommendedLevel: 26,
+        backgroundId: 'fungal_depths',
+        monsterPool: ['shadow_stalker', 'living_vine', 'treant_elder'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 14,
+        expMult: 1.25,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)'
+        }
     }
 ];
 

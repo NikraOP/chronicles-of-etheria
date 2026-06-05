@@ -285,6 +285,54 @@ const DUNGEON_MONSTERS_DB = [
             { name: 'Регенерация гидры', type: 'heal', value: 22, chance: 35, cooldown: 4 },
             { name: 'Раздирающий укус', type: 'damage', multiplier: 1.9, chance: 40, cooldown: 3 }
         ]
+    },
+    {
+        id: 'shadow_stalker',
+        name: 'Теневой хищник',
+        icon: '🐾',
+        img: './monsters/wolf.png',
+        hp: 650,
+        atk: 90,
+        def: 16,
+        exp: 120,
+        tier: 'normal',
+        abilities: [
+            { name: 'Когти тьмы', type: 'damage', multiplier: 1.25, chance: 75 },
+            { name: 'Скрытность', type: 'buff', effect: 'dodge', value: 20, duration: 2, chance: 35, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'living_vine',
+        name: 'Живая лоза',
+        icon: '🌿',
+        img: './monsters/spider.png',
+        hp: 890,
+        atk: 98,
+        def: 24,
+        exp: 168,
+        tier: 'elite',
+        abilities: [
+            { name: 'Удушающий захват', type: 'damage', multiplier: 1.4, chance: 60, cooldown: 2 },
+            { name: 'Шипы', type: 'dot', effect: 'poison', value: 10, duration: 3, chance: 50, cooldown: 2 },
+            { name: 'Разрастание', type: 'heal', value: 15, chance: 35, cooldown: 4 }
+        ]
+    },
+    {
+        id: 'treant_elder',
+        name: 'Древний треант',
+        icon: '🌳',
+        img: './monsters/dungeon/spore-golem.png',
+        hp: 1320,
+        atk: 106,
+        def: 34,
+        exp: 235,
+        tier: 'floor_boss',
+        abilities: [
+            { name: 'Корневой удар', type: 'damage', multiplier: 1.55, chance: 55, cooldown: 2 },
+            { name: 'Древесная броня', type: 'buff', effect: 'def', value: 50, duration: 2, chance: 45, cooldown: 4 },
+            { name: 'Шёпот леса', type: 'heal', value: 20, chance: 40, cooldown: 3 },
+            { name: 'Буйство природы', type: 'damage', multiplier: 0.7, hits: 4, chance: 42, cooldown: 3 }
+        ]
     }
 ];
 
