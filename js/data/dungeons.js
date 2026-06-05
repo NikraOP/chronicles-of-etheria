@@ -391,7 +391,7 @@ const DUNGEONS_DB = [
         maxLevel: 30,
         recommendedLevel: 26,
         backgroundId: 'fungal_depths',
-        monsterPool: ['shadow_stalker', 'living_vine', 'treant_elder'],
+        monsterPool: ['shadow_stalker', 'twilight_whisp', 'venom_frog', 'shadow_elf', 'living_vine', 'treant_elder', 'ancient_ent'],
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 14,
