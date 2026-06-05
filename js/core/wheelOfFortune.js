@@ -1,42 +1,12 @@
 // wheelOfFortune.js — Колесо Фортуны (логика + UI)
 // ==================================================
-// Время: всегда локальное MSK (Date.now + 3ч). Серверная синхронизация —
-// опциональна, не блокирует отображение колеса.
+// Время: локальное MSK (Date.now + 3ч). Серверная синхронизация не требуется —
+// искажать localStorage время бессмысленно, т.к. кулдаун 1 час.
 
 var _wheelSyncInterval = null;
-var _wheelServerSynced = false;
-
-function wheelMskOffset() {
-    return 3 * 60 * 60 * 1000; // UTC+3
-}
 
 function wheelGetCurrentMskTime() {
-    return Date.now() + wheelMskOffset();
-}
-
-// Фоновая синхронизация с сервером — не блокирует UI
-function wheelTryServerSync() {
-    var url = 'https://etheria-friends-api.onrender.com/api/v1/time';
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.timeout = 4000;
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            try {
-                var data = JSON.parse(xhr.responseText);
-                if (data.ok && data.mskTime) {
-                    var serverMsk = data.mskTime;
-                    var localMsk = wheelGetCurrentMskTime();
-                    var drift = Math.abs(serverMsk - localMsk);
-                    if (drift > 5000) {
-                        // Если расхождение >5 секунд — корректируем
-                        _wheelServerSynced = true;
-                    }
-                }
-            } catch(e) {}
-        }
-    };
-    xhr.send();
+    return Date.now() + 3 * 60 * 60 * 1000; // UTC+3
 }
 
 // ─── Состояние колеса ───
@@ -190,12 +160,14 @@ function wheelPickItemPrize() {
 }
 
 function wheelFindItemInDb(itemName, slot) {
-    // Поиск предмета в EQUIPMENT_DB
+    // Поиск предмета в EQUIPMENT_DB по имени и слоту
     if (!window.EQUIPMENT_DB) return null;
 
     if (slot === 'weapon') {
-        var weapons = EQUIPMENT_DB.weapons[player.class];
-        if (weapons) {
+        // Ищем по ВСЕМ классам, т.к. пулы содержат оружие для Воина/Мага/Лучника
+        var classKeys = Object.keys(EQUIPMENT_DB.weapons);
+        for (var ck = 0; ck < classKeys.length; ck++) {
+            var weapons = EQUIPMENT_DB.weapons[classKeys[ck]];
             for (var i = 0; i < weapons.length; i++) {
                 if (weapons[i].name === itemName) return JSON.parse(JSON.stringify(weapons[i]));
             }
@@ -319,19 +291,30 @@ function wheelAwardPrize(segmentIndex) {
 }
 
 function wheelGiveItemToPlayer(item) {
-    // Определяем тип предмета для pushCraftedItemToInventory
-    var slot = wheelDetectItemSlot(item);
-    if (!slot) {
-        // Если не можем определить — просто в инвентарь как оружие (фолбэк)
-        if (!player.inventory.weapons) player.inventory.weapons = [];
-        player.inventory.weapons.push(item);
-        saveGame();
-        return;
-    }
+    if (!item) return;
 
     // Добавляем sellPrice если нет
     if (!item.sellPrice && typeof getItemSellPrice === 'function') {
         item.sellPrice = getItemSellPrice(item);
+    }
+
+    // Расходники — в potions
+    if (item.slot === 'consumable' || item.type === 'consumable') {
+        if (!player.inventory.potions) player.inventory.potions = [];
+        player.inventory.potions.push(item);
+        saveGame();
+        return;
+    }
+
+    // Определяем тип предмета
+    var slot = wheelDetectItemSlot(item);
+
+    // Если слот не определён — фолбэк с сообщением
+    if (!slot) {
+        if (!player.inventory.weapons) player.inventory.weapons = [];
+        player.inventory.weapons.push(item);
+        saveGame();
+        return;
     }
 
     if (slot === 'weapon') {
@@ -466,9 +449,6 @@ function showWheelOfFortune() {
     wheelRenderWheel();
     wheelInitState();
     wheelUpdateUiState();
-
-    // Фоновая синхронизация с сервером (если сервер жив — скорректируем дрифт)
-    wheelTryServerSync();
 
     // Валидация пулов (лог в консоль)
     wheelValidatePools();
