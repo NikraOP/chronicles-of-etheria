@@ -104,6 +104,52 @@ function wheelPickGoldPrize() {
     return golds[Math.floor(Math.random() * golds.length)];
 }
 
+// ─── Форматирование описания предмета ───
+
+function wheelSlotToRusName(slot) {
+    var names = {
+        'weapon': '⚔️ Оружие',
+        'helmet': '⛑️ Шлем',
+        'chest': '🛡️ Броня',
+        'pants': '👖 Поножи',
+        'boots': '👢 Сапоги',
+        'consumable': '🧪 Расходник',
+        'ring': '💍 Кольцо',
+        'necklace': '📿 Ожерелье'
+    };
+    return names[slot] || '📦 Предмет';
+}
+
+function wheelFormatItemStats(item) {
+    if (!item) return '';
+    var lines = [];
+    if (item.dmg) lines.push('⚔️ +' + item.dmg + ' к атаке');
+    if (item.def) lines.push('🛡️ +' + item.def + ' к защите');
+    if (item.hp) lines.push('❤️ +' + item.hp + ' к здоровью');
+    if (item.mana) lines.push('💎 +' + item.mana + ' к мане');
+    if (item.crit) lines.push('💥 +' + item.crit + '% крит. шанса');
+    if (item.critDmg) lines.push('⭐ +' + item.critDmg + '% крит. урона');
+    if (item.dodge) lines.push('💨 +' + item.dodge + '% уклонения');
+    if (item.heal) lines.push('💚 Восстанавливает ' + item.heal + ' HP');
+    if (lines.length === 0) return '<p style="color:var(--text-muted);font-size:11px;margin-top:8px;">Нет бонусов</p>';
+    return '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary);">' + lines.join('<br>') + '</div>';
+}
+
+function wheelFormatItemStatsText(item) {
+    if (!item) return '';
+    var parts = [];
+    if (item.dmg) parts.push('атака +' + item.dmg);
+    if (item.def) parts.push('защита +' + item.def);
+    if (item.hp) parts.push('здоровье +' + item.hp);
+    if (item.mana) parts.push('мана +' + item.mana);
+    if (item.crit) parts.push('крит +' + item.crit + '%');
+    if (item.critDmg) parts.push('крит.урон +' + item.critDmg + '%');
+    if (item.dodge) parts.push('уклонение +' + item.dodge + '%');
+    if (item.heal) parts.push('лечение ' + item.heal + ' HP');
+    if (parts.length === 0) return 'без бонусов';
+    return parts.join(', ');
+}
+
 // ─── Выбор из пула с процентами ───
 
 function wheelPickFromPool(pool) {
@@ -228,7 +274,7 @@ function wheelAwardPrize(segmentIndex) {
             var rareItem = wheelGetRarePrize();
             if (rareItem) {
                 wheelGiveItemToPlayer(rareItem);
-                addMessage('🎡 ДЖЕКПОТ! Вы получили: ' + rareItem.name + ' (' + FORTUNE_WHEEL_PRIZES.itemRarity + ')!', 'success');
+                addMessage('💎 ДЖЕКПОТ! ' + rareItem.name + ' (' + FORTUNE_WHEEL_PRIZES.itemRarity + ') — ' + wheelFormatItemStatsText(rareItem), 'success');
                 return { type: 'item', item: rareItem, jackpot: true };
             }
         }
@@ -254,7 +300,7 @@ function wheelAwardPrize(segmentIndex) {
         var item = wheelPickItemPrize();
         if (item) {
             wheelGiveItemToPlayer(item);
-            addMessage('🎡 Колесо Фортуны: +' + item.name + '!', 'success');
+            addMessage('🎡 Колесо Фортуны: ' + item.name + ' (' + (item.rarity || 'Обычный') + ') — ' + wheelFormatItemStatsText(item), 'success');
             return { type: 'item', item: item, jackpot: false };
         }
         // Если предмет не найден — золото
@@ -474,6 +520,7 @@ function wheelRenderWheel() {
         +     '<div class="wheel__timer" id="wheelTimer">⏱️ Синхронизация...</div>'
         +   '</div>'
         + '</div>'
+        + wheelRenderPrizesInfo()
         + '<div style="text-align:center;margin-top:12px;">'
         +   '<button class="action-btn" onclick="wheelCleanup();renderGame()" style="padding:8px 24px;">↩️ Назад</button>'
         + '</div>';
@@ -482,6 +529,80 @@ function wheelRenderWheel() {
     _wheelRotation = 0;
     _isSpinning = false;
     window._wheelSegments = WHEEL_SEGMENTS;
+}
+
+function wheelRenderPrizesInfo() {
+    var range = wheelGetLevelRange();
+    var html = '<div class="wheel-prizes-info" style="margin:16px auto;max-width:580px;">';
+
+    // Заголовок
+    html += '<h3 style="text-align:center;margin-bottom:12px;color:var(--gold);">🎁 Возможные призы (уровни ' + range + ')</h3>';
+
+    // Золото
+    var golds = FORTUNE_WHEEL_PRIZES.goldByLevel[range] || ['—'];
+    html += '<div class="wheel-prizes-section" style="margin-bottom:12px;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:10px;">'
+        + '<h4 style="margin:0 0 8px;font-size:14px;color:var(--gold);">💰 Золото (4 из 8 секторов)</h4>'
+        + '<p style="margin:0;font-size:12px;color:var(--text-secondary);">Суммы: ';
+    for (var g = 0; g < golds.length; g++) {
+        html += '<span style="color:var(--gold-light);font-weight:600;">+' + golds[g] + '</span>';
+        if (g < golds.length - 1) html += ', ';
+    }
+    html += '</p></div>';
+
+    // Пулы предметов
+    var pools = ITEM_POOLS[range];
+    if (pools) {
+        html += '<h4 style="margin:0 0 8px;font-size:14px;color:#4da6ff;text-align:center;">🎲 Предметы (3 из 8 секторов)</h4>'
+            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">';
+
+        var poolNames = ['pool1', 'pool2', 'pool3'];
+        var poolLabels = ['Пул 1', 'Пул 2', 'Пул 3'];
+        for (var pi = 0; pi < poolNames.length; pi++) {
+            var pool = pools[poolNames[pi]];
+            html += '<div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:10px;font-size:11px;">'
+                + '<div style="font-weight:600;margin-bottom:6px;color:var(--text-primary);">' + poolLabels[pi] + '</div>';
+            if (pool) {
+                for (var pi2 = 0; pi2 < pool.length; pi2++) {
+                    var entry = pool[pi2];
+                    var eColor = typeof RARITY_COLORS !== 'undefined' ? wheelRarityColor(entry.name, entry.slot) : '#ccc';
+                    html += '<div style="display:flex;justify-content:space-between;padding:2px 0;">'
+                        + '<span style="color:' + eColor + ';">' + entry.name + '</span>'
+                        + '<span style="color:var(--text-muted);">' + entry.chance + '%</span>'
+                        + '</div>';
+                }
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    // Джекпот
+    var rareName = FORTUNE_WHEEL_PRIZES.rareItem[player.class];
+    var rareColor = typeof RARITY_COLORS !== 'undefined' ? (RARITY_COLORS[FORTUNE_WHEEL_PRIZES.itemRarity] || '#e8b84a') : '#e8b84a';
+    html += '<div class="wheel-prizes-section" style="padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:10px;text-align:center;">'
+        + '<h4 style="margin:0 0 4px;font-size:14px;color:var(--gold);">💎 Джекпот (1 из 8 секторов)</h4>'
+        + '<p style="margin:0;font-size:12px;"><span style="color:' + rareColor + ';font-weight:600;">' + (rareName || '—') + '</span>'
+        + ' <span style="color:var(--text-muted);">— шанс 2%</span></p>'
+        + '<p style="margin:4px 0 0;font-size:10px;color:var(--text-muted);">Если джекпот не выпал — золото ×1.5</p>'
+        + '</div>';
+
+    html += '</div>';
+    return html;
+}
+
+function wheelRarityColor(itemName, slot) {
+    // Ищем предмет в EQUIPMENT_DB и возвращаем цвет его редкости
+    if (!window.EQUIPMENT_DB || !window.RARITY_COLORS) return '#ccc';
+    var item = null;
+    if (slot === 'weapon') {
+        var weps = EQUIPMENT_DB.weapons[player.class];
+        if (weps) for (var i = 0; i < weps.length; i++) { if (weps[i].name === itemName) { item = weps[i]; break; } }
+    } else if (slot === 'helmet' || slot === 'chest' || slot === 'pants' || slot === 'boots') {
+        var armors = EQUIPMENT_DB.armor[slot];
+        if (armors) for (var i = 0; i < armors.length; i++) { if (armors[i].name === itemName) { item = armors[i]; break; } }
+    }
+    if (item && item.rarity && RARITY_COLORS[item.rarity]) return RARITY_COLORS[item.rarity];
+    return '#ccc';
 }
 
 function wheelUpdateUiState() {
@@ -558,25 +679,33 @@ function wheelSpin() {
         var modalBody;
 
         if (result.jackpot) {
+            var rareColor = typeof RARITY_COLORS !== 'undefined' ? (RARITY_COLORS[FORTUNE_WHEEL_PRIZES.itemRarity] || '#e8b84a') : '#e8b84a';
             modalBody = '<div style="text-align:center;">'
                 + '<span style="font-size:48px;">💎</span>'
                 + '<h3 style="color:var(--gold-light);margin:10px 0;">ДЖЕКПОТ!</h3>'
-                + '<p style="font-size:18px;font-weight:700;">' + result.item.name + '</p>'
-                + '<p style="color:var(--gold);font-size:14px;">' + FORTUNE_WHEEL_PRIZES.itemRarity + '</p>'
+                + '<p style="font-size:20px;font-weight:700;color:' + rareColor + ';">' + result.item.name + '</p>'
+                + '<p style="color:' + rareColor + ';font-size:13px;font-weight:600;">' + FORTUNE_WHEEL_PRIZES.itemRarity + '</p>'
+                + wheelFormatItemStats(result.item)
                 + '</div>';
         } else if (result.type === 'gold') {
             modalBody = '<div style="text-align:center;">'
-                + '<span style="font-size:48px;">💰</span>'
-                + '<h3 style="margin:10px 0;">+' + result.amount + ' золота!</h3>'
+                + '<span style="font-size:52px;">💰</span>'
+                + '<h2 style="margin:12px 0;font-size:32px;color:var(--gold-light);">+' + result.amount + '</h2>'
+                + '<p style="color:var(--text-primary);font-size:16px;">золота</p>'
                 + (result.jackpot === false && targetIndex === 0
-                    ? '<p style="color:var(--text-secondary);font-size:13px;">🎡 Джекпот не выпал, но золото утешает!</p>'
+                    ? '<p style="color:var(--text-secondary);font-size:13px;margin-top:10px;">🎡 Джекпот не выпал, но золото утешает!</p>'
                     : '')
                 + '</div>';
         } else {
+            var itemColor = typeof RARITY_COLORS !== 'undefined' ? (RARITY_COLORS[result.item.rarity] || '#ccc') : '#ccc';
+            var itemIcon = result.item.icon || '📦';
+            var typeName = wheelSlotToRusName(result.item.slot || wheelDetectItemSlot(result.item));
             modalBody = '<div style="text-align:center;">'
-                + '<span style="font-size:48px;">📦</span>'
-                + '<h3 style="margin:10px 0;">' + result.item.name + '</h3>'
-                + '<p style="color:var(--text-secondary);font-size:13px;">Предмет добавлен в инвентарь</p>'
+                + '<span style="font-size:48px;">' + itemIcon + '</span>'
+                + '<p style="font-size:20px;font-weight:700;color:' + itemColor + ';margin:10px 0;">' + result.item.name + '</p>'
+                + '<p style="color:var(--text-secondary);font-size:12px;">' + typeName + '</p>'
+                + '<p style="color:' + itemColor + ';font-size:12px;font-weight:600;">' + (result.item.rarity || 'Обычный') + '</p>'
+                + wheelFormatItemStats(result.item)
                 + '</div>';
         }
 

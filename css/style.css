@@ -8559,4 +8559,16 @@ body.account-gate-active #app.account-gate-layout {
   .wheel__label-name { font-size: 8px; }
   .wheel__pointer { font-size: 22px; top: -4px; }
   .wheel__timer { font-size: 12px; margin-top: 14px; }
+  .wheel-prizes-info { font-size: 11px !important; }
+}
+
+/* Wheel prizes info panel */
+.wheel-prizes-info h4 { font-family: var(--font-display); }
+.wheel-prizes-section { border: 1px solid rgba(255,255,255,0.06); }
+@media (max-width: 480px) {
+  .wheel-prizes-info { margin: 12px auto !important; }
+  .wheel-prizes-info h3 { font-size: 13px; }
+  .wheel-prizes-info [style*="grid-template-columns:repeat(3,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
 }
