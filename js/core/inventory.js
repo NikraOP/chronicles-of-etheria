@@ -522,14 +522,7 @@ function showInventory() {
     
     // Зелья здоровья
     if (player.inventory.potions.length > 0) {
-        var potionSlot = getPotionQuickSlotIndex('potion');
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-top:20px;">' +
-            '<h3 style="color:#2ecc71;margin:0;">🧪 Зелья здоровья (' + player.inventory.potions.length + ')</h3>' +
-            '<button onclick="event.stopPropagation();cyclePotionQuickSlot(\'potion\')" ' +
-            'style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,0.3);color:' + (potionSlot >= 0 ? '#4ade80' : 'var(--text-muted)') + ';cursor:pointer;"' +
-            'title="Назначить зелья здоровья в быстрый доступ">' +
-            (potionSlot >= 0 ? '⚡ Слот ' + (potionSlot + 1) : '⚡ Назначить') +
-            '</button></div>';
+        html += '<h3 style="margin-top:20px;color:#2ecc71;">🧪 Зелья здоровья (' + player.inventory.potions.length + ')</h3>';
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (let i = 0; i < player.inventory.potions.length; i++) {
             const item = player.inventory.potions[i];
@@ -549,14 +542,7 @@ function showInventory() {
 
     // Зелья маны
     if (player.inventory.manaPotions.length > 0) {
-        var manaSlot = getPotionQuickSlotIndex('mana_potion');
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-top:20px;">' +
-            '<h3 style="color:#3498db;margin:0;">💎 Зелья маны (' + player.inventory.manaPotions.length + ')</h3>' +
-            '<button onclick="event.stopPropagation();cyclePotionQuickSlot(\'mana_potion\')" ' +
-            'style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,0.3);color:' + (manaSlot >= 0 ? '#a78bfa' : 'var(--text-muted)') + ';cursor:pointer;"' +
-            'title="Назначить зелья маны в быстрый доступ">' +
-            (manaSlot >= 0 ? '⚡ Слот ' + (manaSlot + 1) : '⚡ Назначить') +
-            '</button></div>';
+        html += '<h3 style="margin-top:20px;color:#3498db;">💎 Зелья маны (' + player.inventory.manaPotions.length + ')</h3>';
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (let i = 0; i < player.inventory.manaPotions.length; i++) {
             const item = player.inventory.manaPotions[i];
@@ -576,14 +562,7 @@ function showInventory() {
     
     // Еда
     if (player.inventory.foods.length > 0) {
-        var foodSlot = getPotionQuickSlotIndex('food');
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-top:20px;">' +
-            '<h3 style="color:#f39c12;margin:0;">🍖 Еда (' + player.inventory.foods.length + ')</h3>' +
-            '<button onclick="event.stopPropagation();cyclePotionQuickSlot(\'food\')" ' +
-            'style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,0.3);color:' + (foodSlot >= 0 ? '#f59e42' : 'var(--text-muted)') + ';cursor:pointer;"' +
-            'title="Назначить еду в быстрый доступ">' +
-            (foodSlot >= 0 ? '⚡ Слот ' + (foodSlot + 1) : '⚡ Назначить') +
-            '</button></div>';
+        html += '<h3 style="margin-top:20px;color:#f39c12;">🍖 Еда (' + player.inventory.foods.length + ')</h3>';
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (let i = 0; i < player.inventory.foods.length; i++) {
             const item = player.inventory.foods[i];
@@ -603,14 +582,7 @@ function showInventory() {
     
     // Эликсиры
     if (player.inventory.elixirs.length > 0) {
-        var elixirSlot = getPotionQuickSlotIndex('elixir');
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-top:20px;">' +
-            '<h3 style="color:#9b59b6;margin:0;">💪 Эликсиры (' + player.inventory.elixirs.length + ')</h3>' +
-            '<button onclick="event.stopPropagation();cyclePotionQuickSlot(\'elixir\')" ' +
-            'style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:rgba(0,0,0,0.3);color:' + (elixirSlot >= 0 ? '#fbbf24' : 'var(--text-muted)') + ';cursor:pointer;"' +
-            'title="Назначить эликсиры в быстрый доступ">' +
-            (elixirSlot >= 0 ? '⚡ Слот ' + (elixirSlot + 1) : '⚡ Назначить') +
-            '</button></div>';
+        html += '<h3 style="margin-top:20px;color:#9b59b6;">💪 Эликсиры (' + player.inventory.elixirs.length + ')</h3>';
         html += '<div class="item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">';
         for (let i = 0; i < player.inventory.elixirs.length; i++) {
             const item = player.inventory.elixirs[i];

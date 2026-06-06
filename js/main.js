@@ -700,7 +700,7 @@ function migrateOldSave(playerData) {
     if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
     
     if (!playerData.potionQuickSlots || !Array.isArray(playerData.potionQuickSlots)) {
-        playerData.potionQuickSlots = [{ type: 'potion', itemIndex: 0 }, { type: 'mana_potion', itemIndex: 0 }, { type: 'food', itemIndex: 0 }];
+        playerData.potionQuickSlots = [{ type: 'potion', itemIndex: 0 }, { type: 'mana_potion', itemIndex: 0 }, { type: 'food', itemIndex: 0 }, { type: 'elixir', itemIndex: 0 }];
     } else {
         // Миграция старых строковых слотов в объектные
         for (var _psi = 0; _psi < playerData.potionQuickSlots.length; _psi++) {
@@ -710,6 +710,10 @@ function migrateOldSave(playerData) {
             } else if (_slot && typeof _slot.type !== 'string') {
                 playerData.potionQuickSlots[_psi] = null;
             }
+        }
+        // Добавляем 4-й слот для эликсиров если его нет
+        if (playerData.potionQuickSlots.length < 4) {
+            playerData.potionQuickSlots.push({ type: 'elixir', itemIndex: 0 });
         }
     }
 
