@@ -36,26 +36,6 @@ const SKINS_DB = {
                     description: 'Образ воина, сжигающего всё на своём пути',
                     gender: 'male'
                 },
-                {
-                    id: 'warrior_rage_demon_m',
-                    name: 'Демон ярости',
-                    icon: '👿',
-                    img: '',
-                    price: 15000,
-                    rarity: 'Эпический',
-                    description: 'Демонический облик, внушающий ужас врагам',
-                    gender: 'male'
-                },
-                {
-                    id: 'warrior_rage_legend_m',
-                    name: 'Легендарный воин',
-                    icon: '👑',
-                    img: '',
-                    price: 35000,
-                    rarity: 'Легендарный',
-                    description: 'Образ легендарного героя древности',
-                    gender: 'male'
-                }
             ],
             'Школа Защиты': [
                 {
@@ -346,45 +326,25 @@ const SKINS_DB = {
                     gender: 'male'
                 },
                 {
-                    id: 'mage_ice_frost_m',
-                    name: 'Морозный',
+                    id: 'mage_ice_frost_cari',
+                    name: 'Король морозов',
                     icon: '🌨️',
-                    img: '',
-                    price: 1500,
-                    rarity: 'Необычный',
-                    description: 'Облик, покрытый инеем',
-                    gender: 'male'
-                },
-                {
-                    id: 'mage_ice_winter_m',
-                    name: 'Зимний властелин',
-                    icon: '🏔️',
-                    img: '',
-                    price: 5000,
-                    rarity: 'Редкий',
-                    description: 'Образ повелителя вечной зимы',
-                    gender: 'male'
-                },
-                {
-                    id: 'mage_ice_frostlich_m',
-                    name: 'Ледяной лич',
-                    icon: '💀',
-                    img: '',
-                    price: 15000,
-                    rarity: 'Эпический',
-                    description: 'Мрачный образ могущественного лича',
-                    gender: 'male'
-                },
-                {
-                    id: 'mage_ice_absolute_m',
-                    name: 'Абсолютный ноль',
-                    icon: '🥶',
-                    img: '',
-                    price: 35000,
+                    img: 'classes/mage/ice-cari.png',
+                    price: 20000,
                     rarity: 'Легендарный',
-                    description: 'Образ, замораживающий саму реальность',
+                    description: 'Облик короля, покрытый инеем',
                     gender: 'male'
-                }
+                },
+                {
+                    id: 'mage_ice_winter_bog',
+                    name: 'Бог льда',
+                    icon: '🏔️',
+                    img: 'classes/mage/ice-bog.png',
+                    price: 30000,
+                    rarity: 'Древний',
+                    description: 'Образ бога вечной зимы',
+                    gender: 'male'
+                },
             ],
             'Школа Утилити': [
                 {
