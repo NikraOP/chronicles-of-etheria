@@ -8782,12 +8782,148 @@ body.account-gate-active #app.account-gate-layout {
   white-space: nowrap;
 }
 
+/* ── Обёртка слота: стрелка ▲ + кнопка + кулдаун ── */
+.potion-quick-slot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+}
+.potion-quick-slot__arrow {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 0 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+  transition: all 0.2s;
+  user-select: none;
+}
+.potion-quick-slot__arrow:hover {
+  color: var(--gold-light);
+  background: rgba(255,255,255,0.08);
+}
+.potion-quick-slot__cd-text {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.potion-quick-slot__cd-text--ready {
+  color: var(--green);
+}
+.potion-quick-slot__cd-text--waiting {
+  color: var(--orange);
+}
+
+/* ── Панель выбора типа зелья для слота (expand-up) ── */
+.potion-slot-expand {
+  margin-bottom: 4px;
+}
+.potion-slot-expand__inner {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.potion-slot-expand__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.potion-slot-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 4px;
+  transition: background 0.15s;
+}
+.potion-slot-category:hover {
+  background: rgba(255,255,255,0.07);
+}
+.potion-slot-category--active {
+  border: 1px solid var(--border-gold);
+  background: rgba(168,85,247,0.08);
+}
+.potion-slot-category__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.potion-slot-category__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.potion-slot-category__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.potion-slot-category__count {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+.potion-slot-category__cd {
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.potion-slot-category__cd--waiting {
+  color: var(--orange);
+}
+.potion-slot-category__cd--ready {
+  color: var(--green);
+}
+.potion-slot-category__select {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.3);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.potion-slot-category__select:hover:not(:disabled) {
+  background: rgba(46,204,113,0.15);
+  border-color: var(--green);
+  color: var(--green);
+}
+.potion-slot-category__select--current {
+  opacity: 0.6;
+}
+.potion-slot-category__select:disabled {
+  cursor: default;
+}
+
 @media (max-width: 480px) {
   .potion-quick-row { gap: 4px; padding: 4px 0; }
   .potion-quick-row__label { min-width: 60px; font-size: 10px; }
   .potion-quick-row__slot { padding: 3px 8px; font-size: 11px; min-width: 44px; }
   .potion-quick-row__icon { font-size: 14px; }
   .potion-quick-expand__inner { max-height: 240px; padding: 8px; }
+  .potion-slot-expand__inner { max-height: 220px; padding: 8px; }
+  .potion-slot-category { padding: 4px 6px; gap: 6px; }
+  .potion-slot-category__label { font-size: 11px; }
+  .potion-slot-category__select { font-size: 10px; padding: 3px 8px; }
   .potion-expand-item { padding: 4px 6px; gap: 6px; }
   .potion-expand-item__name { font-size: 11px; }
   .potion-expand-item__effect { font-size: 9px; }
