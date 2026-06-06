@@ -792,6 +792,14 @@ function useConsumable(type, index) {
     const item = itemsList[index];
     if (!item) return;
     
+    // Авто-определение эффекта для предметов, у которых поле effect не заполнено (колесо фортуны, магазин)
+    if (!item.effect) {
+        if (item.heal) { item.effect = 'heal'; item.value = item.value || item.heal; }
+        else if (item.mana) { item.effect = 'restoreMana'; item.value = item.value || item.mana; }
+        else if (item.dmg) { item.effect = 'atk'; item.value = item.value || item.dmg; }
+        else if (item.def) { item.effect = 'def'; item.value = item.value || item.def; }
+    }
+
     let effectApplied = false;
     
     if (item.effect === 'heal') {

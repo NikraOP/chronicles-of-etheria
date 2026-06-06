@@ -700,7 +700,17 @@ function migrateOldSave(playerData) {
     if (typeof ensurePlayerProgression === 'function') ensurePlayerProgression(playerData);
     
     if (!playerData.potionQuickSlots || !Array.isArray(playerData.potionQuickSlots)) {
-        playerData.potionQuickSlots = ['potion', 'mana_potion', 'food'];
+        playerData.potionQuickSlots = [{ type: 'potion', itemIndex: 0 }, { type: 'mana_potion', itemIndex: 0 }, { type: 'food', itemIndex: 0 }];
+    } else {
+        // Миграция старых строковых слотов в объектные
+        for (var _psi = 0; _psi < playerData.potionQuickSlots.length; _psi++) {
+            var _slot = playerData.potionQuickSlots[_psi];
+            if (typeof _slot === 'string') {
+                playerData.potionQuickSlots[_psi] = { type: _slot, itemIndex: 0 };
+            } else if (_slot && typeof _slot.type !== 'string') {
+                playerData.potionQuickSlots[_psi] = null;
+            }
+        }
     }
 
     return playerData;

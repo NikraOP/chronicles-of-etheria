@@ -1000,7 +1000,8 @@ function getConsumableEffectText(item, type) {
 }
 
 // Вспомогательная: HTML одного предмета в раскрывающемся списке
-function buildPotionExpandItemHtml(item, type, index, cdType) {
+// Если bindSlotIndex передан (0,1,2) — клик по предмету привязывает его к слоту вместо использования
+function buildPotionExpandItemHtml(item, type, index, cdType, bindSlotIndex) {
     var iconHtml = typeof renderItemIconHTML === 'function'
         ? renderItemIconHTML(item, { size: 32, fallback: getConsumableTypeIcon(type) })
         : '<span style="font-size:24px;">' + getConsumableTypeIcon(type) + '</span>';
@@ -1011,6 +1012,28 @@ function buildPotionExpandItemHtml(item, type, index, cdType) {
     var rarityColor = item.rarity === 'Легендарный' ? '#fbbf24' :
                       item.rarity === 'Эпический' ? '#a855f7' :
                       item.rarity === 'Редкий' ? '#3b82f6' : '#8b8aa8';
+
+    var isBinding = (typeof bindSlotIndex === 'number');
+    var slotObj = isBinding ? player.potionQuickSlots[bindSlotIndex] : null;
+    var isCurrent = isBinding && slotObj && slotObj.itemIndex === index;
+
+    if (isBinding) {
+        // Режим привязки: клик по предмету привязывает его к слоту
+        return '<div class="potion-expand-item' + (disabled ? ' potion-expand-item--cd' : '') +
+            (isCurrent ? ' potion-expand-item--current' : '') + '"' +
+            ' onclick="bindPotionToQuickSlot(' + bindSlotIndex + ',\'' + type + '\',' + index + ')"' +
+            ' style="cursor:pointer;">' +
+            '<div class="potion-expand-item__icon">' + iconHtml + '</div>' +
+            '<div class="potion-expand-item__info">' +
+                '<div class="potion-expand-item__name">' + escapeBattleHtml(item.name) +
+                    ' <span style="color:' + rarityColor + ';font-size:10px;">' + (item.rarity || 'Обычный') + '</span></div>' +
+                '<div class="potion-expand-item__effect">' + effectText + '</div>' +
+            '</div>' +
+            '<span class="potion-expand-item__bind-indicator">' + (isCurrent ? '✓' : '') + '</span>' +
+        '</div>';
+    }
+
+    // Обычный режим: кнопка «использовать»
     return '<div class="potion-expand-item' + (disabled ? ' potion-expand-item--cd' : '') + '">' +
         '<div class="potion-expand-item__icon">' + iconHtml + '</div>' +
         '<div class="potion-expand-item__info">' +
@@ -1115,16 +1138,18 @@ function buildPotionQuickRowHtml() {
 
     var hasAny = false;
     for (var i = 0; i < slots.length; i++) {
-        if (slots[i] && getPotionCount(slots[i]) > 0) { hasAny = true; break; }
+        var s = slots[i];
+        if (s && s.type && getPotionCount(s.type) > 0) { hasAny = true; break; }
     }
     if (!hasAny) return '';
 
-    // Раскрывающаяся панель выбора типа для конкретного слота (изначально скрыта)
+    // Раскрывающаяся панель выбора предмета для конкретного слота (изначально скрыта)
     var html = '<div class="potion-slot-expand" id="potionSlotExpand" style="display:none;"></div>';
 
     html += '<div class="potion-quick-row"><div class="potion-quick-row__label">🧪 Быстрый доступ</div><div class="potion-quick-row__slots">';
     for (var j = 0; j < slots.length; j++) {
-        var type = slots[j];
+        var slot = slots[j];
+        var type = slot && slot.type ? slot.type : null;
         if (!type) {
             html += '<div class="potion-quick-slot-wrapper">' +
                 '<span class="potion-quick-slot__arrow" onclick="toggleSlotExpand(' + j + ')" title="Выбрать тип">▲</span>' +
@@ -1148,10 +1173,10 @@ function buildPotionQuickRowHtml() {
         }
 
         html += '<div class="potion-quick-slot-wrapper">' +
-            '<span class="potion-quick-slot__arrow" onclick="toggleSlotExpand(' + j + ')" title="Выбрать тип зелья для слота">▲</span>' +
+            '<span class="potion-quick-slot__arrow" onclick="toggleSlotExpand(' + j + ')" title="Выбрать зелье для слота">▲</span>' +
             '<button class="potion-quick-row__slot' +
             (disabled ? ' potion-quick-row__slot--empty' : '') +
-            '" onclick="usePotionFromQuickSlot(\'' + type + '\')"' +
+            '" onclick="usePotionFromQuickSlot(' + j + ')"' +
             ' title="' + cfg.name + ': ' + count + ' шт."' +
             (disabled ? ' disabled' : '') +
             ' style="border-color:' + cfg.color + '">' +
@@ -1192,19 +1217,17 @@ function getPotionCooldownTurns(type) {
     return 0;
 }
 
-// Использование зелья из быстрого слота
-function usePotionFromQuickSlot(type) {
+// Использование зелья из быстрого слота (slotIndex — индекс в массиве potionQuickSlots)
+function usePotionFromQuickSlot(slotIndex) {
     if (!currentMonster) return;
+    if (!player || !player.potionQuickSlots) return;
+    var slot = player.potionQuickSlots[slotIndex];
+    if (!slot || !slot.type) return;
+
     var useFn = window.useConsumable || (typeof useConsumable !== 'undefined' ? useConsumable : null);
     if (typeof useFn !== 'function') return;
-    var map = {
-        'potion': 'potion',
-        'mana_potion': 'mana_potion',
-        'food': 'food',
-        'elixir': 'elixir',
-        'scroll': 'scroll'
-    };
-    var cat = map[type] || type;
+
+    var cat = slot.type;
     var arr = null;
     if (cat === 'potion') arr = player.inventory.potions;
     else if (cat === 'mana_potion') arr = player.inventory.manaPotions;
@@ -1212,52 +1235,90 @@ function usePotionFromQuickSlot(type) {
     else if (cat === 'elixir') arr = player.inventory.elixirs;
     else if (cat === 'scroll') arr = player.inventory.scrolls;
     if (!arr || arr.length === 0) return;
-    useFn(cat, 0); // используем первое доступное зелье этого типа
+
+    // Если itemIndex не указан или зелья с таким индексом больше нет — используем первое доступное
+    var idx = (slot.itemIndex != null && slot.itemIndex < arr.length) ? slot.itemIndex : 0;
+    if (idx >= arr.length) idx = 0;
+    useFn(cat, idx);
 }
 
 // ── Расширение по слотам: выбор типа зелья для конкретного слота ──
 
-// Строит HTML панели выбора типа для слота slotIndex
+// Строит HTML панели со списком зелий КОНКРЕТНОГО ТИПА для слота slotIndex
+// Если в слоте уже есть тип — показывает список всех зелий этого типа
+// Если слот пуст — показывает выбор категории (типа)
 function buildSlotExpandHtml(slotIndex) {
     if (!player || !player.potionQuickSlots) return '';
     var slots = player.potionQuickSlots;
-    var currentType = slots[slotIndex];
+    var slot = slots[slotIndex];
 
-    var categories = [
-        { type: 'potion',      arr: player.inventory.potions,     cdKey: 'potion',      label: '🧪 Зелья здоровья' },
-        { type: 'mana_potion', arr: player.inventory.manaPotions, cdKey: 'mana_potion', label: '💎 Зелья маны' },
-        { type: 'food',        arr: player.inventory.foods,       cdKey: 'food',         label: '🍖 Еда' },
-        { type: 'elixir',      arr: player.inventory.elixirs,     cdKey: 'elixir',       label: '💪 Эликсиры' },
-        { type: 'scroll',      arr: player.inventory.scrolls,     cdKey: 'scroll',       label: '📜 Свитки' }
-    ];
+    var categoryMap = {
+        'potion':      { arr: player.inventory.potions,     cdKey: 'potion',      label: '🧪 Зелья здоровья' },
+        'mana_potion': { arr: player.inventory.manaPotions, cdKey: 'mana_potion', label: '💎 Зелья маны' },
+        'food':        { arr: player.inventory.foods,       cdKey: 'food',         label: '🍖 Еда' },
+        'elixir':      { arr: player.inventory.elixirs,     cdKey: 'elixir',       label: '💪 Эликсиры' },
+        'scroll':      { arr: player.inventory.scrolls,     cdKey: 'scroll',       label: '📜 Свитки' }
+    };
+
+    // Если слот пуст — показываем выбор типа (старое поведение для пустых слотов)
+    if (!slot || !slot.type) {
+        var categories = [
+            { type: 'potion',      arr: player.inventory.potions,     cdKey: 'potion',      label: '🧪 Зелья здоровья' },
+            { type: 'mana_potion', arr: player.inventory.manaPotions, cdKey: 'mana_potion', label: '💎 Зелья маны' },
+            { type: 'food',        arr: player.inventory.foods,       cdKey: 'food',         label: '🍖 Еда' },
+            { type: 'elixir',      arr: player.inventory.elixirs,     cdKey: 'elixir',       label: '💪 Эликсиры' },
+            { type: 'scroll',      arr: player.inventory.scrolls,     cdKey: 'scroll',       label: '📜 Свитки' }
+        ];
+
+        var html = '<div class="potion-slot-expand__inner">';
+        html += '<div class="potion-slot-expand__title">⚡ Слот ' + (slotIndex + 1) + ': выбор типа</div>';
+
+        for (var i = 0; i < categories.length; i++) {
+            var cat = categories[i];
+            var count = (cat.arr && cat.arr.length) || 0;
+            var cd = (window.getItemCooldown && typeof window.getItemCooldown === 'function')
+                ? window.getItemCooldown(cat.cdKey) : 0;
+            var icon = getConsumableTypeIcon(cat.type);
+
+            html += '<div class="potion-slot-category">';
+            html += '<div class="potion-slot-category__info">';
+            html += '<span class="potion-slot-category__icon">' + icon + '</span>';
+            html += '<span class="potion-slot-category__label">' + escapeBattleHtml(cat.label) + ' <span class="potion-slot-category__count">(' + count + ' шт.)</span></span>';
+            if (cd > 0) {
+                var cdWord = cd === 1 ? 'ход' : (cd >= 2 && cd <= 4 ? 'хода' : 'ходов');
+                html += '<span class="potion-slot-category__cd potion-slot-category__cd--waiting">⏳ ' + cd + ' ' + cdWord + '</span>';
+            } else {
+                html += '<span class="potion-slot-category__cd potion-slot-category__cd--ready">✅</span>';
+            }
+            html += '</div>';
+            html += '<button class="potion-slot-category__select"' +
+                ' onclick="assignPotionToQuickSlot(' + slotIndex + ',\'' + cat.type + '\')">' +
+                'Выбрать</button>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    // Слот имеет тип — показываем список конкретных зелий этого типа
+    var currentType = slot.type;
+    var currentItemIndex = slot.itemIndex;
+    var cat = categoryMap[currentType];
+    if (!cat) return '';
+    var items = cat.arr;
+    if (!items || items.length === 0) {
+        return '<div class="potion-slot-expand__inner">' +
+            '<div class="potion-slot-expand__title">⚡ Слот ' + (slotIndex + 1) + ': ' + escapeBattleHtml(cat.label) + '</div>' +
+            '<div class="potion-slot-expand__empty">Нет доступных предметов этого типа</div>' +
+            '</div>';
+    }
 
     var html = '<div class="potion-slot-expand__inner">';
-    html += '<div class="potion-slot-expand__title">⚡ Слот ' + (slotIndex + 1) + ': выбор типа</div>';
+    html += '<div class="potion-slot-expand__title">⚡ Слот ' + (slotIndex + 1) + ': ' + escapeBattleHtml(cat.label) + ' (' + items.length + ')</div>';
 
-    for (var i = 0; i < categories.length; i++) {
-        var cat = categories[i];
-        var count = (cat.arr && cat.arr.length) || 0;
-        var cd = (window.getItemCooldown && typeof window.getItemCooldown === 'function')
-            ? window.getItemCooldown(cat.cdKey) : 0;
-        var isCurrent = (cat.type === currentType);
-        var icon = getConsumableTypeIcon(cat.type);
-
-        html += '<div class="potion-slot-category' + (isCurrent ? ' potion-slot-category--active' : '') + '">';
-        html += '<div class="potion-slot-category__info">';
-        html += '<span class="potion-slot-category__icon">' + icon + '</span>';
-        html += '<span class="potion-slot-category__label">' + escapeBattleHtml(cat.label) + ' <span class="potion-slot-category__count">(' + count + ' шт.)</span></span>';
-        if (cd > 0) {
-            var cdWord = cd === 1 ? 'ход' : (cd >= 2 && cd <= 4 ? 'хода' : 'ходов');
-            html += '<span class="potion-slot-category__cd potion-slot-category__cd--waiting">⏳ ' + cd + ' ' + cdWord + '</span>';
-        } else {
-            html += '<span class="potion-slot-category__cd potion-slot-category__cd--ready">✅</span>';
-        }
-        html += '</div>';
-        html += '<button class="potion-slot-category__select' + (isCurrent ? ' potion-slot-category__select--current' : '') + '"' +
-            ' onclick="assignPotionToQuickSlot(' + slotIndex + ',\'' + cat.type + '\')"' +
-            (isCurrent ? ' disabled' : '') + '>' +
-            (isCurrent ? '✓ Текущий' : 'Выбрать') + '</button>';
-        html += '</div>';
+    for (var j = 0; j < items.length; j++) {
+        html += buildPotionExpandItemHtml(items[j], currentType, j, cat.cdKey, slotIndex);
     }
 
     html += '</div>';
@@ -1283,7 +1344,7 @@ function toggleSlotExpand(slotIndex) {
 // Назначить тип зелья в слот быстрого доступа
 function assignPotionToQuickSlot(slotIndex, newType) {
     if (!player || !player.potionQuickSlots) return;
-    player.potionQuickSlots[slotIndex] = newType;
+    player.potionQuickSlots[slotIndex] = { type: newType, itemIndex: 0 };
     saveGame();
 
     var typeConfig = {
@@ -1314,7 +1375,62 @@ function assignPotionToQuickSlot(slotIndex, newType) {
 
         if (btn) {
             btn.className = 'potion-quick-row__slot' + (disabled ? ' potion-quick-row__slot--empty' : '');
-            btn.setAttribute('onclick', "usePotionFromQuickSlot('" + newType + "')");
+            btn.setAttribute('onclick', "usePotionFromQuickSlot(" + slotIndex + ")");
+            btn.setAttribute('title', cfg.name + ': ' + count + ' шт.');
+            btn.style.borderColor = cfg.color;
+            if (disabled) { btn.setAttribute('disabled', ''); }
+            else { btn.removeAttribute('disabled'); }
+            btn.innerHTML = '<span class="potion-quick-row__icon">' + cfg.icon + '</span>' +
+                '<span class="potion-quick-row__count">' + count + '</span>';
+        }
+
+        if (cdText) {
+            if (cdTurns > 0) {
+                var cdWord = cdTurns === 1 ? 'ход' : (cdTurns >= 2 && cdTurns <= 4 ? 'хода' : 'ходов');
+                cdText.className = 'potion-quick-slot__cd-text potion-quick-slot__cd-text--waiting';
+                cdText.textContent = '⏳ ' + cdTurns + ' ' + cdWord;
+            } else {
+                cdText.className = 'potion-quick-slot__cd-text potion-quick-slot__cd-text--ready';
+                cdText.textContent = '✅';
+            }
+        }
+    }
+}
+
+// Привязать конкретное зелье (по индексу в массиве) к слоту быстрого доступа
+function bindPotionToQuickSlot(slotIndex, type, itemIndex) {
+    if (!player || !player.potionQuickSlots) return;
+    player.potionQuickSlots[slotIndex] = { type: type, itemIndex: itemIndex };
+    saveGame();
+
+    // Обновить панель выбора если открыта
+    var expandEl = document.getElementById('potionSlotExpand');
+    if (expandEl && expandEl.style.display !== 'none' && expandEl.style.display !== '') {
+        expandEl.innerHTML = buildSlotExpandHtml(slotIndex);
+    }
+
+    // Точечно обновить кнопку слота в DOM
+    var wrappers = document.querySelectorAll('.potion-quick-slot-wrapper');
+    if (wrappers && wrappers[slotIndex]) {
+        var wrapper = wrappers[slotIndex];
+        var btn = wrapper.querySelector('.potion-quick-row__slot');
+        var cdText = wrapper.querySelector('.potion-quick-slot__cd-text');
+
+        var typeConfig = {
+            'potion':      { icon: '🧪', name: 'Здоровье', color: '#4ade80' },
+            'mana_potion': { icon: '💎', name: 'Мана',     color: '#a78bfa' },
+            'food':        { icon: '🍖', name: 'Еда',       color: '#f59e42' },
+            'elixir':      { icon: '💪', name: 'Эликсир',   color: '#fbbf24' },
+            'scroll':      { icon: '📜', name: 'Свиток',    color: '#60a5fa' }
+        };
+        var cfg = typeConfig[type] || { icon: '❓', name: '?', color: '#888' };
+        var count = getPotionCount(type);
+        var cdTurns = getPotionCooldownTurns(type);
+        var disabled = (count <= 0);
+
+        if (btn) {
+            btn.className = 'potion-quick-row__slot' + (disabled ? ' potion-quick-row__slot--empty' : '');
+            btn.setAttribute('onclick', "usePotionFromQuickSlot(" + slotIndex + ")");
             btn.setAttribute('title', cfg.name + ': ' + count + ' шт.');
             btn.style.borderColor = cfg.color;
             if (disabled) { btn.setAttribute('disabled', ''); }
@@ -1339,13 +1455,17 @@ function assignPotionToQuickSlot(slotIndex, newType) {
 // Управление слотами быстрого доступа к зельям
 function getPotionQuickSlotIndex(type) {
     if (!player || !player.potionQuickSlots) return -1;
-    return player.potionQuickSlots.indexOf(type);
+    for (var i = 0; i < player.potionQuickSlots.length; i++) {
+        var slot = player.potionQuickSlots[i];
+        if (slot && slot.type === type) return i;
+    }
+    return -1;
 }
 
 function cyclePotionQuickSlot(type) {
     if (!player || !player.potionQuickSlots) return;
     var slots = player.potionQuickSlots;
-    var idx = slots.indexOf(type);
+    var idx = getPotionQuickSlotIndex(type);
 
     if (idx >= 0) {
         // Уже в слоте — убираем
@@ -1356,13 +1476,13 @@ function cyclePotionQuickSlot(type) {
         var empty = -1;
         for (var i = 0; i < slots.length; i++) { if (!slots[i]) { empty = i; break; } }
         if (empty >= 0) {
-            slots[empty] = type;
+            slots[empty] = { type: type, itemIndex: 0 };
             addMessage('⚡ Назначен в слот ' + (empty + 1) + ' быстрого доступа', 'success');
         } else {
             // Все заняты — циклически заменяем первый
             var old = slots[0];
-            slots[0] = type;
-            addMessage('⚡ Заменён слот 1 (' + (old || 'пусто') + ' → ' + type + ')', 'info');
+            slots[0] = { type: type, itemIndex: 0 };
+            addMessage('⚡ Заменён слот 1 (' + (old ? old.type || 'пусто' : 'пусто') + ' → ' + type + ')', 'info');
         }
     }
     saveGame();
@@ -1738,3 +1858,4 @@ window.togglePotionExpand = togglePotionExpand;
 window.buildSlotExpandHtml = buildSlotExpandHtml;
 window.toggleSlotExpand = toggleSlotExpand;
 window.assignPotionToQuickSlot = assignPotionToQuickSlot;
+window.bindPotionToQuickSlot = bindPotionToQuickSlot;
