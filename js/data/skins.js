@@ -17,23 +17,23 @@ const SKINS_DB = {
                     gender: 'male'
                 },
                 {
-                    id: 'warrior_rage_berserk_m',
-                    name: 'Берсерк',
+                    id: 'warrior_rage_berserk_grom',
+                    name: 'Громовая ярость',
                     icon: '💢',
-                    img: '',
-                    price: 1500,
-                    rarity: 'Необычный',
-                    description: 'Облик берсерка, охваченного боевой яростью',
+                    img: 'classes/warrior/iros-grom.png',
+                    price: 20000,
+                    rarity: 'Древний',
+                    description: 'Облик громовержца, охваченного боевой яростью',
                     gender: 'male'
                 },
                 {
-                    id: 'warrior_rage_titan_m',
-                    name: 'Титан',
+                    id: 'warrior_rage_titan_vulkan',
+                    name: 'Вулканизированая ярость',
                     icon: '💪',
-                    img: '',
-                    price: 5000,
-                    rarity: 'Редкий',
-                    description: 'Образ титана, крушащего всё на своём пути',
+                    img: 'classes/warrior/iros-vulkan.png',
+                    price: 30000,
+                    rarity: 'Древний',
+                    description: 'Образ воина, сжигающего всё на своём пути',
                     gender: 'male'
                 },
                 {
