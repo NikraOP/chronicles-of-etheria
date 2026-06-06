@@ -336,12 +336,22 @@ const SKINS_DB = {
                     gender: 'male'
                 },
                 {
-                    id: 'mage_ice_winter_bog',
-                    name: 'Бог льда',
+                    id: 'mage_ice_winter_angel',
+                    name: 'Ангел льда',
                     icon: '🏔️',
                     img: 'classes/mage/ice-bog.png',
                     price: 30000,
                     rarity: 'Древний',
+                    description: 'Образ ангела морозящего всех адских сущностей на своём путь',
+                    gender: 'male'
+                },
+                {
+                    id: 'mage_ice_winter_bog',
+                    name: 'Морозное божество',
+                    icon: '🏔️',
+                    img: 'classes/mage/ice-warrior.png',
+                    price: 50000,
+                    rarity: 'Божественый',
                     description: 'Образ бога вечной зимы',
                     gender: 'male'
                 },
