@@ -345,7 +345,6 @@ function renderBattle(options) {
         '</div>' + (typeof buildBattleAbilityHotbarHtml === 'function' ? buildBattleAbilityHotbarHtml() : '') +
         buildPotionQuickRowHtml() +
         '<div class="action-buttons"><button class="action-btn" onclick="playerAttack()" id="btnAtk">⚔️ Атака</button><button class="action-btn" onclick="showBattleAbilities()" id="btnAbi">✨ Способности</button><button class="action-btn" onclick="attemptDodge()" id="btnDodge">💨 Уклон</button><button class="action-btn danger" onclick="fleeBattle()">🏃 Бежать</button></div>' +
-        showItemCooldownsInBattle() +
         logHTML + '</div>';
     document.getElementById('dynamicContent').innerHTML = html;
     updateBattleButtons();
@@ -981,6 +980,124 @@ function showShieldEffect(target, value) {
 // ── Вторая строка быстрого доступа: зелья ──
 // 3 слота, конфигурируются в player.potionQuickSlots
 // Каждый слот показывает тип зелья, иконку и количество в инвентаре
+
+// Вспомогательная: описание эффекта расходника по категории
+function getConsumableEffectText(item, type) {
+    if (type === 'potion') return '❤️ Восстанавливает ' + (item.value || 50) + ' HP';
+    if (type === 'mana_potion') return '💎 Восстанавливает ' + (item.value || 50) + ' маны';
+    if (type === 'food') return '❤️ Восстанавливает ' + (item.value || 30) + ' HP';
+    if (type === 'elixir') {
+        if (item.effect === 'atk') return '⚔️ +' + item.value + '% атаки на 3 хода';
+        if (item.effect === 'def') return '🛡️ +' + item.value + '% защиты на 3 хода';
+        if (item.effect === 'dodge') return '💨 +' + item.value + '% уклонения на 3 хода';
+        if (item.effect === 'crit') return '💥 +' + item.value + '% крита на 3 хода';
+        if (item.effect === 'berserk') return '😤 +' + item.value + '% урона на 3 хода';
+        if (item.effect === 'immortal') return '✨ Иммунитет на 1 ход';
+        return '✨ Усиление на 3 хода';
+    }
+    if (type === 'scroll') return '✨ Улучшает оружие на +' + (item.value || 5) + '%';
+    return '✨ Предмет';
+}
+
+// Вспомогательная: HTML одного предмета в раскрывающемся списке
+function buildPotionExpandItemHtml(item, type, index, cdType) {
+    var iconHtml = typeof renderItemIconHTML === 'function'
+        ? renderItemIconHTML(item, { size: 32, fallback: getConsumableTypeIcon(type) })
+        : '<span style="font-size:24px;">' + getConsumableTypeIcon(type) + '</span>';
+    var cd = (window.getItemCooldown && typeof window.getItemCooldown === 'function')
+        ? window.getItemCooldown(cdType) : 0;
+    var disabled = cd > 0;
+    var effectText = getConsumableEffectText(item, type);
+    var rarityColor = item.rarity === 'Легендарный' ? '#fbbf24' :
+                      item.rarity === 'Эпический' ? '#a855f7' :
+                      item.rarity === 'Редкий' ? '#3b82f6' : '#8b8aa8';
+    return '<div class="potion-expand-item' + (disabled ? ' potion-expand-item--cd' : '') + '">' +
+        '<div class="potion-expand-item__icon">' + iconHtml + '</div>' +
+        '<div class="potion-expand-item__info">' +
+            '<div class="potion-expand-item__name">' + escapeBattleHtml(item.name) +
+                ' <span style="color:' + rarityColor + ';font-size:10px;">' + (item.rarity || 'Обычный') + '</span></div>' +
+            '<div class="potion-expand-item__effect">' + effectText + '</div>' +
+        '</div>' +
+        '<button class="potion-expand-item__btn" onclick="event.stopPropagation();useConsumable(\'' + type + '\',' + index + ')"' +
+            (disabled ? ' disabled' : '') + '>' +
+            (disabled ? '⏳' : '🧪') +
+        '</button>' +
+    '</div>';
+}
+
+function getConsumableTypeIcon(type) {
+    var map = { 'potion': '🧪', 'mana_potion': '💎', 'food': '🍖', 'elixir': '💪', 'scroll': '📜' };
+    return map[type] || '📦';
+}
+
+// Строит раскрывающийся блок со ВСЕМИ зельями/едой/эликсирами/свитками
+function buildPotionExpandHtml() {
+    var categories = [
+        { type: 'potion',      arr: player.inventory.potions,     cdKey: 'potion',      label: '🧪 Зелья здоровья' },
+        { type: 'mana_potion', arr: player.inventory.manaPotions, cdKey: 'mana_potion', label: '💎 Зелья маны' },
+        { type: 'food',        arr: player.inventory.foods,       cdKey: 'food',         label: '🍖 Еда' },
+        { type: 'elixir',      arr: player.inventory.elixirs,     cdKey: 'elixir',       label: '💪 Эликсиры' },
+        { type: 'scroll',      arr: player.inventory.scrolls,     cdKey: 'scroll',       label: '📜 Свитки' }
+    ];
+
+    var hasAny = false;
+    for (var c = 0; c < categories.length; c++) {
+        if (categories[c].arr && categories[c].arr.length > 0) { hasAny = true; break; }
+    }
+    if (!hasAny) return '';
+
+    var html = '<div class="potion-quick-expand" id="potionQuickExpand" style="display:none;">';
+    html += '<div class="potion-quick-expand__inner">';
+
+    for (var i = 0; i < categories.length; i++) {
+        var cat = categories[i];
+        if (!cat.arr || cat.arr.length === 0) continue;
+        var cdVal = (window.getItemCooldown && typeof window.getItemCooldown === 'function')
+            ? window.getItemCooldown(cat.cdKey) : 0;
+        var cdText = cdVal > 0 ? ' ⏳' + cdVal + ' ходов' : ' ✅ Готово';
+        html += '<div class="potion-expand-category">' +
+            '<div class="potion-expand-category__header">' +
+                '<span>' + cat.label + ' (' + cat.arr.length + ')</span>' +
+                '<span class="potion-expand-category__cd" style="color:' + (cdVal > 0 ? 'var(--orange)' : 'var(--green)') + ';font-size:10px;">' + cdText + '</span>' +
+            '</div>';
+        html += '<div class="potion-expand-category__items">';
+        for (var j = 0; j < cat.arr.length; j++) {
+            html += buildPotionExpandItemHtml(cat.arr[j], cat.type, j, cat.cdKey);
+        }
+        html += '</div></div>';
+    }
+
+    // Строка с кулдаунами в самом низу
+    html += '<div class="potion-quick-expand__cds">';
+    html += '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">⏳ Кулдауны:</div>';
+    for (var k = 0; k < categories.length; k++) {
+        var cat2 = categories[k];
+        if (!cat2.arr || cat2.arr.length === 0) continue;
+        var cd2 = (window.getItemCooldown && typeof window.getItemCooldown === 'function')
+            ? window.getItemCooldown(cat2.cdKey) : 0;
+        var cdWord = cd2 === 1 ? 'ход' : (cd2 >= 2 && cd2 <= 4 ? 'хода' : 'ходов');
+        html += '<span class="potion-quick-expand__cd-tag">' +
+            cat2.label.split(' ')[0] + ' ' +
+            (cd2 > 0 ? '⏳ ' + cd2 + ' ' + cdWord : '✅') +
+            '</span>';
+    }
+    html += '</div>';
+
+    html += '</div></div>';
+    return html;
+}
+
+// Переключение раскрывающегося списка зелий
+function togglePotionExpand() {
+    var el = document.getElementById('potionQuickExpand');
+    if (!el) return;
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
 function buildPotionQuickRowHtml() {
     if (!player || !player.potionQuickSlots) return '';
     if (window.pvpBattleActive) return '';
@@ -1002,7 +1119,10 @@ function buildPotionQuickRowHtml() {
     }
     if (!hasAny) return '';
 
-    var html = '<div class="potion-quick-row"><div class="potion-quick-row__label">🧪 Быстрый доступ</div><div class="potion-quick-row__slots">';
+    // Раскрывающийся блок ВСЕХ зелий (expand-up — над строкой быстрого доступа)
+    var html = buildPotionExpandHtml();
+
+    html += '<div class="potion-quick-row"><div class="potion-quick-row__label">🧪 Быстрый доступ <span class="potion-quick-row__expand-arrow" onclick="togglePotionExpand()" title="Все зелья">▲</span></div><div class="potion-quick-row__slots">';
     for (var j = 0; j < slots.length; j++) {
         var type = slots[j];
         if (!type) {
@@ -1470,3 +1590,4 @@ window.getPotionCooldownSec = getPotionCooldownSec;
 window.usePotionFromQuickSlot = usePotionFromQuickSlot;
 window.getPotionQuickSlotIndex = getPotionQuickSlotIndex;
 window.cyclePotionQuickSlot = cyclePotionQuickSlot;
+window.togglePotionExpand = togglePotionExpand;

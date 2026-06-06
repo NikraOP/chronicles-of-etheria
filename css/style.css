@@ -8640,9 +8640,157 @@ body.account-gate-active #app.account-gate-layout {
   color: var(--orange);
   font-weight: 700;
 }
+.potion-quick-row__expand-arrow {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  user-select: none;
+  vertical-align: middle;
+}
+.potion-quick-row__expand-arrow:hover {
+  color: var(--gold-light);
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── Раскрывающийся список ВСЕХ зелий (expand-up) ── */
+.potion-quick-expand {
+  margin-bottom: 4px;
+}
+.potion-quick-expand__inner {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.potion-expand-category {
+  margin-bottom: 8px;
+}
+.potion-expand-category:last-of-type {
+  margin-bottom: 0;
+}
+.potion-expand-category__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.potion-expand-category__cd {
+  font-size: 10px;
+}
+.potion-expand-category__items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.potion-expand-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  transition: background 0.15s;
+}
+.potion-expand-item:hover {
+  background: rgba(255,255,255,0.07);
+}
+.potion-expand-item--cd {
+  opacity: 0.45;
+}
+.potion-expand-item__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.potion-expand-item__info {
+  flex: 1;
+  min-width: 0;
+}
+.potion-expand-item__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.potion-expand-item__effect {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+.potion-expand-item__btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.25);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+.potion-expand-item__btn:hover:not(:disabled) {
+  background: rgba(46,204,113,0.2);
+  border-color: var(--green);
+}
+.potion-expand-item__btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.potion-expand-item__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Строка кулдаунов внизу раскрытого блока */
+.potion-quick-expand__cds {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.potion-quick-expand__cd-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
   .potion-quick-row { gap: 4px; padding: 4px 0; }
   .potion-quick-row__label { min-width: 60px; font-size: 10px; }
   .potion-quick-row__slot { padding: 3px 8px; font-size: 11px; min-width: 44px; }
   .potion-quick-row__icon { font-size: 14px; }
+  .potion-quick-expand__inner { max-height: 240px; padding: 8px; }
+  .potion-expand-item { padding: 4px 6px; gap: 6px; }
+  .potion-expand-item__name { font-size: 11px; }
+  .potion-expand-item__effect { font-size: 9px; }
+  .potion-expand-item__btn { width: 26px; height: 26px; font-size: 12px; }
+  .potion-expand-category__header { font-size: 11px; }
 }
