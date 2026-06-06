@@ -351,7 +351,7 @@ const SKINS_DB = {
                     icon: '🏔️',
                     img: 'classes/mage/ice-warrior.png',
                     price: 50000,
-                    rarity: 'Божественый',
+                    rarity: 'Божественный',
                     description: 'Образ бога вечной зимы',
                     gender: 'male'
                 },
