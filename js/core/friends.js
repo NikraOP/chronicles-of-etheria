@@ -87,12 +87,27 @@ function ensureFriendsPlayerState() {
 }
 
 function getFriendsApiBase() {
+    // Принудительно используем localhost для локальной разработки
+    if (typeof window !== 'undefined') {
+        console.log('[Friends] Hostname:', window.location.hostname);
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('[Friends] Using localhost:8790');
+            return 'http://localhost:8790';
+        }
+    }
     const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
-    return saved || getFriendsHttpApiDefault();
+    if (saved) {
+        console.log('[Friends] Using saved URL:', saved);
+        return saved;
+    }
+    const defaultUrl = getFriendsHttpApiDefault();
+    console.log('[Friends] Using default URL:', defaultUrl);
+    return defaultUrl;
 }
 
 function setFriendsApiBase(url) {
     const v = String(url || '').trim().replace(/\/+$/, '');
+    console.log('[Friends] Setting API base to:', v);
     if (v) localStorage.setItem(FRIENDS_API_LS_KEY, v);
     else localStorage.removeItem(FRIENDS_API_LS_KEY);
 }
@@ -567,21 +582,34 @@ async function removeFriendById(friendPlayerId, friendName) {
     const confirmed = confirm('Удалить из друзей: ' + name + '?');
     if (!confirmed) return;
     
+    console.log('[Friends] Removing friend:', friendPlayerId, 'name:', name);
+    console.log('[Friends] API base URL:', getFriendsApiBase());
+    
     friendsUpdateLiveStatus('loading');
     const ready = await ensureFriendsOnlineSession({ silent: false });
-    if (!ready) return;
+    if (!ready) {
+        console.log('[Friends] ensureFriendsOnlineSession failed');
+        return;
+    }
+    
+    console.log('[Friends] Player ID:', player.friends.playerId, 'Sync token:', player.friends.syncToken);
     
     try {
         // Всегда используем HTTP endpoint для удаления, так как он точно существует
         // Даже если основной backend - Supabase, удаление должно работать через HTTP API
-        await friendsHttpFetch('/api/v1/friends/' + encodeURIComponent(friendPlayerId), {
+        const url = '/api/v1/friends/' + encodeURIComponent(friendPlayerId);
+        console.log('[Friends] DELETE request to:', url);
+        
+        await friendsHttpFetch(url, {
             method: 'DELETE'
         });
         
+        console.log('[Friends] Friend deleted successfully');
         if (typeof addMessage === 'function') addMessage('✅ Удалено: ' + name, 'success');
         await refreshFriendsFromServer();
         renderFriendsScreenInner();
     } catch (err) {
+        console.error('[Friends] Error deleting friend:', err);
         if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
         friendsUpdateLiveStatus('online');
     }
@@ -1097,6 +1125,14 @@ function saveFriendsApiFromUi() {
     if (!input) return;
     setFriendsApiBase(input.value);
     if (typeof addMessage === 'function') addMessage('✅ URL сервера друзей сохранён', 'success');
+}
+
+function resetFriendsApiToLocalhost() {
+    setFriendsApiBase('http://localhost:8790');
+    if (typeof addMessage === 'function') addMessage('✅ URL сервера друзей сброшен на localhost:8790', 'success');
+    // Обновляем поле ввода, если оно существует
+    const input = document.getElementById('friendsApiUrl');
+    if (input) input.value = 'http://localhost:8790';
 }
 
 function copyFriendsCode() {
