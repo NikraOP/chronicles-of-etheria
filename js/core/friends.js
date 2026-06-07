@@ -1186,6 +1186,7 @@ function showFriends() {
     friendsOpenScreen();
 }
 window.showFriends = showFriends;
+window.showFriends = showFriends;
 
 async function friendsOpenScreen() {
     friendsUpdateLiveStatus('loading');
