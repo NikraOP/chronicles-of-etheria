@@ -1366,6 +1366,7 @@ window.removeFriendById = removeFriendById;
 window.submitAddFriend = submitAddFriend;
 window.copyFriendsCode = copyFriendsCode;
 window.saveFriendsApiFromUi = saveFriendsApiFromUi;
+window.resetFriendsApiToLocalhost = resetFriendsApiToLocalhost;
 window.refreshFriendsFromServer = refreshFriendsFromServer;
 window.ensureFriendsOnlineSession = ensureFriendsOnlineSession;
 window.scheduleFriendsProfilePush = scheduleFriendsProfilePush;
