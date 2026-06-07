@@ -88,12 +88,21 @@ function ensureFriendsPlayerState() {
 
 function getFriendsApiBase() {
     // Принудительно используем localhost для локальной разработки
-    if (typeof window !== 'undefined') {
-        console.log('[Friends] Hostname:', window.location.hostname);
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('[Friends] Using localhost:8790');
-            return 'http://localhost:8790';
-        }
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:8790';
+    }
+    const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
+    if (saved) {
+        return saved;
+    }
+    return getFriendsHttpApiDefault();
+}
+    const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
+    if (saved) {
+        return saved;
+    }
+    return getFriendsHttpApiDefault();
+}
     }
     const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
     if (saved) {
