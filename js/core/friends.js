@@ -1185,6 +1185,7 @@ function showFriends() {
     el.innerHTML = '<div class="friends-screen friends-screen--loading"><h2>👥 Друзья</h2><p>Подключение к серверу…</p></div>';
     friendsOpenScreen();
 }
+window.showFriends = showFriends;
 
 async function friendsOpenScreen() {
     friendsUpdateLiveStatus('loading');
