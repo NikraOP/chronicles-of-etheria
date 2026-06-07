@@ -67,9 +67,9 @@ const server = createServer(async (req, res) => {
             json(res, 200, {
                 ok: true,
                 service: 'etheria-api',
-                version: 2,
+                version: 3,
                 uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
-                features: { dungeonDuo: true, pvp: true }
+                features: { dungeonDuo: true, pvp: true, friendsRemove: true }
             }, origin);
             return;
         }
