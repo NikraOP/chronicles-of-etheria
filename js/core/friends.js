@@ -97,22 +97,6 @@ function getFriendsApiBase() {
     }
     return getFriendsHttpApiDefault();
 }
-    const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
-    if (saved) {
-        return saved;
-    }
-    return getFriendsHttpApiDefault();
-}
-    }
-    const saved = (localStorage.getItem(FRIENDS_API_LS_KEY) || '').trim();
-    if (saved) {
-        console.log('[Friends] Using saved URL:', saved);
-        return saved;
-    }
-    const defaultUrl = getFriendsHttpApiDefault();
-    console.log('[Friends] Using default URL:', defaultUrl);
-    return defaultUrl;
-}
 
 function setFriendsApiBase(url) {
     const v = String(url || '').trim().replace(/\/+$/, '');
