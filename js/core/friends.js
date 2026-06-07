@@ -567,50 +567,21 @@ async function removeFriendById(friendPlayerId, friendName) {
     const confirmed = confirm('Удалить из друзей: ' + name + '?');
     if (!confirmed) return;
     
-    // 1. Сохраняем копию текущего списка для отката
-    const originalList = [...(player.friends.cached || [])];
-    
-    // 2. Локальное удаление для мгновенной обратной связи
-    player.friends.cached = player.friends.cached.filter(
-        f => f.playerId !== friendPlayerId
-    );
-    if (typeof saveGame === 'function') saveGame();
-    renderFriendsScreenInner();
-    
     friendsUpdateLiveStatus('loading');
     const ready = await ensureFriendsOnlineSession({ silent: false });
-    if (!ready) {
-        // Откат локального удаления при ошибке сессии
-        player.friends.cached = originalList;
-        if (typeof saveGame === 'function') saveGame();
-        renderFriendsScreenInner();
-        return;
-    }
+    if (!ready) return;
     
     try {
-        const backend = getFriendsBackendKind();
-        if (backend === 'http') {
-            await friendsHttpFetch('/api/v1/friends/' + encodeURIComponent(friendPlayerId), {
-                method: 'DELETE'
-            });
-        } else if (backend === 'supabase') {
-            // Добавляем поддержку Supabase
-            await friendsSupabaseRpc('etheria_remove_friend', {
-                p_player_id: player.friends.playerId,
-                p_sync_token: player.friends.syncToken,
-                p_friend_player_id: friendPlayerId
-            });
-        }
+        // Всегда используем HTTP endpoint для удаления, так как он точно существует
+        // Даже если основной backend - Supabase, удаление должно работать через HTTP API
+        await friendsHttpFetch('/api/v1/friends/' + encodeURIComponent(friendPlayerId), {
+            method: 'DELETE'
+        });
         
         if (typeof addMessage === 'function') addMessage('✅ Удалено: ' + name, 'success');
-        // Обновляем список для синхронизации статуса
         await refreshFriendsFromServer();
-    } catch (err) {
-        // Откат при ошибке сервера
-        player.friends.cached = originalList;
-        if (typeof saveGame === 'function') saveGame();
         renderFriendsScreenInner();
-        
+    } catch (err) {
         if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
         friendsUpdateLiveStatus('online');
     }
