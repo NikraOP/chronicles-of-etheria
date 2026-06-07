@@ -553,6 +553,34 @@ async function addFriendByCode(code) {
     }
 }
 
+async function removeFriendById(friendPlayerId, friendName) {
+    if (!player) return;
+    const name = friendName || 'этого друга';
+    const confirmed = confirm('Удалить из друзей: ' + name + '?');
+    if (!confirmed) return;
+    
+    friendsUpdateLiveStatus('loading');
+    const ready = await ensureFriendsOnlineSession({ silent: false });
+    if (!ready) return;
+    
+    try {
+        const backend = getFriendsBackendKind();
+        if (backend === 'http') {
+            await friendsHttpFetch('/api/v1/friends/' + encodeURIComponent(friendPlayerId), {
+                method: 'DELETE'
+            });
+        } else {
+            throw new Error('Удаление друзей доступно только через HTTP API');
+        }
+        if (typeof addMessage === 'function') addMessage('✅ Удалено: ' + name, 'success');
+        await refreshFriendsFromServer();
+        renderFriendsScreenInner();
+    } catch (err) {
+        if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
+        friendsUpdateLiveStatus('online');
+    }
+}
+
 function formatFriendSyncTime(ts) {
     if (!ts) return 'никогда';
     try {
@@ -1023,6 +1051,8 @@ function renderFriendCard(entry) {
     statsHtml += renderFriendStatChip('📍', escapeFriendsHtml(p.location || '—'), 'location');
     statsHtml += '</div>';
     return '<article class="friend-card">' +
+        '<button type="button" class="friend-card__remove-btn" title="Удалить из друзей" ' +
+        'onclick="removeFriendById(\'' + escapeFriendsAttr(playerId) + '\',\'' + escapeFriendsAttr(p.name || 'Герой') + '\')">✕</button>' +
         '<div class="friend-card__hero">' +
         '<div class="friend-card__portrait-wrap">' + renderFriendPortraitBlock(p) + '</div>' +
         '<div class="friend-card__body">' +
@@ -1128,6 +1158,11 @@ function renderFriendsScreenInner() {
     const friends = f.cached || [];
     const myProfile = buildFriendsPublicProfile();
 
+    // Сохраняем значение поля ввода перед перерисовкой
+    const existingInput = document.getElementById('friendsAddCodeInput');
+    const savedInputValue = existingInput ? existingInput.value : '';
+    const hadFocus = existingInput && document.activeElement === existingInput;
+
     let html = '<div class="friends-screen">';
     html += '<header class="friends-screen__head">';
     html += '<h2 class="friends-screen__title">👥 Друзья</h2>';
@@ -1194,6 +1229,22 @@ function renderFriendsScreenInner() {
 
     el.innerHTML = html;
     friendsUpdateLiveStatus(synced ? 'online' : 'loading');
+
+    // Восстанавливаем значение и фокус поля ввода после перерисовки
+    if (savedInputValue) {
+        const newInput = document.getElementById('friendsAddCodeInput');
+        if (newInput) {
+            newInput.value = savedInputValue;
+            if (hadFocus) {
+                newInput.focus();
+                // Восстанавливаем позицию курсора в конец
+                const len = savedInputValue.length;
+                if (newInput.setSelectionRange) {
+                    newInput.setSelectionRange(len, len);
+                }
+            }
+        }
+    }
 }
 
 function friendsHookSaveGame() {
@@ -1269,6 +1320,7 @@ bindFriendsDuelClickDelegation();
 window.showFriends = showFriends;
 window.syncFriendsProfile = syncFriendsProfile;
 window.addFriendByCode = addFriendByCode;
+window.removeFriendById = removeFriendById;
 window.submitAddFriend = submitAddFriend;
 window.copyFriendsCode = copyFriendsCode;
 window.saveFriendsApiFromUi = saveFriendsApiFromUi;

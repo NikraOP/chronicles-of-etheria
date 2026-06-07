@@ -201,6 +201,21 @@ const server = createServer(async (req, res) => {
             return;
         }
 
+        const friendRemoveMatch = url.pathname.match(/^\/api\/v1\/friends\/([a-zA-Z0-9_-]+)$/);
+        if (req.method === 'DELETE' && friendRemoveMatch) {
+            const account = await requireAuth(req, res, origin);
+            if (!account) return;
+            const friendPlayerId = accounts.sanitizeId(friendRemoveMatch[1]);
+            if (!friendPlayerId) {
+                json(res, 400, { ok: false, error: 'invalid_id' }, origin);
+                return;
+            }
+            await accounts.removeFriendLink(account.playerId, friendPlayerId);
+            await accounts.removeFriendLink(friendPlayerId, account.playerId);
+            json(res, 200, { ok: true }, origin);
+            return;
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/v1/auth/register') {
             const body = await readJsonBody(req);
             const result = await gameAccounts.register(body);

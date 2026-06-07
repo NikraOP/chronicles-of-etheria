@@ -6631,6 +6631,7 @@ body.settings-open .main-header .settings-gear-btn {
 
 /* Карточка друга */
 .friend-card {
+    position: relative;
     background: linear-gradient(160deg, rgba(0, 0, 0, 0.28) 0%, rgba(var(--primary-rgb), 0.05) 100%);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -6641,6 +6642,35 @@ body.settings-open .main-header .settings-gear-btn {
     border-color: var(--border-gold);
     box-shadow: var(--shadow-gold);
     transform: translateY(-1px);
+}
+.friend-card__remove-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2;
+}
+.friend-card__remove-btn:hover {
+    background: rgba(220, 38, 38, 0.8);
+    border-color: rgba(220, 68, 68, 0.6);
+    color: #fff;
+    transform: scale(1.1);
+}
+.friend-card__remove-btn:active {
+    transform: scale(0.95);
 }
 .friend-card__hero {
     display: grid;

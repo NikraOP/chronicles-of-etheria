@@ -130,6 +130,16 @@ export function createAccountsApi(dataDir) {
         return true;
     }
 
+    async function removeFriendLink(playerId, friendPlayerId) {
+        if (playerId === friendPlayerId) return false;
+        const path = friendsPath(playerId);
+        const ids = await getFriendIds(playerId);
+        const filtered = ids.filter(id => id !== friendPlayerId);
+        if (filtered.length === ids.length) return false;
+        setJsonMemory(path, filtered);
+        return true;
+    }
+
     async function loadPublicSnapshot(playerId) {
         const account = await loadAccount(playerId);
         if (!account || !account.profile) return null;
@@ -151,6 +161,7 @@ export function createAccountsApi(dataDir) {
         sanitizeProfile,
         getFriendIds,
         addFriendLink,
+        removeFriendLink,
         loadPublicSnapshot,
         codePath,
         readCode: code => readJsonFile(codePath(code), null),
