@@ -485,6 +485,14 @@ async function friendsListPollTick() {
         stopFriendsLiveUpdates();
         return;
     }
+    
+    // Не обновляем UI, если пользователь активно вводит код друга
+    const friendInput = document.getElementById('friendsAddCodeInput');
+    if (friendInput && document.activeElement === friendInput) {
+        // Пропускаем обновление при любом активном вводе, даже если поле пустое
+        return;
+    }
+    
     await refreshFriendsFromServer();
     if (!document.querySelector('.friends-screen')) return;
     if (typeof getFriendsActiveTab === 'function' && getFriendsActiveTab() === 'exchanges' &&
@@ -559,9 +567,25 @@ async function removeFriendById(friendPlayerId, friendName) {
     const confirmed = confirm('Удалить из друзей: ' + name + '?');
     if (!confirmed) return;
     
+    // 1. Сохраняем копию текущего списка для отката
+    const originalList = [...(player.friends.cached || [])];
+    
+    // 2. Локальное удаление для мгновенной обратной связи
+    player.friends.cached = player.friends.cached.filter(
+        f => f.playerId !== friendPlayerId
+    );
+    if (typeof saveGame === 'function') saveGame();
+    renderFriendsScreenInner();
+    
     friendsUpdateLiveStatus('loading');
     const ready = await ensureFriendsOnlineSession({ silent: false });
-    if (!ready) return;
+    if (!ready) {
+        // Откат локального удаления при ошибке сессии
+        player.friends.cached = originalList;
+        if (typeof saveGame === 'function') saveGame();
+        renderFriendsScreenInner();
+        return;
+    }
     
     try {
         const backend = getFriendsBackendKind();
@@ -569,13 +593,24 @@ async function removeFriendById(friendPlayerId, friendName) {
             await friendsHttpFetch('/api/v1/friends/' + encodeURIComponent(friendPlayerId), {
                 method: 'DELETE'
             });
-        } else {
-            throw new Error('Удаление друзей доступно только через HTTP API');
+        } else if (backend === 'supabase') {
+            // Добавляем поддержку Supabase
+            await friendsSupabaseRpc('etheria_remove_friend', {
+                p_player_id: player.friends.playerId,
+                p_sync_token: player.friends.syncToken,
+                p_friend_player_id: friendPlayerId
+            });
         }
+        
         if (typeof addMessage === 'function') addMessage('✅ Удалено: ' + name, 'success');
+        // Обновляем список для синхронизации статуса
         await refreshFriendsFromServer();
-        renderFriendsScreenInner();
     } catch (err) {
+        // Откат при ошибке сервера
+        player.friends.cached = originalList;
+        if (typeof saveGame === 'function') saveGame();
+        renderFriendsScreenInner();
+        
         if (typeof addMessage === 'function') addMessage('❌ ' + friendsErrorMessage(err), 'error');
         friendsUpdateLiveStatus('online');
     }
@@ -1051,8 +1086,8 @@ function renderFriendCard(entry) {
     statsHtml += renderFriendStatChip('📍', escapeFriendsHtml(p.location || '—'), 'location');
     statsHtml += '</div>';
     return '<article class="friend-card">' +
-        '<button type="button" class="friend-card__remove-btn" title="Удалить из друзей" ' +
-        'onclick="removeFriendById(\'' + escapeFriendsAttr(playerId) + '\',\'' + escapeFriendsAttr(p.name || 'Герой') + '\')">✕</button>' +
+        '<button type="button" class="friend-card__remove-btn" title="Удалить из друзей" aria-label="Удалить друга" ' +
+        'onclick="removeFriendById(\'' + escapeFriendsAttr(playerId) + '\',\'' + escapeFriendsAttr(p.name || 'Герой') + '\')">🗑️</button>' +
         '<div class="friend-card__hero">' +
         '<div class="friend-card__portrait-wrap">' + renderFriendPortraitBlock(p) + '</div>' +
         '<div class="friend-card__body">' +
