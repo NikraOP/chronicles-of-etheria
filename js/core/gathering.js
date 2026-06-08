@@ -659,10 +659,16 @@ function showGatheringResources(profId) {
                 (isAutoTarget ? ' gather-auto-selected' : '') +
                 '" data-resource-idx="' + idx + '" role="button" tabindex="0">';
             html += '<div class="resource-icon">' + (typeof renderItemIconHTML === 'function' ? renderItemIconHTML(r, { size: 48, fallback: r.icon || '📦' }) : r.icon) + '</div>';
+            // Рассчитываем точное время и опыт с учётом бонусов профессии
+            const adjTime = r.battle ? 0 : Math.max(2, Math.floor(r.time * (1 - bonuses.gatherSpeedBonus)));
+            const adjExp = Math.floor(r.exp * (1 + bonuses.expBonus));
+            const baseExp = parseInt(r.exp, 10) || 0;
+            const expBonusHint = adjExp !== baseExp ? ` (баз. ${baseExp})` : '';
+            
             html += '<div class="resource-info">';
             html += '<div class="resource-name">' + r.name + '</div>';
             html += '<div class="resource-desc">⭐ Тир ' + r.tier + (r.battle ? ' · ⚔️ Бой' : '') + '</div>';
-            html += '<div class="resource-req">' + (r.battle ? '⚔️ Победите, чтобы получить тушку' : '⏱️ ' + r.time + ' с · +' + r.exp + ' XP') + '</div>';
+            html += '<div class="resource-req">' + (r.battle ? '⚔️ Победите, чтобы получить тушку' : '⏱️ ' + adjTime + ' с · +' + adjExp + ' XP' + expBonusHint) + '</div>';
             if (locked) html += '<div class="resource-locked">🔒 Нужен ' + r.tier + ' тир</div>';
             else if (scrollBlocked) html += '<div class="resource-locked">📜 Выше тира свитка (' + scrollTier + ')</div>';
             else if (isAutoTarget) html += '<div class="gather-auto-badge">⚡ Авто</div>';

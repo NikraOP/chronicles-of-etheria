@@ -430,7 +430,11 @@ function bindCraftRecipeGrid(profId) {
     root.querySelectorAll('.craft-recipe-card').forEach(card => {
         if (card.dataset.craftBound === '1') return;
         card.dataset.craftBound = '1';
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+            // Игнорируем клик если нажали на input или кнопку крафта
+            if (e.target.closest('.craft-quantity-input') || e.target.closest('.craft-now-btn')) {
+                return;
+            }
             if (isCraftingLocked) {
                 addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
                 return;
@@ -442,7 +446,8 @@ function bindCraftRecipeGrid(profId) {
             }
             const recipeName = decodeURIComponent(card.getAttribute('data-recipe-name') || '');
             if (!recipeName) return;
-            startCraftProgress(profId, recipeName, card);
+            // Клик по карточке крафтит 1 предмет (старое поведение)
+            startCraftProgress(profId, recipeName, card, 1);
         });
     });
 }
@@ -511,7 +516,8 @@ function consumeCraftMaterials(materials, saveChance) {
 
 function finishCraftProgress(session) {
     if (!session) return;
-    const blockReason = getCraftBlockReason(session.normRecipe, session.profId, 1);
+    const count = session.batchCount || 1;
+    const blockReason = getCraftBlockReason(session.normRecipe, session.profId, count);
     if (blockReason) {
         addMessage(`❌ ${blockReason}`, 'error');
         stopCraftProgress();
@@ -524,7 +530,7 @@ function finishCraftProgress(session) {
         adjustedExp: session.adjustedExp,
         bonuses: session.bonuses,
         scaledMaterials: session.scaledMaterials,
-        batchCount: 1
+        batchCount: count
     };
     const slot = document.getElementById('craftProgressSlot');
     const hasUi = !!slot;
@@ -882,6 +888,9 @@ function showCraftingRecipes(profId) {
                 const blockDataAttr = blockReason ? ` data-block-reason="${blockAttr}"` : '';
                 const ariaLabel = escapeHtmlText(norm.name + (effectText ? '. ' + effectText.replace(/<[^>]+>/g, '') : ''));
                 
+                // Рассчитываем максимальное количество для крафта
+                const maxCraft = getMaxCraftCount(norm, profId);
+                
                 html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}"${blockDataAttr} role="button" tabindex="0" aria-label="${ariaLabel}">`;
                 html += tooltipHtml;
                 html += '<div style="display: flex; gap: 12px;">';
@@ -895,7 +904,16 @@ function showCraftingRecipes(profId) {
                 else if (effectText) html += `<div class="craft-recipe-effect-preview">${effectText}</div>`;
                 html += `<div style="font-size: 10px; margin-top: 5px;">${previewMatText || 'Нет материалов'}</div>`;
                 html += `<div style="font-size: 10px; color: var(--gold); margin-top: 4px;">⭐ +${norm.exp || norm.time || 0} XP | 🔓 Тир ${norm.tier}</div>`;
-                if (canCraft) html += '<div class="craft-ready-badge">✓ Можно создать</div>';
+                if (canCraft) {
+                    html += '<div class="craft-ready-badge">✓ Можно создать</div>';
+                    // Добавляем поле количества только если можно крафтить
+                    const maxForRecipe = maxCraft > 0 ? maxCraft : 0;
+                    html += `<div class="craft-quantity-row" style="margin-top:8px;display:flex;gap:6px;align-items:center;">`;
+                    html += `<label style="font-size:10px;color:var(--text-secondary);">Кол-во:</label>`;
+                    html += `<input type="number" class="craft-quantity-input" min="1" max="${maxForRecipe}" value="1" data-recipe-name="${safeRecipe}" style="width:50px;padding:2px 4px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:rgba(0,0,0,0.3);color:var(--text);" onclick="event.stopPropagation()">`;
+                    html += `<button type="button" class="action-btn craft-now-btn" data-recipe-name="${safeRecipe}" style="padding:2px 8px;font-size:10px;" onclick="event.stopPropagation();startCraftWithQuantity('${safeRecipe}', ${profId})">🔨 Крафт</button>`;
+                    html += `</div>`;
+                }
                 html += '</div></div></div>';
             }
             html += '</div>';
@@ -907,7 +925,16 @@ function showCraftingRecipes(profId) {
     bindCraftRecipeGrid(profId);
 }
 
-function startCraftProgress(profId, recipeName, cardEl) {
+function startCraftWithQuantity(recipeNameEncoded, profId) {
+    const input = document.querySelector(`.craft-quantity-input[data-recipe-name="${recipeNameEncoded}"]`);
+    let craftCount = input ? parseInt(input.value, 10) : 1;
+    if (!Number.isFinite(craftCount) || craftCount < 1) craftCount = 1;
+    
+    const recipeName = decodeURIComponent(recipeNameEncoded);
+    startCraftProgress(profId, recipeName, null, craftCount);
+}
+
+function startCraftProgress(profId, recipeName, cardEl, craftCount) {
     if (isCraftingLocked) {
         addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
         return;
@@ -930,7 +957,11 @@ function startCraftProgress(profId, recipeName, cardEl) {
     applyProfessionTierUps(prof);
     const bonuses = getProfessionBonuses(prof.tier);
 
-    const blockReason = getCraftBlockReason(normRecipe, profId, 1);
+    // Количество по умолчанию = 1
+    const count = Math.max(1, parseInt(craftCount, 10) || 1);
+    
+    // Проверяем блок-причины для указанного количества
+    const blockReason = getCraftBlockReason(normRecipe, profId, count);
     if (blockReason) {
         addMessage(`❌ ${blockReason}`, 'error');
         return;
@@ -948,7 +979,8 @@ function startCraftProgress(profId, recipeName, cardEl) {
     const scaledBase = isSpecial ? baseSec : Math.floor(baseSec * 3);
     const adjustedTime = Math.max(2, Math.floor(scaledBase * (1 - bonuses.gatherSpeedBonus)));
     const perExp = normRecipe.exp || normRecipe.time || 0;
-    const scaledMaterials = scaleRecipeMaterials(materials, 1);
+    // Масштабируем материалы на количество
+    const scaledMaterials = scaleRecipeMaterials(materials, count);
 
     const slot = document.getElementById('craftProgressSlot');
     if (!slot) {
@@ -957,7 +989,8 @@ function startCraftProgress(profId, recipeName, cardEl) {
             normRecipe,
             adjustedExp: perExp,
             bonuses,
-            scaledMaterials
+            scaledMaterials,
+            batchCount: count
         });
         return;
     }
@@ -975,25 +1008,27 @@ function startCraftProgress(profId, recipeName, cardEl) {
         normRecipe,
         adjustedExp: perExp,
         bonuses,
-        scaledMaterials
+        scaledMaterials,
+        batchCount: count
     };
 
     const iconHtml = typeof renderItemIconHTML === 'function'
         ? renderItemIconHTML(normRecipe, { size: 32, fallback: normRecipe.icon || '📦' })
         : (normRecipe.icon || '📦');
 
+    const quantityLabel = count > 1 ? ` ×${count}` : '';
     slot.innerHTML = `
         <div class="crafting-progress craft-active" id="craftProgressPanel">
             <div class="craft-progress-header">
                 <span class="craft-progress-icon">${iconHtml}</span>
-                <strong>🔨 Создание: ${normRecipe.name}</strong>
+                <strong>🔨 Создание: ${normRecipe.name}${quantityLabel}</strong>
                 <span id="craftPercent">0%</span>
             </div>
             <div class="crafting-bar">
                 <div class="crafting-fill" id="craftFill"></div>
             </div>
             <div class="craft-progress-hint-detail">
-                ⚡ −${Math.floor(bonuses.gatherSpeedBonus * 100)}% времени · ✨ +${Math.floor(bonuses.craftQualityBonus * 100)}% качества
+                ⚡ −${Math.floor(bonuses.gatherSpeedBonus * 100)}% времени · ✨ +${Math.floor(bonuses.craftQualityBonus * 100)}% качества · 📦 ×${count}
             </div>
         </div>
     `;
@@ -1042,5 +1077,6 @@ window.formatLocationResourcesHint = formatLocationResourcesHint;
 window.getMaxCraftCount = getMaxCraftCount;
 window.scaleRecipeMaterials = scaleRecipeMaterials;
 window.startCraftProgress = startCraftProgress;
+window.startCraftWithQuantity = startCraftWithQuantity;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
