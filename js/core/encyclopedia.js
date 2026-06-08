@@ -62,6 +62,9 @@ function buildEncyclopediaData() {
         Object.keys(RESOURCES_DB).forEach(profId => {
             const prof = RESOURCES_DB[profId];
             prof.forEach(res => {
+                // Получаем информацию о боссах для этого ресурса
+                const bossSources = getBossDropSources(res.name);
+                
                 ENCYCLOPEDIA_DATA.resources.push({
                     name: res.name,
                     icon: res.icon,
@@ -71,7 +74,8 @@ function buildEncyclopediaData() {
                     time: res.time,
                     exp: res.exp,
                     isBossDrop: res.bossDrop || false,
-                    bossChance: res.bossChance ? (res.bossChance * 100).toFixed(1) + '%' : null
+                    bossChance: res.bossChance ? (res.bossChance * 100).toFixed(1) + '%' : null,
+                    bossSources: bossSources
                 });
             });
         });
@@ -163,9 +167,46 @@ function getBossDrops(bossName) {
         'Титан-разрушитель': ['Орихалк (20%)', 'Адамантит (35%)', 'Шкура титана (8%)'],
         'Бог хаоса': ['Эссенция пустоты (8%)', 'Камень душ (12%)', 'Звездный камень (20%)'],
         'Легендарный кракен': ['Жемчужина глубин (15%)', 'Шкура левиафана (5%)', 'Драконья чешуя (25%)'],
-        'Богиня моря': ['Левиафан бруйна (3%)', 'Жемчужина глубин (20%)', 'Дракон моря (8%)']
+        'Богиня моря': ['Левиафан бруйна (3%)', 'Жемчужина глубин (20%)', 'Дракон моря (8%)'],
+        'Дракон забвения': ['Искра творца (4%)', 'Эссенция пустоты (10%)', 'Слёзы божества (6%)', 'Камень душ (20%)', 'Звездный камень (30%)']
     };
     return drops[bossName] || ['Нет данных'];
+}
+
+function getBossNameById(bossId) {
+    // Преобразуем ID босса в имя
+    const bossNames = {
+        'three_headed_hydra': 'Трёхголовая гидра',
+        'ash_lord': 'Пепельный лорд',
+        'glacier_heart': 'Ледяное сердце',
+        'distorted_warden': 'Искажённый страж',
+        'neon_dragon': 'Неоновый дракон',
+        'crystal_sentinel': 'Кристальный страж',
+        'fungal_matriarch': 'Грибная матриарх',
+        'infinity_god': 'Бог бесконечности',
+        'oblivion_dragon': 'Дракон забвения'
+    };
+    return bossNames[bossId] || bossId;
+}
+
+function getBossDropSources(resourceName) {
+    // С каких боссов падает ресурс
+    const sources = {
+        'Слёзы божества': ['Бог бесконечности (5%)', 'Дракон забвения (6%)'],
+        'Искра творца': ['Бог бесконечности (3%)', 'Дракон забвения (4%)'],
+        'Эссенция пустоты': ['Бог хаоса (8%)', 'Дракон забвения (10%)'],
+        'Камень душ': ['Бог бесконечности (15%)', 'Бог хаоса (12%)', 'Дракон забвения (20%)'],
+        'Звездный камень': ['Бог бесконечности (25%)', 'Бог хаоса (20%)', 'Дракон забвения (30%)'],
+        'Шкура титана': ['Титан-разрушитель (8%)'],
+        'Орихалк': ['Титан-разрушитель (20%)'],
+        'Адамантит': ['Титан-разрушитель (35%)'],
+        'Жемчужина глубин': ['Легендарный кракен (15%)', 'Богиня моря (20%)'],
+        'Шкура левиафана': ['Легендарный кракен (5%)'],
+        'Драконья чешуя': ['Легендарный кракен (25%)'],
+        'Левиафан бруйна': ['Богиня моря (3%)'],
+        'Дракон моря': ['Богиня моря (8%)']
+    };
+    return sources[resourceName] || null;
 }
 
 function showEncyclopedia() {
@@ -301,6 +342,15 @@ function showEncyclopedia() {
         if (res.bossChance) {
             html += '<div class="res-boss-chance">🎲 Шанс: ' + res.bossChance + '</div>';
         }
+        // Показываем с каких боссов падает ресурс
+        if (res.bossSources && res.bossSources.length > 0) {
+            html += '<div class="res-boss-sources">';
+            html += '<div class="section-title">💀 Падает с боссов:</div>';
+            res.bossSources.forEach(source => {
+                html += '<div class="boss-source-row">' + source + '</div>';
+            });
+            html += '</div>';
+        }
         html += bossDropBadge;
         html += '</div></div>';
     });
@@ -374,8 +424,10 @@ function showEncyclopedia() {
         if (dungeon.monsterPool && dungeon.monsterPool.length > 0) {
             html += '<div class="dungeon-monsters">';
             html += '<div class="section-title">👹 Монстры:</div>';
-            dungeon.monsterPool.slice(0, 5).forEach(monster => {
-                html += '<div class="monster-name-small">' + monster + '</div>';
+            // Показываем имена вместо ID
+            dungeon.monsterPool.slice(0, 5).forEach(monsterId => {
+                const monsterName = getBossNameById(monsterId) || monsterId;
+                html += '<div class="monster-name-small">' + monsterName + '</div>';
             });
             if (dungeon.monsterPool.length > 5) {
                 html += '<div class="monster-more">+ ещё ' + (dungeon.monsterPool.length - 5) + '</div>';
@@ -386,7 +438,9 @@ function showEncyclopedia() {
         if (dungeon.finalBoss) {
             html += '<div class="dungeon-boss">';
             html += '<div class="section-title">💀 Финальный босс:</div>';
-            html += '<div class="boss-name">' + dungeon.finalBoss + '</div>';
+            // Показываем имя босса вместо ID
+            const bossName = getBossNameById(dungeon.finalBoss);
+            html += '<div class="boss-name">' + bossName + '</div>';
             html += '</div>';
         }
         html += '</div></div>';
@@ -430,6 +484,8 @@ function showEncyclopedia() {
     html += '.drop-row { font-size: 12px; color: var(--gold); margin: 3px 0; }';
     html += '.boss-drop-badge { background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; display: inline-block; margin-top: 5px; }';
     html += '.res-locations, .res-boss-chance { color: var(--text-secondary); font-size: 12px; margin-top: 5px; }';
+    html += '.res-boss-sources { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }';
+    html += '.boss-source-row { font-size: 11px; color: #e74c3c; margin: 3px 0; }';
     html += '.resource-row { font-size: 12px; margin: 3px 0; }';
     html += '.monster-name-small { font-size: 11px; color: var(--text-secondary); margin: 2px 0; }';
     html += '.monster-more { font-size: 11px; color: var(--primary); margin-top: 5px; }';

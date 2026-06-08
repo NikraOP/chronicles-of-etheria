@@ -236,3 +236,39 @@ const LOCATIONS = [
                 ]}
         ]}
 ];
+
+// ===== НОВАЯ ЛОКАЦИЯ 67 УРОВНЯ =====
+LOCATIONS.push({
+    name: 'Руины небес',
+    icon: '☁️',
+    minLvl: 67,
+    maxLvl: 70,
+    desc: 'Древние руины парящих в небесах крепостей',
+    goldMult: 20,
+    bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)',
+    monsters: [
+        {
+            name: 'Дракон забвения',
+            icon: '🐉',
+            img: './monsters/dragon_oblivion.png',
+            hp: 25000,
+            atk: 420,
+            def: 95,
+            exp: 850,
+            isBoss: true,
+            aiProfile: 'oblivion_dragon',
+            abilities: [
+                {name: 'Пламя пустоты', type: 'damage', multiplier: 2.8, chance: 55, cooldown: 3},
+                {name: 'Когти забвения', type: 'damage', multiplier: 2.2, chance: 65},
+                {name: 'Дыхание бездны', type: 'dot', effect: 'burn', value: 15, duration: 4, chance: 50, cooldown: 4, target: 'player'},
+                {name: 'Чешуя вечности', type: 'buff', effect: 'def', value: 80, duration: 3, chance: 45, cooldown: 5},
+                {name: 'Рёв пустоты', type: 'debuff', effect: 'atk', value: 45, duration: 2, chance: 50, cooldown: 4},
+                {name: 'Крылья тьмы', type: 'shield', value: 80, duration: 2, chance: 40, cooldown: 6},
+                {name: 'Пожирание души', type: 'lifesteal', value: 100, chance: 35, cooldown: 8},
+                {name: 'Гнев дракона', type: 'buff', effect: 'all', value: 55, duration: 3, chance: 40, cooldown: 7},
+                {name: 'Хвостовой удар', type: 'damage', multiplier: 2.0, chance: 60, cooldown: 2},
+                {name: 'Призыв теней', type: 'damage', multiplier: 1.5, hits: 3, chance: 45, cooldown: 5}
+            ]
+        }
+    ]
+});
