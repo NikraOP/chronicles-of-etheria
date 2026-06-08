@@ -435,7 +435,7 @@ function bindCraftRecipeGrid(profId) {
             if (e.target.closest('.craft-quantity-input') || e.target.closest('.craft-now-btn')) {
                 return;
             }
-            if (isCraftingLocked) {
+            if (isCraftingLocked && !autoCraftSession) {
                 addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
                 return;
             }
@@ -447,7 +447,15 @@ function bindCraftRecipeGrid(profId) {
             const recipeName = decodeURIComponent(card.getAttribute('data-recipe-name') || '');
             if (!recipeName) return;
             // Клик по карточке крафтит 1 предмет (старое поведение)
-            startCraftProgress(profId, recipeName, card, 1);
+            // Shift+клик или Ctrl+клик — авто-крафт
+            if (e.shiftKey || e.ctrlKey) {
+                const maxCraft = getMaxCraftCount(normalizeRecipeForCraft(
+                    getAllRecipesForProfession(profId).find(r => r.name === recipeName)
+                ), profId);
+                startAutoCraft(profId, recipeName, maxCraft);
+            } else {
+                startCraftProgress(profId, recipeName, card, 1);
+            }
         });
     });
 }
@@ -483,7 +491,44 @@ let pendingCraftData = null;
 let craftProgressRafId = null;
 let activeCraftSession = null;
 let isCraftingLocked = false;
+let autoCraftSession = null; // Авто-крафт как свитки добычи
+let autoCraftIntervalId = null;
 
+function stopAutoCraftSession(reason) {
+    if (autoCraftIntervalId != null) {
+        clearInterval(autoCraftIntervalId);
+        autoCraftIntervalId = null;
+    }
+    if (!autoCraftSession) return;
+    const name = autoCraftSession.recipeName || 'Авто-крафт';
+    autoCraftSession = null;
+    saveGame();
+    if (reason) addMessage(reason, 'info');
+    else addMessage('🔨 Авто-крафт остановлен.', 'info');
+}
+
+function isAutoCraftActiveForProf(profId) {
+    return !!(autoCraftSession && autoCraftSession.profId === profId);
+}
+
+function tickAutoCraftUi(profId) {
+    const el = document.getElementById('craftAutoStatus');
+    if (!el || !autoCraftSession || autoCraftSession.profId !== profId) return;
+    if (!autoCraftSession) {
+        if (el) el.innerHTML = '';
+        return;
+    }
+    const maxPerCraft = autoCraftSession.maxPerCraft || 1;
+    const crafted = autoCraftSession.crafted || 0;
+    el.innerHTML =
+        '<div class="craft-auto-active">' +
+        '<div class="craft-auto-title">⚡ Авто-крафт: <strong>' + (autoCraftSession.recipeName || 'Рецепт') + '</strong></div>' +
+        '<div class="craft-auto-meta">Скрафчено: <strong>' + crafted + '</strong>/' + maxPerCraft +
+        (autoCraftSession.stopOnLowMat ? ' · Остановка при нехватке' : '') + '</div>' +
+        '<button type="button" class="action-btn craft-auto-stop" onclick="stopAutoCraftSession()">⏹ Остановить</button>' +
+        '</div>';
+}
+    
 function stopCraftProgress() {
     if (craftProgressRafId) {
         cancelAnimationFrame(craftProgressRafId);
@@ -728,6 +773,18 @@ function completeCrafting(profId, options) {
     
     saveGame();
     pendingCraftData = null;
+    
+    // Обновляем счётчик авто-крафта
+    if (autoCraftSession && autoCraftSession.profId === profId) {
+        autoCraftSession.crafted = (autoCraftSession.crafted || 0) + count;
+        tickAutoCraftUi(profId);
+        if (autoCraftSession.crafted >= autoCraftSession.maxPerCraft) {
+            stopAutoCraftSession('✅ Авто-крафт завершён!');
+        } else {
+            scheduleAutoCraftContinue(profId, 300);
+        }
+    }
+    
     if (!options.silent) showCraftingRecipes(profId);
 }
 
@@ -792,8 +849,14 @@ function showCraftingRecipes(profId) {
             + ' рецепт(ов) откроются с повышением тира профессии</div>';
     }
     html += '</div>';
+    html += '<div id="craftAutoStatus"></div>';
     html += '<div id="craftProgressSlot" class="craft-progress-slot"></div>';
-    html += '<p class="craft-progress-hint">Нажмите на рецепт с ✓ — начнётся создание. Ресурсы спишутся по завершении.</p>';
+    html += '<p class="craft-progress-hint">Нажмите на рецепт с ✓ — начнётся создание. <strong>Shift+Крафт</strong> или <strong>Ctrl+Крафт</strong> — авто-крафт до указанного количества.</p>';
+    
+    // Показываем панель авто-крафта если активен
+    if (isAutoCraftActiveForProf(profId)) {
+        tickAutoCraftUi(profId);
+    }
     
     if (availableRecipes.length === 0) {
         html += '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; text-align: center;">';
@@ -910,8 +973,8 @@ function showCraftingRecipes(profId) {
                     const maxForRecipe = maxCraft > 0 ? maxCraft : 0;
                     html += `<div class="craft-quantity-row" style="margin-top:8px;display:flex;gap:6px;align-items:center;">`;
                     html += `<label style="font-size:10px;color:var(--text-secondary);">Кол-во:</label>`;
-                    html += `<input type="number" class="craft-quantity-input" min="1" max="${maxForRecipe}" value="1" data-recipe-name="${safeRecipe}" style="width:50px;padding:2px 4px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:rgba(0,0,0,0.3);color:var(--text);" onclick="event.stopPropagation()">`;
-                    html += `<button type="button" class="action-btn craft-now-btn" data-recipe-name="${safeRecipe}" style="padding:2px 8px;font-size:10px;" onclick="event.stopPropagation();startCraftWithQuantity('${safeRecipe}', ${profId})">🔨 Крафт</button>`;
+                    html += `<input type="number" class="craft-quantity-input" min="1" max="${maxForRecipe}" value="1" data-recipe-name="${safeRecipe}" data-prof-id="${profId}" style="width:50px;padding:2px 4px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:rgba(0,0,0,0.3);color:var(--text);" onclick="event.stopPropagation()">`;
+                    html += `<button type="button" class="action-btn craft-now-btn" data-recipe-name="${safeRecipe}" data-prof-id="${profId}" style="padding:2px 8px;font-size:10px;" onclick="event.stopPropagation();craftWithQuantityFromBtn(this)">🔨 Крафт</button>`;
                     html += `</div>`;
                 }
                 html += '</div></div></div>';
@@ -923,6 +986,71 @@ function showCraftingRecipes(profId) {
     html += '<button type="button" class="action-btn craft-back-btn ui-nav-back" data-ui-nav-back onclick="showProfessions()" style="margin-top:15px;width:100%; padding: 12px;">↩️ Назад к профессиям</button>';
     document.getElementById('dynamicContent').innerHTML = html;
     bindCraftRecipeGrid(profId);
+}
+
+function startAutoCraft(profId, recipeName, maxCount) {
+    const allRecipes = getAllRecipesForProfession(profId);
+    const recipe = allRecipes.find(r => r.name === recipeName);
+    if (!recipe) {
+        addMessage(`❌ Рецепт "${recipeName}" не найден!`, 'error');
+        return;
+    }
+    const normRecipe = normalizeRecipeForCraft(recipe);
+    const maxPossible = getMaxCraftCount(normRecipe, profId);
+    const count = Math.min(maxCount || maxPossible, maxPossible);
+    if (count <= 0) {
+        addMessage('❌ Недостаточно материалов для крафта!', 'error');
+        return;
+    }
+    autoCraftSession = {
+        profId,
+        recipeName,
+        normRecipe,
+        maxPerCraft: count,
+        crafted: 0,
+        stopOnLowMat: true
+    };
+    addMessage(`🔨 Авто-крафт: ${recipeName} ×${count}`, 'success');
+    showCraftingRecipes(profId);
+    scheduleAutoCraftContinue(profId, 400);
+}
+
+function scheduleAutoCraftContinue(profId, delayMs) {
+    const delay = delayMs == null ? 350 : delayMs;
+    setTimeout(() => {
+        if (!autoCraftSession || autoCraftSession.profId !== profId) {
+            showCraftingRecipes(profId);
+            return;
+        }
+        if (!document.querySelector('.craft-recipe-grid')) return;
+        const { normRecipe, maxPerCraft, crafted } = autoCraftSession;
+        if (crafted >= maxPerCraft) {
+            stopAutoCraftSession('✅ Авто-крафт завершён!');
+            showCraftingRecipes(profId);
+            return;
+        }
+        const maxPossible = getMaxCraftCount(normRecipe, profId);
+        if (maxPossible <= 0) {
+            stopAutoCraftSession('❌ Недостаточно материалов для продолжения.');
+            showCraftingRecipes(profId);
+            return;
+        }
+        startCraftProgress(profId, normRecipe.name, null, 1);
+    }, delay);
+}
+
+function craftWithQuantityFromBtn(btn) {
+    const recipeName = decodeURIComponent(btn.getAttribute('data-recipe-name'));
+    const profId = btn.getAttribute('data-prof-id');
+    const input = document.querySelector(`.craft-quantity-input[data-recipe-name="${btn.getAttribute('data-recipe-name')}"]`);
+    let craftCount = input ? parseInt(input.value, 10) : 1;
+    if (!Number.isFinite(craftCount) || craftCount < 1) craftCount = 1;
+    // Если зажали Shift или Ctrl — запускаем авто-крафт
+    if (window.event && (window.event.shiftKey || window.event.ctrlKey)) {
+        startAutoCraft(profId, recipeName, craftCount);
+    } else {
+        startCraftProgress(profId, recipeName, null, craftCount);
+    }
 }
 
 function startCraftWithQuantity(recipeNameEncoded, profId) {
@@ -1078,5 +1206,7 @@ window.getMaxCraftCount = getMaxCraftCount;
 window.scaleRecipeMaterials = scaleRecipeMaterials;
 window.startCraftProgress = startCraftProgress;
 window.startCraftWithQuantity = startCraftWithQuantity;
+window.startAutoCraft = startAutoCraft;
+window.stopAutoCraftSession = stopAutoCraftSession;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
