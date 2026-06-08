@@ -52,7 +52,6 @@ function buildBonusUpgradePanel(profId, bonuses) {
     const pts = player.professions[profId]?.bonusPoints || { speed: 0, double: 0, rare: 0 };
     const pool = player.professions[profId]?.bonusPointsPool || 0;
     const spent = (pts.speed || 0) + (pts.double || 0) + (pts.rare || 0);
-    const maxPerStat = 5;
     
     let html = '<div class="gather-bonus-upgrade-panel">';
     html += '<div class="gather-bonus-upgrade-header">';
@@ -62,15 +61,15 @@ function buildBonusUpgradePanel(profId, bonuses) {
     
     html += '<div class="gather-bonus-upgrade-list">';
     
-    // Скорость
-    html += buildBonusUpgradeRow(profId, 'speed', '⚡ Скорость', pts.speed || 0, maxPerStat, 
-        'Снижает время сбора', pool, Math.floor(bonuses.gatherSpeedBonus * 100));
-    // Двойная добыча
-    html += buildBonusUpgradeRow(profId, 'double', '🍀 Удача', pts.double || 0, maxPerStat,
-        'Шанс x2 добычи', pool, Math.floor(bonuses.doubleGatherChance * 100));
-    // Редкость
-    html += buildBonusUpgradeRow(profId, 'rare', '✨ Редкость', pts.rare || 0, maxPerStat,
-        'Шанс редкого ресурса', pool, Math.floor(bonuses.rareResourceChance * 100));
+    // Скорость (+10% за очко)
+    html += buildBonusUpgradeRow(profId, 'speed', '⚡ Скорость', pts.speed || 0, 
+        'Снижает время сбора', pool, Math.floor(bonuses.gatherSpeedBonus * 100), 10);
+    // Двойная добыча (+5% за очко)
+    html += buildBonusUpgradeRow(profId, 'double', '🍀 Удача', pts.double || 0,
+        'Шанс x2 добычи', pool, Math.floor(bonuses.doubleGatherChance * 100), 5);
+    // Редкость (+5% за очко)
+    html += buildBonusUpgradeRow(profId, 'rare', '✨ Редкость', pts.rare || 0,
+        'Шанс редкого ресурса', pool, Math.floor(bonuses.rareResourceChance * 100), 5);
     
     html += '</div>';
 
@@ -83,25 +82,19 @@ function buildBonusUpgradePanel(profId, bonuses) {
     return html;
 }
 
-/** Строка улучшения одного бонуса */
-function buildBonusUpgradeRow(profId, type, label, current, max, description, availablePoints, bonusPercent) {
-    const canUpgrade = availablePoints > 0 && current < max;
-    const progressPercent = (current / max) * 100;
+/** Строка улучшения одного бонуса (без лимита) */
+function buildBonusUpgradeRow(profId, type, label, current, description, availablePoints, bonusPercent, perPointBonus) {
+    const canUpgrade = availablePoints > 0;
     
     let html = '<div class="gather-bonus-upgrade-row">';
     html += '<div class="gather-bonus-upgrade-info">';
     html += '<span class="gather-bonus-upgrade-label">' + label + ' <span class="gather-bonus-current-value">(' + bonusPercent + '%)</span></span>';
-    html += '<span class="gather-bonus-upgrade-desc">' + description + '</span>';
+    html += '<span class="gather-bonus-upgrade-desc">' + description + ' (+ ' + perPointBonus + '% за очко)</span>';
     html += '</div>';
     html += '<div class="gather-bonus-upgrade-controls">';
-    html += '<div class="gather-bonus-progress-bar">';
-    html += '<div class="gather-bonus-progress-fill" style="width: ' + progressPercent + '%;"></div>';
-    html += '</div>';
-    html += '<span class="gather-bonus-upgrade-value">' + current + '/' + max + '</span>';
+    html += '<span class="gather-bonus-upgrade-value">' + current + ' очк.</span>';
     if (canUpgrade) {
         html += '<button type="button" class="gather-bonus-upgrade-btn" onclick="upgradeBonus(\'' + profId + '\', \'' + type + '\')">+</button>';
-    } else if (current >= max) {
-        html += '<span class="gather-bonus-max">✓</span>';
     } else {
         html += '<span class="gather-bonus-no-points">−</span>';
     }
@@ -110,7 +103,7 @@ function buildBonusUpgradeRow(profId, type, label, current, max, description, av
     return html;
 }
 
-/** Улучшить бонус */
+/** Улучшить бонус (без лимита) */
 function upgradeBonus(profId, type) {
     const prof = player.professions[profId];
     if (!prof) return;
@@ -128,10 +121,6 @@ function upgradeBonus(profId, type) {
     }
     
     const current = prof.bonusPoints[type] || 0;
-    if (current >= 5) {
-        addMessage('❌ Максимальный уровень бонуса!', 'error');
-        return;
-    }
 
     // Тратим 1 очко из пула
     prof.bonusPointsPool = pool - 1;
@@ -328,7 +317,12 @@ function getBaseProfessionBonuses(tier) {
  * Очки хранятся в:
  *   player.professions[profId].bonusPointsPool — доступные очки (未 распределённые)
  *   player.professions[profId].bonusPoints = { speed, double, rare } — вкачанные очки
- * Каждый тир даёт 2 очка в пул. Максимум в один стат — 5 очков (+5% к бонусу).
+ * Каждый тир даёт 2 очка в пул. Нет лимита на вкачку в один стат.
+ * 
+ * Проценты за очко:
+ *   ⚡ Скорость: +10% за очко
+ *   🍀 Удача: +5% за очко
+ *   ✨ Редкость: +5% за очко
  */
 function getProfessionBonuses(profId, tier) {
     // Обратная совместимость: если передан один аргумент (tier), используем базовые бонусы
@@ -349,16 +343,16 @@ function getProfessionBonuses(profId, tier) {
         });
     }
     const pts = prof.bonusPoints;
-    // Каждое очко даёт +1% к соответствующему бонусу (макс +5% = 5 очков)
-    const speedBonus = Math.min(0.05, (pts.speed || 0) * 0.01);
-    const doubleBonus = Math.min(0.05, (pts.double || 0) * 0.01);
-    const rareBonus = Math.min(0.05, (pts.rare || 0) * 0.01);
+    // Новые проценты: скорость +10%, удача +5%, редкость +5% за очко
+    const speedBonus = (pts.speed || 0) * 0.10;
+    const doubleBonus = (pts.double || 0) * 0.05;
+    const rareBonus = (pts.rare || 0) * 0.05;
     
     return {
-        gatherSpeedBonus: Math.min(0.5, base.gatherSpeedBonus + speedBonus),
-        doubleGatherChance: Math.min(0.5, base.doubleGatherChance + doubleBonus),
+        gatherSpeedBonus: Math.min(0.75, base.gatherSpeedBonus + speedBonus),
+        doubleGatherChance: Math.min(0.75, base.doubleGatherChance + doubleBonus),
         expBonus: base.expBonus,
-        rareResourceChance: Math.min(0.3, base.rareResourceChance + rareBonus),
+        rareResourceChance: Math.min(0.5, base.rareResourceChance + rareBonus),
         craftQualityBonus: base.craftQualityBonus,
         materialSaveChance: base.materialSaveChance,
         // Для UI
