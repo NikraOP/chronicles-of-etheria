@@ -727,23 +727,19 @@ function migrateOldSave(playerData) {
  * Миграция очков бонусов профессий добычи для старых игроков.
  * 
  * МЕХАНИКА:
- * 1. Проверяем наличие bonusPoints (объект с вкачанными очками)
- * 2. Если bonusPoints НЕ существует → старый сейв, мигрируем
- * 3. Если bonusPoints существует → уже мигрировано или новый игрок, пропускаем
+ * 1. Если bonusPoints НЕ существует → старый сейв, мигрируем полностью
+ * 2. Если bonusPoints есть, но bonusPointsPool не соответствует формуле → исправляем
+ * 3. Если bonusPoints есть и bonusPointsPool верный → пропускаем
  * 
- * Формула для старого сейва:
- *   totalPoints = (tier - 1) * 2  (2 очка за каждый тир, начиная со 2-го)
- *   alreadySpent = 0 (у старого сейва ещё нет вкачанных очков)
- *   pointsToAdd = totalPoints - alreadySpent = totalPoints
+ * Формула: totalPoints = (tier - 1) * 2
  * 
  * Примеры:
- * | Сценарий      | Тир | bonusPoints | Вкачано | Очков к выдаче |
- * |---------------|-----|-------------|---------|----------------|
- * | Старый сейв   | 1   | ❌ нет      | 0       | 0              |
- * | Старый сейв   | 2   | ❌ нет      | 0       | 2 ((2-1)×2)    |
- * | Старый сейв   | 6   | ❌ нет      | 0       | 10 ((6-1)×2)   |
- * | Новый игрок   | 2   | ✅ есть     | 0       | 0 (уже получил при апе)|
- * | Новый игрок   | 6   | ✅ есть     | 5       | 0 (уже получил при апе)|
+ * | Сценарий                    | Тир | bonusPoints | bonusPointsPool | Результат          |
+ * |-----------------------------|-----|-------------|-----------------|--------------------|
+ * | Старый сейв (первый вход)   | 6   | ❌ нет      | undefined       | +10 (миграция)     |
+ * | Частичная миграция (баг)    | 6   | ✅ есть     | 0               | +10 (исправление)  |
+ * | Старая формула (баг)        | 6   | ✅ есть     | 12              | -2 (коррекция)     |
+ * | Новый игрок (апнул тир)     | 2   | ✅ есть     | 2               | 0 (всё верно)      |
  */
 function migrateProfessionBonusPoints(playerData) {
     if (!playerData || !playerData.professions) return;
@@ -751,34 +747,58 @@ function migrateProfessionBonusPoints(playerData) {
     // ПРАВИЛЬНЫЕ ID профессий добычи из PROFESSIONS_DB.gathering
     const gatheringProfs = ['mining', 'herbalism', 'lumberjack', 'skinning', 'fishing', 'clothier'];
     let migratedCount = 0;
+    let fixedCount = 0;
     
     gatheringProfs.forEach(function(profId) {
         var prof = playerData.professions[profId];
         if (!prof) return;
         
-        // Если bonusPoints уже есть — миграция не нужна (уже мигрировано или новый игрок)
-        if (prof.bonusPoints) return;
-        
         var tier = parseInt(prof.tier, 10) || 1;
+        var expectedPoints = (tier - 1) * 2;
         
-        // Формула: 2 очка за каждый тир, начиная со 2-го
-        // Тир 1 = 0, Тир 2 = 2, Тир 3 = 4, Тир 4 = 6, Тир 5 = 8, Тир 6 = 10
-        var totalPoints = (tier - 1) * 2;
+        // Сценарий 1: bonusPoints не существует — полная миграция
+        if (!prof.bonusPoints) {
+            prof.bonusPointsPool = expectedPoints;
+            prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
+            migratedCount++;
+            console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + expectedPoints + ' очков бонусов');
+            return;
+        }
         
-        // У старого сейва ещё нет вкачанных очков
-        var alreadySpent = 0;
-        var pointsToAdd = totalPoints - alreadySpent;
+        // Сценарий 2: bonusPoints есть, но bonusPointsPool не установлен или не соответствует
+        var currentPool = prof.bonusPointsPool || 0;
+        var spentPoints = (prof.bonusPoints.speed || 0) + (prof.bonusPoints.double || 0) + (prof.bonusPoints.rare || 0);
+        var totalAllocated = currentPool + spentPoints;
         
-        // Инициализация полей
-        prof.bonusPointsPool = pointsToAdd;
-        prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
-        
-        migratedCount++;
-        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + pointsToAdd + ' очков бонусов');
+        // Если сумма пула + вкачанных не равна ожидаемому — исправляем
+        if (totalAllocated !== expectedPoints) {
+            var difference = expectedPoints - totalAllocated;
+            
+            // Пересчитываем пул: ожидаемое - уже вкачанные
+            prof.bonusPointsPool = expectedPoints - spentPoints;
+            
+            if (prof.bonusPointsPool < 0) {
+                // Если вкачал больше чем положено — обнуляем пул, но оставляем вкачанное
+                prof.bonusPointsPool = 0;
+                console.warn('⚠️ Коррекция ' + profId + ' (тир ' + tier + '): вкачано больше нормы (' + spentPoints + ' > ' + expectedPoints + ')');
+            } else if (difference > 0) {
+                console.log('✅ Коррекция ' + profId + ' (тир ' + tier + '): + ' + difference + ' очков (было: ' + totalAllocated + ', стало: ' + expectedPoints + ')');
+            } else if (difference < 0) {
+                console.log('✅ Коррекция ' + profId + ' (тир ' + tier + '): - ' + Math.abs(difference) + ' очков (было: ' + totalAllocated + ', стало: ' + expectedPoints + ')');
+            }
+            
+            fixedCount++;
+        }
     });
     
     if (migratedCount > 0) {
         console.log('✅ Мигрировано профессий: ' + migratedCount);
+    }
+    if (fixedCount > 0) {
+        console.log('✅ Исправлено профессий: ' + fixedCount);
+    }
+    if (migratedCount === 0 && fixedCount === 0) {
+        console.log('ℹ️ Миграция не требуется — все профессии в порядке');
     }
 }
 
