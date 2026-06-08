@@ -381,9 +381,14 @@ function showEncyclopedia() {
         const tierColor = tierColors[res.tier] || '#3498db';
         const bossDropBadge = res.isBossDrop ? '<span class="badge badge-boss-drop">💀 С босса</span>' : '';
         
+        // Рендерим иконку ресурса через renderItemIconHTML (PNG)
+        const resourceIconHtml = typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(res, { size: 40, fallback: res.icon || '📦' })
+            : '<span class="resource-icon-emoji">' + (res.icon || '📦') + '</span>';
+        
         html += '<div class="encyclopedia-card resource-card" data-tier="' + res.tier + '" data-prof="' + res.profession + '" data-name="' + res.name.toLowerCase() + '">';
         html += '<div class="resource-header">';
-        html += '<span class="resource-icon" style="background: ' + tierColor + '20">' + res.icon + '</span>';
+        html += '<div class="resource-icon-wrapper">' + resourceIconHtml + '</div>';
         html += '<div class="resource-title-group">';
         html += '<h4 class="resource-name">' + res.name + '</h4>';
         html += '<div class="resource-badges">';
@@ -443,9 +448,14 @@ function showEncyclopedia() {
         const rarityColors = { 'Обычный': '#bdc3c7', 'Редкий': '#3498db', 'Эпический': '#9b59b6', 'Легендарный': '#f1c40f' };
         const rarityColor = rarityColors[craft.rarity] || '#bdc3c7';
         
+        // Рендерим иконку предмета через renderItemIconHTML (PNG)
+        const craftIconHtml = typeof renderItemIconHTML === 'function'
+            ? renderItemIconHTML(craft, { size: 40, fallback: craft.icon || '📦' })
+            : '<span class="craft-icon-emoji">' + (craft.icon || '📦') + '</span>';
+        
         html += '<div class="encyclopedia-card craft-card" data-tier="' + craft.tier + '" data-prof="' + craft.profession + '" data-name="' + craft.name.toLowerCase() + '">';
         html += '<div class="craft-header">';
-        html += '<span class="craft-icon" style="background: ' + tierColor + '20">' + craft.icon + '</span>';
+        html += '<div class="craft-icon-wrapper">' + craftIconHtml + '</div>';
         html += '<div class="craft-title-group">';
         html += '<h4 class="craft-name">' + craft.name + '</h4>';
         html += '<div class="craft-badges">';
@@ -626,8 +636,11 @@ function showEncyclopedia() {
     html += '.drop-item { padding: 4px 8px; border-radius: 6px; background: rgba(241, 196, 15, 0.1); color: #f1c40f; font-size: 11px; }';
     
     // Resource cards
-    html += '.resource-header { display: flex; align-items: center; gap: 10px; padding: 12px; background: rgba(0,0,0,0.2); }';
-    html += '.resource-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 22px; }';
+    html += '.resource-header { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(0,0,0,0.2); }';
+    html += '.resource-icon-wrapper { width: 48px; height: 48px; flex-shrink: 0; }';
+    html += '.resource-icon-wrapper .item-icon { width: 100%; height: 100%; }';
+    html += '.resource-icon-wrapper .item-icon-img { width: 100%; height: 100%; object-fit: contain; }';
+    html += '.resource-icon-emoji { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 28px; background: rgba(0,0,0,0.2); border-radius: 8px; }';
     html += '.resource-title-group { flex: 1; }';
     html += '.resource-name { font-size: 15px; font-weight: bold; margin: 0; color: var(--text); }';
     html += '.resource-body { padding: 12px; }';
@@ -641,8 +654,11 @@ function showEncyclopedia() {
     html += '.boss-source-item { font-size: 11px; color: var(--text); padding: 3px 0; }';
     
     // Craft cards
-    html += '.craft-header { display: flex; align-items: center; gap: 10px; padding: 12px; background: rgba(0,0,0,0.2); }';
-    html += '.craft-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 22px; }';
+    html += '.craft-header { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(0,0,0,0.2); }';
+    html += '.craft-icon-wrapper { width: 48px; height: 48px; flex-shrink: 0; }';
+    html += '.craft-icon-wrapper .item-icon { width: 100%; height: 100%; }';
+    html += '.craft-icon-wrapper .item-icon-img { width: 100%; height: 100%; object-fit: contain; }';
+    html += '.craft-icon-emoji { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 28px; background: rgba(0,0,0,0.2); border-radius: 8px; }';
     html += '.craft-title-group { flex: 1; }';
     html += '.craft-name { font-size: 15px; font-weight: bold; margin: 0; color: var(--text); }';
     html += '.craft-body { padding: 12px; }';
