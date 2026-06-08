@@ -717,7 +717,53 @@ function migrateOldSave(playerData) {
         }
     }
 
+    // МИГРАЦИЯ ОЧКОВ БОНУСОВ ПРОФЕССИЙ (для старых игроков)
+    migrateProfessionBonusPoints(playerData);
+
     return playerData;
+}
+
+/**
+ * Миграция очков бонусов профессий добычи для старых игроков.
+ * Формула: (tier === 1) ? 0 : (tier * 2)
+ * | Тир | Очков |
+ * |-----|-------|
+ * | 1   | 0     |
+ * | 2   | 4     |
+ * | 3   | 6     |
+ * | 4   | 8     |
+ * | 5   | 10    |
+ * | 6   | 12    |
+ */
+function migrateProfessionBonusPoints(playerData) {
+    if (!playerData || !playerData.professions) return;
+    
+    const gatheringProfs = ['woodcutter', 'miner', 'herbalist', 'fishing'];
+    let migratedCount = 0;
+    
+    gatheringProfs.forEach(function(profId) {
+        var prof = playerData.professions[profId];
+        if (!prof) return;
+        
+        // Если bonusPointsPool уже есть — миграция не нужна
+        if (prof.bonusPointsPool !== undefined) return;
+        
+        var tier = parseInt(prof.tier, 10) || 1;
+        var points = (tier === 1) ? 0 : (tier * 2);
+        
+        // Инициализация полей
+        prof.bonusPointsPool = points;
+        if (!prof.bonusPoints) {
+            prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
+        }
+        
+        migratedCount++;
+        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + points + ' очков бонусов');
+    });
+    
+    if (migratedCount > 0) {
+        console.log('✅ Мигрировано профессий: ' + migratedCount);
+    }
 }
 
 startPlayTimer();
@@ -737,5 +783,6 @@ window.addDefaultSkinsToUnlocked = addDefaultSkinsToUnlocked;
 window.setDefaultSkin = setDefaultSkin;
 window.addSkinsButton = addSkinsButton;
 window.initSkinsSystem = initSkinsSystem;
+window.migrateProfessionBonusPoints = migrateProfessionBonusPoints;
 
 init();
