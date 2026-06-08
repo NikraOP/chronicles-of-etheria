@@ -4,7 +4,8 @@
 function migrateProfessionBonusPoints(playerData) {
     if (!playerData || !playerData.professions) return;
     
-    const gatheringProfs = ['woodcutter', 'miner', 'herbalist', 'fishing'];
+    // ПРАВИЛЬНЫЕ ID профессий добычи из PROFESSIONS_DB.gathering
+    const gatheringProfs = ['mining', 'herbalism', 'lumberjack', 'skinning', 'fishing', 'clothier'];
     let migratedCount = 0;
     
     gatheringProfs.forEach(function(profId) {
@@ -40,141 +41,147 @@ function migrateProfessionBonusPoints(playerData) {
 console.log('\n=== Тест 1: 6 тир ===');
 const test1 = {
     professions: {
-        miner: { tier: 6, exp: 5000 }
+        mining: { tier: 6, exp: 5000 }
     }
 };
 migrateProfessionBonusPoints(test1);
-console.log('miner.bonusPointsPool:', test1.professions.miner.bonusPointsPool);
-console.log('miner.bonusPoints:', test1.professions.miner.bonusPoints);
-console.assert(test1.professions.miner.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
-console.assert(JSON.stringify(test1.professions.miner.bonusPoints) === '{"speed":0,"double":0,"rare":0}', '❌ Ожидалось {speed:0,double:0,rare:0}');
+console.log('mining.bonusPointsPool:', test1.professions.mining.bonusPointsPool);
+console.log('mining.bonusPoints:', test1.professions.mining.bonusPoints);
+console.assert(test1.professions.mining.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
+console.assert(JSON.stringify(test1.professions.mining.bonusPoints) === '{"speed":0,"double":0,"rare":0}', '❌ Ожидалось {speed:0,double:0,rare:0}');
 console.log('✅ Тест 1 пройден');
 
 // Тест 2: Старый игрок с 3 тиром
 console.log('\n=== Тест 2: 3 тир ===');
 const test2 = {
     professions: {
-        woodcutter: { tier: 3, exp: 2000 }
+        lumberjack: { tier: 3, exp: 2000 }
     }
 };
 migrateProfessionBonusPoints(test2);
-console.log('woodcutter.bonusPointsPool:', test2.professions.woodcutter.bonusPointsPool);
-console.assert(test2.professions.woodcutter.bonusPointsPool === 6, '❌ Ожидалось 6 очков');
+console.log('lumberjack.bonusPointsPool:', test2.professions.lumberjack.bonusPointsPool);
+console.assert(test2.professions.lumberjack.bonusPointsPool === 6, '❌ Ожидалось 6 очков');
 console.log('✅ Тест 2 пройден');
 
 // Тест 3: Новый игрок с 1 тиром
 console.log('\n=== Тест 3: 1 тир ===');
 const test3 = {
     professions: {
-        miner: { tier: 1, exp: 0 }
+        mining: { tier: 1, exp: 0 }
     }
 };
 migrateProfessionBonusPoints(test3);
-console.log('miner.bonusPointsPool:', test3.professions.miner.bonusPointsPool);
-console.assert(test3.professions.miner.bonusPointsPool === 0, '❌ Ожидалось 0 очков');
+console.log('mining.bonusPointsPool:', test3.professions.mining.bonusPointsPool);
+console.assert(test3.professions.mining.bonusPointsPool === 0, '❌ Ожидалось 0 очков');
 console.log('✅ Тест 3 пройден');
 
 // Тест 4: Уже мигрированный игрок
 console.log('\n=== Тест 4: Уже мигрирован ===');
 const test4 = {
     professions: {
-        miner: { tier: 6, bonusPointsPool: 12, bonusPoints: { speed: 5, double: 0, rare: 0 } }
+        mining: { tier: 6, bonusPointsPool: 12, bonusPoints: { speed: 5, double: 0, rare: 0 } }
     }
 };
 migrateProfessionBonusPoints(test4);
-console.log('miner.bonusPointsPool:', test4.professions.miner.bonusPointsPool);
-console.assert(test4.professions.miner.bonusPointsPool === 12, '❌ Ожидалось сохранение 12 очков');
-console.assert(test4.professions.miner.bonusPoints.speed === 5, '❌ Ожидалось сохранение speed:5');
+console.log('mining.bonusPointsPool:', test4.professions.mining.bonusPointsPool);
+console.assert(test4.professions.mining.bonusPointsPool === 12, '❌ Ожидалось сохранение 12 очков');
+console.assert(test4.professions.mining.bonusPoints.speed === 5, '❌ Ожидалось сохранение speed:5');
 console.log('✅ Тест 4 пройден');
 
 // Тест 5: Отсутствие профессии
 console.log('\n=== Тест 5: Отсутствие профессии ===');
 const test5 = {
     professions: {
-        miner: { tier: 6 }
+        mining: { tier: 6 }
         // herbalist отсутствует
     }
 };
 try {
     migrateProfessionBonusPoints(test5);
-    console.log('miner.bonusPointsPool:', test5.professions.miner.bonusPointsPool);
-    console.log('herbalist:', test5.professions.herbalist);
-    console.assert(test5.professions.miner.bonusPointsPool === 12, '❌ Ожидалось 12 очков для miner');
-    console.assert(test5.professions.herbalist === undefined, '❌ herbalist должен быть undefined');
+    console.log('mining.bonusPointsPool:', test5.professions.mining.bonusPointsPool);
+    console.log('herbalism:', test5.professions.herbalism);
+    console.assert(test5.professions.mining.bonusPointsPool === 12, '❌ Ожидалось 12 очков для mining');
+    console.assert(test5.professions.herbalism === undefined, '❌ herbalism должен быть undefined');
     console.log('✅ Тест 5 пройден');
 } catch (e) {
     console.error('❌ Тест 5 провален:', e.message);
 }
 
-// Тест 6: Все 4 профессии
-console.log('\n=== Тест 6: Все 4 профессии ===');
+// Тест 6: Все 6 профессий добычи
+console.log('\n=== Тест 6: Все 6 профессий ===');
 const test6 = {
     professions: {
-        woodcutter: { tier: 4 },
-        miner: { tier: 6 },
-        herbalist: { tier: 2 },
-        fishing: { tier: 5 }
+        mining: { tier: 6 },
+        herbalism: { tier: 4 },
+        lumberjack: { tier: 3 },
+        skinning: { tier: 5 },
+        fishing: { tier: 2 },
+        clothier: { tier: 1 }
     }
 };
 migrateProfessionBonusPoints(test6);
-console.log('woodcutter:', test6.professions.woodcutter.bonusPointsPool, '(ожидалось 8)');
-console.log('miner:', test6.professions.miner.bonusPointsPool, '(ожидалось 12)');
-console.log('herbalist:', test6.professions.herbalist.bonusPointsPool, '(ожидалось 4)');
-console.log('fishing:', test6.professions.fishing.bonusPointsPool, '(ожидалось 10)');
-console.assert(test6.professions.woodcutter.bonusPointsPool === 8, '❌ woodcutter');
-console.assert(test6.professions.miner.bonusPointsPool === 12, '❌ miner');
-console.assert(test6.professions.herbalist.bonusPointsPool === 4, '❌ herbalist');
-console.assert(test6.professions.fishing.bonusPointsPool === 10, '❌ fishing');
+console.log('mining:', test6.professions.mining.bonusPointsPool, '(ожидалось 12)');
+console.log('herbalism:', test6.professions.herbalism.bonusPointsPool, '(ожидалось 8)');
+console.log('lumberjack:', test6.professions.lumberjack.bonusPointsPool, '(ожидалось 6)');
+console.log('skinning:', test6.professions.skinning.bonusPointsPool, '(ожидалось 10)');
+console.log('fishing:', test6.professions.fishing.bonusPointsPool, '(ожидалось 4)');
+console.log('clothier:', test6.professions.clothier.bonusPointsPool, '(ожидалось 0)');
+console.assert(test6.professions.mining.bonusPointsPool === 12, '❌ mining');
+console.assert(test6.professions.herbalism.bonusPointsPool === 8, '❌ herbalism');
+console.assert(test6.professions.lumberjack.bonusPointsPool === 6, '❌ lumberjack');
+console.assert(test6.professions.skinning.bonusPointsPool === 10, '❌ skinning');
+console.assert(test6.professions.fishing.bonusPointsPool === 4, '❌ fishing');
+console.assert(test6.professions.clothier.bonusPointsPool === 0, '❌ clothier');
 console.log('✅ Тест 6 пройден');
 
 // Тест 7: Старое сохранение с bonusPointsPool === undefined
 console.log('\n=== Тест 7: bonusPointsPool undefined (реальный кейс) ===');
 const test7 = {
     professions: {
-        miner: { tier: 6, exp: 5000, bonusPointsPool: undefined }
+        mining: { tier: 6, exp: 5000, bonusPointsPool: undefined }
     }
 };
 migrateProfessionBonusPoints(test7);
-console.log('miner.bonusPointsPool:', test7.professions.miner.bonusPointsPool);
-console.log('miner.bonusPoints:', test7.professions.miner.bonusPoints);
-console.assert(test7.professions.miner.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
-console.assert(test7.professions.miner.bonusPoints.speed === 0, '❌ Ожидалось speed:0');
+console.log('mining.bonusPointsPool:', test7.professions.mining.bonusPointsPool);
+console.log('mining.bonusPoints:', test7.professions.mining.bonusPoints);
+console.assert(test7.professions.mining.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
+console.assert(test7.professions.mining.bonusPoints.speed === 0, '❌ Ожидалось speed:0');
 console.log('✅ Тест 7 пройден (исправлена ошибка!)');
 
 // Тест 8: Новый игрок с bonusPoints (уже получил очки при апе)
 console.log('\n=== Тест 8: Новый игрок (уже мигрировано) ===');
 const test8 = {
     professions: {
-        miner: { tier: 2, bonusPointsPool: 2, bonusPoints: { speed: 0, double: 0, rare: 0 } }
+        mining: { tier: 2, bonusPointsPool: 2, bonusPoints: { speed: 0, double: 0, rare: 0 } }
     }
 };
 migrateProfessionBonusPoints(test8);
-console.log('miner.bonusPointsPool:', test8.professions.miner.bonusPointsPool, '(ожидалось 2, не изменилось)');
-console.assert(test8.professions.miner.bonusPointsPool === 2, '❌ Ожидалось сохранение 2 очков');
+console.log('mining.bonusPointsPool:', test8.professions.mining.bonusPointsPool, '(ожидалось 2, не изменилось)');
+console.assert(test8.professions.mining.bonusPointsPool === 2, '❌ Ожидалось сохранение 2 очков');
 console.log('✅ Тест 8 пройден (нет дублирования)');
 
 // Тест 9: Старый сейв, 2 тир
 console.log('\n=== Тест 9: Старый сейв, 2 тир ===');
 const test9 = {
     professions: {
-        woodcutter: { tier: 2, exp: 1000 }
+        fishing: { tier: 2, exp: 1000 }
     }
 };
 migrateProfessionBonusPoints(test9);
-console.log('woodcutter.bonusPointsPool:', test9.professions.woodcutter.bonusPointsPool, '(ожидалось 4)');
-console.assert(test9.professions.woodcutter.bonusPointsPool === 4, '❌ Ожидалось 4 очка');
+console.log('fishing.bonusPointsPool:', test9.professions.fishing.bonusPointsPool, '(ожидалось 4)');
+console.assert(test9.professions.fishing.bonusPointsPool === 4, '❌ Ожидалось 4 очка');
 console.log('✅ Тест 9 пройден');
 
 // Тест 10: Старый сейв, 1 тир
 console.log('\n=== Тест 10: Старый сейв, 1 тир ===');
 const test10 = {
     professions: {
-        miner: { tier: 1, exp: 0 }
+        mining: { tier: 1, exp: 0 }
     }
 };
 migrateProfessionBonusPoints(test10);
-console.log('miner.bonusPointsPool:', test10.professions.miner.bonusPointsPool, '(ожидалось 0)');
-console.assert(test10.professions.miner.bonusPointsPool === 0, '❌ Ожидалось 0 очков');
+console.log('mining.bonusPointsPool:', test10.professions.mining.bonusPointsPool, '(ожидалось 0)');
+console.assert(test10.professions.mining.bonusPointsPool === 0, '❌ Ожидалось 0 очков');
 console.log('✅ Тест 10 пройден');
 
 console.log('\n=== ВСЕ ТЕСТЫ ПРОЙДЕНЫ ===');

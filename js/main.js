@@ -747,7 +747,8 @@ function migrateOldSave(playerData) {
 function migrateProfessionBonusPoints(playerData) {
     if (!playerData || !playerData.professions) return;
     
-    const gatheringProfs = ['woodcutter', 'miner', 'herbalist', 'fishing'];
+    // ПРАВИЛЬНЫЕ ID профессий добычи из PROFESSIONS_DB.gathering
+    const gatheringProfs = ['mining', 'herbalism', 'lumberjack', 'skinning', 'fishing', 'clothier'];
     let migratedCount = 0;
     
     gatheringProfs.forEach(function(profId) {
