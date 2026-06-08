@@ -11,7 +11,11 @@ const ENCYCLOPEDIA_DATA = {
 
 function buildEncyclopediaData() {
     // Очистка данных перед rebuild
-    ENCYCLOPEDIA_DATA = { locations: [], bosses: [], resources: [], crafts: [], dungeons: [] };
+    ENCYCLOPEDIA_DATA.locations = [];
+    ENCYCLOPEDIA_DATA.bosses = [];
+    ENCYCLOPEDIA_DATA.resources = [];
+    ENCYCLOPEDIA_DATA.crafts = [];
+    ENCYCLOPEDIA_DATA.dungeons = [];
     
     // === ЛОКАЦИИ И МОНСТРЫ ===
     if (typeof LOCATIONS !== 'undefined') {
