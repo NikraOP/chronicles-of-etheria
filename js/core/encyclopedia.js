@@ -71,9 +71,17 @@ function buildEncyclopediaData() {
             prof.forEach(res => {
                 const bossSources = getBossDropSources(res.name);
                 
+                // Иконка ресурса: приоритет - icon, затем emoji по типу
+                let resourceIcon = res.icon || '📦';
+                if (profId === 'mining') resourceIcon = res.icon || '🪨';
+                else if (profId === 'herbalism') resourceIcon = res.icon || '🌿';
+                else if (profId === 'lumberjack') resourceIcon = res.icon || '🪵';
+                else if (profId === 'skinning') resourceIcon = res.icon || '🐾';
+                else if (profId === 'boss_drop') resourceIcon = res.icon || '💀';
+                
                 ENCYCLOPEDIA_DATA.resources.push({
                     name: res.name,
-                    icon: res.icon,
+                    icon: resourceIcon,
                     tier: res.tier,
                     profession: getProfessionName(profId),
                     locations: res.locations || [],
@@ -94,9 +102,18 @@ function buildEncyclopediaData() {
             Object.keys(categories).forEach(catId => {
                 const items = categories[catId];
                 items.forEach(item => {
+                    // Иконка предмета: приоритет - icon, затем emoji по категории
+                    let craftIcon = item.icon || '📦';
+                    if (catId === 'weapons') craftIcon = item.icon || '⚔️';
+                    else if (catId === 'armor') craftIcon = item.icon || '🛡️';
+                    else if (catId === 'potions') craftIcon = item.icon || '🧪';
+                    else if (catId === 'foods') craftIcon = item.icon || '🍖';
+                    else if (catId === 'scrolls') craftIcon = item.icon || '📜';
+                    else if (catId === 'jewelry') craftIcon = item.icon || '💍';
+                    
                     ENCYCLOPEDIA_DATA.crafts.push({
                         name: item.name,
-                        icon: item.icon,
+                        icon: craftIcon,
                         profession: getProfessionName(profId),
                         category: getCategoryName(catId),
                         tier: item.tier,
@@ -517,8 +534,13 @@ function showEncyclopedia() {
     html += '.encyclopedia-title { font-size: 28px; margin: 0 0 5px 0; color: var(--primary); }';
     html += '.encyclopedia-subtitle { font-size: 14px; color: var(--text-secondary); margin: 0; }';
     
+    // Section visibility
+    html += '.encyclopedia-section { display: none; animation: fadeIn 0.3s ease; }';
+    html += '.encyclopedia-section.active { display: block; }';
+    html += '@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }';
+    
     // Navigation tabs
-    html += '.encyclopedia-nav { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }';
+    html += '.encyclopedia-nav { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; position: sticky; top: 0; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 12px; backdrop-filter: blur(10px); }';
     html += '.encyclopedia-tab { display: flex; align-items: center; gap: 6px; padding: 10px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); cursor: pointer; transition: all 0.2s; font-size: 14px; }';
     html += '.encyclopedia-tab:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }';
     html += '.encyclopedia-tab.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }';
@@ -536,6 +558,7 @@ function showEncyclopedia() {
     html += '.filter-select:focus { outline: none; border-color: var(--primary); }';
     
     // Grid & Cards
+    html += '.encyclopedia-content { position: relative; }';
     html += '.encyclopedia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }';
     html += '.encyclopedia-card { background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; transition: all 0.2s; }';
     html += '.encyclopedia-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.15); }';
