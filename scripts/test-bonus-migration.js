@@ -11,18 +11,24 @@ function migrateProfessionBonusPoints(playerData) {
         var prof = playerData.professions[profId];
         if (!prof) return;
         
-        // Если bonusPoints уже есть — миграция не нужна (значит уже мигрировано)
+        // Если bonusPoints уже есть — миграция не нужна (уже мигрировано или новый игрок)
         if (prof.bonusPoints) return;
         
         var tier = parseInt(prof.tier, 10) || 1;
-        var points = (tier === 1) ? 0 : (tier * 2);
+        
+        // Формула: 2 очка за каждый тир, начиная со 2-го
+        var totalPoints = (tier === 1) ? 0 : (tier * 2);
+        
+        // У старого сейва ещё нет вкачанных очков
+        var alreadySpent = 0;
+        var pointsToAdd = totalPoints - alreadySpent;
         
         // Инициализация полей
-        prof.bonusPointsPool = points;
+        prof.bonusPointsPool = pointsToAdd;
         prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
         
         migratedCount++;
-        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + points + ' очков бонусов');
+        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + pointsToAdd + ' очков бонусов');
     });
     
     if (migratedCount > 0) {
@@ -134,5 +140,41 @@ console.log('miner.bonusPoints:', test7.professions.miner.bonusPoints);
 console.assert(test7.professions.miner.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
 console.assert(test7.professions.miner.bonusPoints.speed === 0, '❌ Ожидалось speed:0');
 console.log('✅ Тест 7 пройден (исправлена ошибка!)');
+
+// Тест 8: Новый игрок с bonusPoints (уже получил очки при апе)
+console.log('\n=== Тест 8: Новый игрок (уже мигрировано) ===');
+const test8 = {
+    professions: {
+        miner: { tier: 2, bonusPointsPool: 2, bonusPoints: { speed: 0, double: 0, rare: 0 } }
+    }
+};
+migrateProfessionBonusPoints(test8);
+console.log('miner.bonusPointsPool:', test8.professions.miner.bonusPointsPool, '(ожидалось 2, не изменилось)');
+console.assert(test8.professions.miner.bonusPointsPool === 2, '❌ Ожидалось сохранение 2 очков');
+console.log('✅ Тест 8 пройден (нет дублирования)');
+
+// Тест 9: Старый сейв, 2 тир
+console.log('\n=== Тест 9: Старый сейв, 2 тир ===');
+const test9 = {
+    professions: {
+        woodcutter: { tier: 2, exp: 1000 }
+    }
+};
+migrateProfessionBonusPoints(test9);
+console.log('woodcutter.bonusPointsPool:', test9.professions.woodcutter.bonusPointsPool, '(ожидалось 4)');
+console.assert(test9.professions.woodcutter.bonusPointsPool === 4, '❌ Ожидалось 4 очка');
+console.log('✅ Тест 9 пройден');
+
+// Тест 10: Старый сейв, 1 тир
+console.log('\n=== Тест 10: Старый сейв, 1 тир ===');
+const test10 = {
+    professions: {
+        miner: { tier: 1, exp: 0 }
+    }
+};
+migrateProfessionBonusPoints(test10);
+console.log('miner.bonusPointsPool:', test10.professions.miner.bonusPointsPool, '(ожидалось 0)');
+console.assert(test10.professions.miner.bonusPointsPool === 0, '❌ Ожидалось 0 очков');
+console.log('✅ Тест 10 пройден');
 
 console.log('\n=== ВСЕ ТЕСТЫ ПРОЙДЕНЫ ===');

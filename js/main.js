@@ -725,15 +725,24 @@ function migrateOldSave(playerData) {
 
 /**
  * Миграция очков бонусов профессий добычи для старых игроков.
- * Формула: (tier === 1) ? 0 : (tier * 2)
- * | Тир | Очков |
- * |-----|-------|
- * | 1   | 0     |
- * | 2   | 4     |
- * | 3   | 6     |
- * | 4   | 8     |
- * | 5   | 10    |
- * | 6   | 12    |
+ * 
+ * МЕХАНИКА:
+ * 1. Проверяем наличие bonusPoints (объект с вкачанными очками)
+ * 2. Если bonusPoints НЕ существует → старый сейв, мигрируем
+ * 3. Если bonusPoints существует → уже мигрировано или новый игрок, пропускаем
+ * 
+ * Формула для старого сейва:
+ *   totalPoints = (tier === 1) ? 0 : (tier * 2)
+ *   alreadySpent = 0 (у старого сейва ещё нет вкачанных очков)
+ *   pointsToAdd = totalPoints - alreadySpent = totalPoints
+ * 
+ * Примеры:
+ * | Сценарий      | Тир | bonusPoints | Вкачано | Очков к выдаче |
+ * |---------------|-----|-------------|---------|----------------|
+ * | Старый сейв   | 2   | ❌ нет      | 0       | 4 (2×2)        |
+ * | Старый сейв   | 6   | ❌ нет      | 0       | 12 (6×2)       |
+ * | Новый игрок   | 2   | ✅ есть     | 0       | 0 (уже получил)|
+ * | Новый игрок   | 6   | ✅ есть     | 5       | 0 (уже получил)|
  */
 function migrateProfessionBonusPoints(playerData) {
     if (!playerData || !playerData.professions) return;
@@ -745,18 +754,24 @@ function migrateProfessionBonusPoints(playerData) {
         var prof = playerData.professions[profId];
         if (!prof) return;
         
-        // Если bonusPoints уже есть — миграция не нужна (значит уже мигрировано)
+        // Если bonusPoints уже есть — миграция не нужна (уже мигрировано или новый игрок)
         if (prof.bonusPoints) return;
         
         var tier = parseInt(prof.tier, 10) || 1;
-        var points = (tier === 1) ? 0 : (tier * 2);
+        
+        // Формула: 2 очка за каждый тир, начиная со 2-го
+        var totalPoints = (tier === 1) ? 0 : (tier * 2);
+        
+        // У старого сейва ещё нет вкачанных очков
+        var alreadySpent = 0;
+        var pointsToAdd = totalPoints - alreadySpent;
         
         // Инициализация полей
-        prof.bonusPointsPool = points;
+        prof.bonusPointsPool = pointsToAdd;
         prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
         
         migratedCount++;
-        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + points + ' очков бонусов');
+        console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + pointsToAdd + ' очков бонусов');
     });
     
     if (migratedCount > 0) {
