@@ -745,17 +745,15 @@ function migrateProfessionBonusPoints(playerData) {
         var prof = playerData.professions[profId];
         if (!prof) return;
         
-        // Если bonusPointsPool уже есть — миграция не нужна
-        if (prof.bonusPointsPool !== undefined) return;
+        // Если bonusPoints уже есть — миграция не нужна (значит уже мигрировано)
+        if (prof.bonusPoints) return;
         
         var tier = parseInt(prof.tier, 10) || 1;
         var points = (tier === 1) ? 0 : (tier * 2);
         
         // Инициализация полей
         prof.bonusPointsPool = points;
-        if (!prof.bonusPoints) {
-            prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
-        }
+        prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
         
         migratedCount++;
         console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + points + ' очков бонусов');

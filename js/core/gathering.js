@@ -47,8 +47,8 @@ function buildBonusChipWithTooltip(icon, value, type, title, description) {
         '</div>';
 }
 
-/** Панель улучшения бонусов */
-function buildBonusUpgradePanel(profId, availablePoints, bonuses) {
+/** Панель улучшения бонусов (всегда видима) */
+function buildBonusUpgradePanel(profId, bonuses) {
     const pts = player.professions[profId]?.bonusPoints || { speed: 0, double: 0, rare: 0 };
     const pool = player.professions[profId]?.bonusPointsPool || 0;
     const spent = (pts.speed || 0) + (pts.double || 0) + (pts.rare || 0);
@@ -56,21 +56,21 @@ function buildBonusUpgradePanel(profId, availablePoints, bonuses) {
     
     let html = '<div class="gather-bonus-upgrade-panel">';
     html += '<div class="gather-bonus-upgrade-header">';
-    html += '<span class="gather-bonus-upgrade-title">📊 Улучшение бонусов</span>';
-    html += '<span class="gather-bonus-points-available">Очков: <strong>' + pool + '</strong> (всего вкачано: ' + spent + ')</span>';
+    html += '<span class="gather-bonus-upgrade-title">📊 Бонусы профессии</span>';
+    html += '<span class="gather-bonus-points-available">Очков: <strong>' + pool + '</strong> | Вкачано: ' + spent + '</span>';
     html += '</div>';
     
     html += '<div class="gather-bonus-upgrade-list">';
     
     // Скорость
     html += buildBonusUpgradeRow(profId, 'speed', '⚡ Скорость', pts.speed || 0, maxPerStat, 
-        'Снижает время сбора', pool);
+        'Снижает время сбора', pool, Math.floor(bonuses.gatherSpeedBonus * 100));
     // Двойная добыча
     html += buildBonusUpgradeRow(profId, 'double', '🍀 Удача', pts.double || 0, maxPerStat,
-        'Шанс x2 добычи', pool);
+        'Шанс x2 добычи', pool, Math.floor(bonuses.doubleGatherChance * 100));
     // Редкость
     html += buildBonusUpgradeRow(profId, 'rare', '✨ Редкость', pts.rare || 0, maxPerStat,
-        'Шанс редкого ресурса', pool);
+        'Шанс редкого ресурса', pool, Math.floor(bonuses.rareResourceChance * 100));
     
     html += '</div>';
 
@@ -84,13 +84,13 @@ function buildBonusUpgradePanel(profId, availablePoints, bonuses) {
 }
 
 /** Строка улучшения одного бонуса */
-function buildBonusUpgradeRow(profId, type, label, current, max, description, availablePoints) {
+function buildBonusUpgradeRow(profId, type, label, current, max, description, availablePoints, bonusPercent) {
     const canUpgrade = availablePoints > 0 && current < max;
     const progressPercent = (current / max) * 100;
     
     let html = '<div class="gather-bonus-upgrade-row">';
     html += '<div class="gather-bonus-upgrade-info">';
-    html += '<span class="gather-bonus-upgrade-label">' + label + '</span>';
+    html += '<span class="gather-bonus-upgrade-label">' + label + ' <span class="gather-bonus-current-value">(' + bonusPercent + '%)</span></span>';
     html += '<span class="gather-bonus-upgrade-desc">' + description + '</span>';
     html += '</div>';
     html += '<div class="gather-bonus-upgrade-controls">';
@@ -832,23 +832,10 @@ function showGatheringResources(profId) {
         html += '<div class="gather-tier-maxed">🏆 Максимальный тир</div>';
     }
 
-    // Панель бонусов с подсказками и прокачкой
-    html += '<div class="gather-bonus-chips">';
-    const availablePoints = bonuses.bonusPointsAvailable || 0;
-    html += buildBonusChipWithTooltip('⚡', Math.floor(bonuses.gatherSpeedBonus * 100) + '%', 'speed', 
-        'Скорость добычи', 'Снижает время сбора ресурса на ' + Math.floor(bonuses.gatherSpeedBonus * 100) + '%');
-    html += buildBonusChipWithTooltip('🍀', Math.floor(bonuses.doubleGatherChance * 100) + '%', 'double',
-        'Двойная добыча', 'Шанс получить x2 ресурса при сборе: ' + Math.floor(bonuses.doubleGatherChance * 100) + '%');
-    html += buildBonusChipWithTooltip('✨', Math.floor(bonuses.rareResourceChance * 100) + '%', 'rare',
-        'Редкость', 'Шанс найти редкий ресурс: ' + Math.floor(bonuses.rareResourceChance * 100) + '%');
+    // Панель улучшения бонусов (всегда видима, как в способностях)
+    html += buildBonusUpgradePanel(profId, bonuses);
     html += '</div>';
     
-    // Панель распределения очков
-    if (availablePoints > 0 || (bonuses.bonusPointsSpent || 0) > 0) {
-        html += buildBonusUpgradePanel(profId, availablePoints, bonuses);
-    }
-    html += '</div>';
-
     html += renderGatherScrollPanel(profId);
     html += '<p class="gather-hint">После 100% обычный ресурс попадает в инвентарь сам. Кнопка «Забрать» — только при критическом сборе (в авто-режиме забирается сама).</p>';
 

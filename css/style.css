@@ -1792,6 +1792,11 @@ body.low-hp .main-content {
     color: var(--text-primary);
     margin-bottom: 2px;
 }
+.gather-bonus-current-value {
+    font-weight: 700;
+    color: var(--gold-light);
+    font-size: 11px;
+}
 .gather-bonus-upgrade-desc {
     font-size: 10px;
     color: var(--text-secondary);

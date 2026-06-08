@@ -11,17 +11,15 @@ function migrateProfessionBonusPoints(playerData) {
         var prof = playerData.professions[profId];
         if (!prof) return;
         
-        // Если bonusPointsPool уже есть — миграция не нужна
-        if (prof.bonusPointsPool !== undefined) return;
+        // Если bonusPoints уже есть — миграция не нужна (значит уже мигрировано)
+        if (prof.bonusPoints) return;
         
         var tier = parseInt(prof.tier, 10) || 1;
         var points = (tier === 1) ? 0 : (tier * 2);
         
         // Инициализация полей
         prof.bonusPointsPool = points;
-        if (!prof.bonusPoints) {
-            prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
-        }
+        prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
         
         migratedCount++;
         console.log('✅ Миграция ' + profId + ' (тир ' + tier + '): + ' + points + ' очков бонусов');
@@ -122,5 +120,19 @@ console.assert(test6.professions.miner.bonusPointsPool === 12, '❌ miner');
 console.assert(test6.professions.herbalist.bonusPointsPool === 4, '❌ herbalist');
 console.assert(test6.professions.fishing.bonusPointsPool === 10, '❌ fishing');
 console.log('✅ Тест 6 пройден');
+
+// Тест 7: Старое сохранение с bonusPointsPool === undefined
+console.log('\n=== Тест 7: bonusPointsPool undefined (реальный кейс) ===');
+const test7 = {
+    professions: {
+        miner: { tier: 6, exp: 5000, bonusPointsPool: undefined }
+    }
+};
+migrateProfessionBonusPoints(test7);
+console.log('miner.bonusPointsPool:', test7.professions.miner.bonusPointsPool);
+console.log('miner.bonusPoints:', test7.professions.miner.bonusPoints);
+console.assert(test7.professions.miner.bonusPointsPool === 12, '❌ Ожидалось 12 очков');
+console.assert(test7.professions.miner.bonusPoints.speed === 0, '❌ Ожидалось speed:0');
+console.log('✅ Тест 7 пройден (исправлена ошибка!)');
 
 console.log('\n=== ВСЕ ТЕСТЫ ПРОЙДЕНЫ ===');
