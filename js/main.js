@@ -732,17 +732,18 @@ function migrateOldSave(playerData) {
  * 3. Если bonusPoints существует → уже мигрировано или новый игрок, пропускаем
  * 
  * Формула для старого сейва:
- *   totalPoints = (tier === 1) ? 0 : (tier * 2)
+ *   totalPoints = (tier - 1) * 2  (2 очка за каждый тир, начиная со 2-го)
  *   alreadySpent = 0 (у старого сейва ещё нет вкачанных очков)
  *   pointsToAdd = totalPoints - alreadySpent = totalPoints
  * 
  * Примеры:
  * | Сценарий      | Тир | bonusPoints | Вкачано | Очков к выдаче |
  * |---------------|-----|-------------|---------|----------------|
- * | Старый сейв   | 2   | ❌ нет      | 0       | 4 (2×2)        |
- * | Старый сейв   | 6   | ❌ нет      | 0       | 12 (6×2)       |
- * | Новый игрок   | 2   | ✅ есть     | 0       | 0 (уже получил)|
- * | Новый игрок   | 6   | ✅ есть     | 5       | 0 (уже получил)|
+ * | Старый сейв   | 1   | ❌ нет      | 0       | 0              |
+ * | Старый сейв   | 2   | ❌ нет      | 0       | 2 ((2-1)×2)    |
+ * | Старый сейв   | 6   | ❌ нет      | 0       | 10 ((6-1)×2)   |
+ * | Новый игрок   | 2   | ✅ есть     | 0       | 0 (уже получил при апе)|
+ * | Новый игрок   | 6   | ✅ есть     | 5       | 0 (уже получил при апе)|
  */
 function migrateProfessionBonusPoints(playerData) {
     if (!playerData || !playerData.professions) return;
@@ -761,7 +762,8 @@ function migrateProfessionBonusPoints(playerData) {
         var tier = parseInt(prof.tier, 10) || 1;
         
         // Формула: 2 очка за каждый тир, начиная со 2-го
-        var totalPoints = (tier === 1) ? 0 : (tier * 2);
+        // Тир 1 = 0, Тир 2 = 2, Тир 3 = 4, Тир 4 = 6, Тир 5 = 8, Тир 6 = 10
+        var totalPoints = (tier - 1) * 2;
         
         // У старого сейва ещё нет вкачанных очков
         var alreadySpent = 0;
