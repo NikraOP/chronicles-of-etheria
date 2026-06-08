@@ -266,6 +266,17 @@ function addSkinsButton() {
     }
 }
 
+function addEncyclopediaButton() {
+    const navGrid = document.querySelector('.nav-grid');
+    if (navGrid && !document.querySelector('.nav-card[onclick="showEncyclopedia()"]')) {
+        const encCard = document.createElement('div');
+        encCard.className = 'nav-card';
+        encCard.setAttribute('onclick', 'showEncyclopedia()');
+        encCard.innerHTML = '<div class="nav-card-icon">📖</div><div class="nav-card-title">Справочник</div>';
+        navGrid.appendChild(encCard);
+    }
+}
+
 // ===== МИГРАЦИЯ СТАРЫХ ПРЕДМЕТОВ =====
 
 function migrateItemPrices() {
@@ -565,7 +576,7 @@ const originalRenderGame = renderGame;
 window._originalRenderGame = originalRenderGame;
 renderGame = function() {
     originalRenderGame();
-    setTimeout(addSkinsButton, 150);
+    setTimeout(function() { addSkinsButton(); addEncyclopediaButton(); }, 150);
 };
 
 window.addEventListener('beforeunload', function() {
@@ -818,6 +829,7 @@ window.equipSkin = equipSkin;
 window.addDefaultSkinsToUnlocked = addDefaultSkinsToUnlocked;
 window.setDefaultSkin = setDefaultSkin;
 window.addSkinsButton = addSkinsButton;
+window.addEncyclopediaButton = addEncyclopediaButton;
 window.initSkinsSystem = initSkinsSystem;
 window.migrateProfessionBonusPoints = migrateProfessionBonusPoints;
 
