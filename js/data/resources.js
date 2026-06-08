@@ -110,4 +110,11 @@ const RESOURCES_DB = {
         {name:'Богиня моря',icon:'🐙',img:'png/resources/fish/kraken.png',tier:6,exp:400,time:20,locations:['Глубины океана','Престол Богов'],rarity:'Мифический',battle:true,bossId:'sea_goddess'},
         {name:'Левиафан бруйна',icon:'🐋',img:'png/resources/fish/leviathan.png',tier:6,exp:500,time:22,locations:['Престол Богов'],rarity:'Мифический',battle:true,bossId:'bruina_leviathan'}
     ],
+    
+    // === ЭНДГЕЙМ РЕСУРСЫ (только с боссов и редкого дропа) ===
+    'boss_drop': [
+        {name:'Слёзы божества',icon:'💧',img:'png/resources/special/tears-of-divinity.png',tier:6,exp:500,time:1,locations:['Ядро забвения'],rarity:'Божественный',bossDrop:true,bossChance:0.05},
+        {name:'Искра творца',icon:'⚡',img:'png/resources/special/spark-of-creation.png',tier:6,exp:600,time:1,locations:['Престол Богов','Ядро забвения','Руины небес'],rarity:'Божественный',bossDrop:true,bossChance:0.03},
+        {name:'Эссенция пустоты',icon:'🌀',img:'png/resources/special/essence-of-void.png',tier:6,exp:550,time:1,locations:['Тюрьма пустоты','Цитадель пустоты'],rarity:'Божественный',bossDrop:true,bossChance:0.08}
+    ]
 };
