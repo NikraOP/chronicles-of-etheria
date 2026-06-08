@@ -42,7 +42,7 @@ function showProfessions() {
         const exp = learned ? learned.exp : 0;
         const expNeeded = getExpForNextTier(tier);
         const percent = (expNeeded > 0 && tier < 6) ? (exp / expNeeded * 100) : 100;
-        const bonuses = getProfessionBonuses(tier);
+        const bonuses = getProfessionBonuses(prof.id, tier);
         const gatherDefs = typeof getGatherableResourceDefsAtLocation === 'function'
             ? getGatherableResourceDefsAtLocation(prof.id) : [];
         const resourceIcons = typeof renderGatherProfessionIconsHtml === 'function'
@@ -81,7 +81,7 @@ function showProfessions() {
         const exp = learned ? learned.exp : 0;
         const expNeeded = getExpForNextTier(tier);
         const percent = (expNeeded > 0 && tier < 6) ? (exp / expNeeded * 100) : 100;
-        const bonuses = getProfessionBonuses(tier);
+        const bonuses = getProfessionBonuses(prof.id, tier);
         const locHint = typeof formatLocationResourcesHint === 'function'
             ? formatLocationResourcesHint(prof.id) : '';
         
@@ -116,8 +116,8 @@ function learnProfession(profId) {
     saveGame();
     const allProfs = PROFESSIONS_DB.gathering.concat(PROFESSIONS_DB.crafting);
     const prof = allProfs.find(p => p.id === profId);
-    const bonuses = getProfessionBonuses(1);
-    showModal('📚 Профессия изучена!', prof.icon, 'Вы изучили профессию «' + prof.name + '»!\n\n' + prof.desc + '\n\n⭐ 1 тир (всего 6)\n\n📈 Бонусы текущего тира:\n• -5% времени сбора\n• +5% шанс двойной добычи\n• +5% качество крафта', 'Продолжить', () => showProfessions());
+    const bonuses = getProfessionBonuses(profId, 1);
+    showModal('📚 Профессия изучена!', prof.icon, 'Вы изучили профессию «' + prof.name + '»!\n\n' + prof.desc + '\n\n⭐ 1 тир (всего 6)\n\n📈 Бонусы текущего тира:\n• -' + Math.floor(bonuses.gatherSpeedBonus * 100) + '% времени сбора\n• +' + Math.floor(bonuses.doubleGatherChance * 100) + '% шанс двойной добычи\n• +' + Math.floor(bonuses.rareResourceChance * 100) + '% шанс редкого ресурса\n\n🎁 Прокачивайте тир и распределяйте очки бонусов!', 'info');
 }
 
 function captureAbilitiesScreenScroll() {

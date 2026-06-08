@@ -50,29 +50,31 @@ function buildBonusChipWithTooltip(icon, value, type, title, description) {
 /** Панель улучшения бонусов */
 function buildBonusUpgradePanel(profId, availablePoints, bonuses) {
     const pts = player.professions[profId]?.bonusPoints || { speed: 0, double: 0, rare: 0 };
+    const pool = player.professions[profId]?.bonusPointsPool || 0;
+    const spent = (pts.speed || 0) + (pts.double || 0) + (pts.rare || 0);
     const maxPerStat = 5;
     
     let html = '<div class="gather-bonus-upgrade-panel">';
     html += '<div class="gather-bonus-upgrade-header">';
     html += '<span class="gather-bonus-upgrade-title">📊 Улучшение бонусов</span>';
-    html += '<span class="gather-bonus-points-available">Доступно очков: <strong>' + availablePoints + '</strong></span>';
+    html += '<span class="gather-bonus-points-available">Очков: <strong>' + pool + '</strong> (всего вкачано: ' + spent + ')</span>';
     html += '</div>';
     
     html += '<div class="gather-bonus-upgrade-list">';
     
     // Скорость
     html += buildBonusUpgradeRow(profId, 'speed', '⚡ Скорость', pts.speed || 0, maxPerStat, 
-        'Снижает время сбора', availablePoints);
+        'Снижает время сбора', pool);
     // Двойная добыча
     html += buildBonusUpgradeRow(profId, 'double', '🍀 Удача', pts.double || 0, maxPerStat,
-        'Шанс x2 добычи', availablePoints);
+        'Шанс x2 добычи', pool);
     // Редкость
     html += buildBonusUpgradeRow(profId, 'rare', '✨ Редкость', pts.rare || 0, maxPerStat,
-        'Шанс редкого ресурса', availablePoints);
+        'Шанс редкого ресурса', pool);
     
     html += '</div>';
 
-    if ((bonuses.bonusPointsSpent || 0) > 0) {
+    if (spent > 0) {
         html += '<button type="button" class="action-btn gather-bonus-reset-btn" onclick="resetBonusPoints(\'' + profId + '\')">';
         html += '🔄 Сбросить все очки</button>';
     }
@@ -113,12 +115,14 @@ function upgradeBonus(profId, type) {
     const prof = player.professions[profId];
     if (!prof) return;
     
-    const available = getAvailableBonusPoints(prof);
-    if (available <= 0) {
+    initProfessionBonusPoints(prof);
+    
+    const pool = prof.bonusPointsPool || 0;
+    if (pool <= 0) {
         addMessage('❌ Нет доступных очков!', 'error');
         return;
     }
-    
+
     if (!prof.bonusPoints) {
         prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
     }
@@ -128,21 +132,28 @@ function upgradeBonus(profId, type) {
         addMessage('❌ Максимальный уровень бонуса!', 'error');
         return;
     }
-    
+
+    // Тратим 1 очко из пула
+    prof.bonusPointsPool = pool - 1;
     prof.bonusPoints[type] = current + 1;
     saveGame();
-    addMessage('✅ Улучшено: ' + type + ' → ' + (current + 1), 'success');
+    addMessage('✅ Улучшено: ' + type + ' → ' + (current + 1) + ' (осталось очков: ' + (pool - 1) + ')', 'success');
     showGatheringResources(profId);
 }
 
-/** Сбросить все очки бонусов */
+/** Сбросить все очки бонусов — возвращает очки в пул */
 function resetBonusPoints(profId) {
     const prof = player.professions[profId];
-    if (!prof || !confirm('Сбросить все очки бонусов? Это действие необратимо.')) return;
+    if (!prof || !confirm('Сбросить все очки бонусов? Очки вернутся в пул.')) return;
     
+    initProfessionBonusPoints(prof);
+    const spent = (prof.bonusPoints?.speed || 0) + (prof.bonusPoints?.double || 0) + (prof.bonusPoints?.rare || 0);
+    
+    // Возвращаем очки в пул
+    prof.bonusPointsPool = (prof.bonusPointsPool || 0) + spent;
     prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
     saveGame();
-    addMessage('🔄 Очки бонусов сброшены', 'info');
+    addMessage('🔄 Очки бонусов сброшены. + ' + spent + ' очков в пул.', 'info');
     showGatheringResources(profId);
 }
 
@@ -294,24 +305,30 @@ function stopGathering() {
     }
 }
 
-/** Базовые бонусы от тира (без учёта очков прокачки) */
+/** Базовые бонусы от тира (без учёта очков прокачки) — уменьшены на 1 тире */
 function getBaseProfessionBonuses(tier) {
-    const effectiveLevel = (tier - 1) * 10 + 5;
+    // Уменьшенные базовые значения: на 1 тире почти ничего нет
+    const speedByTier = [0, 0.02, 0.04, 0.06, 0.08, 0.10]; // 0%, 2%, 4%, 6%, 8%, 10%
+    const doubleByTier = [0, 0.02, 0.04, 0.06, 0.08, 0.10]; // 0%, 2%, 4%, 6%, 8%, 10%
+    const rareByTier = [0, 0.01, 0.02, 0.03, 0.04, 0.05]; // 0%, 1%, 2%, 3%, 4%, 5%
+    const expByTier = [0, 0.05, 0.10, 0.15, 0.20, 0.25]; // 0%, 5%, 10%, 15%, 20%, 25%
+    
     return {
-        gatherSpeedBonus: Math.min(0.5, effectiveLevel * 0.01),
-        doubleGatherChance: Math.min(0.5, effectiveLevel * 0.01),
-        expBonus: Math.min(1.0, effectiveLevel * 0.02),
-        rareResourceChance: Math.min(0.3, effectiveLevel * 0.006),
-        craftQualityBonus: Math.min(0.5, effectiveLevel * 0.01),
-        materialSaveChance: Math.min(0.3, effectiveLevel * 0.006)
+        gatherSpeedBonus: speedByTier[Math.min(tier, 6)] || 0,
+        doubleGatherChance: doubleByTier[Math.min(tier, 6)] || 0,
+        expBonus: expByTier[Math.min(tier, 6)] || 0,
+        rareResourceChance: rareByTier[Math.min(tier, 6)] || 0,
+        craftQualityBonus: speedByTier[Math.min(tier, 6)] || 0,
+        materialSaveChance: rareByTier[Math.min(tier, 6)] || 0
     };
 }
 
 /**
  * Полные бонусы профессии с учётом очков прокачки.
- * Очки бонусов хранятся в player.professions[profId].bonusPoints = { speed, double, rare }
- * Каждый тир даёт 2 очка. Максимум в один стат — 5 очков (дает +5% к базовому значению).
- * Если profId не передан, возвращает базовые бонусы без учёта очков.
+ * Очки хранятся в:
+ *   player.professions[profId].bonusPointsPool — доступные очки (未 распределённые)
+ *   player.professions[profId].bonusPoints = { speed, double, rare } — вкачанные очки
+ * Каждый тир даёт 2 очка в пул. Максимум в один стат — 5 очков (+5% к бонусу).
  */
 function getProfessionBonuses(profId, tier) {
     // Обратная совместимость: если передан один аргумент (tier), используем базовые бонусы
@@ -325,7 +342,11 @@ function getProfessionBonuses(profId, tier) {
     }
     const prof = player.professions[profId];
     if (!prof || !prof.bonusPoints) {
-        return base;
+        return Object.assign({}, base, {
+            bonusPointsPool: prof.bonusPointsPool || 0,
+            bonusPointsSpent: 0,
+            bonusPointsAvailable: prof.bonusPointsPool || 0
+        });
     }
     const pts = prof.bonusPoints;
     // Каждое очко даёт +1% к соответствующему бонусу (макс +5% = 5 очков)
@@ -336,23 +357,33 @@ function getProfessionBonuses(profId, tier) {
     return {
         gatherSpeedBonus: Math.min(0.5, base.gatherSpeedBonus + speedBonus),
         doubleGatherChance: Math.min(0.5, base.doubleGatherChance + doubleBonus),
-        expBonus: base.expBonus, // опыт не улучшается очками
+        expBonus: base.expBonus,
         rareResourceChance: Math.min(0.3, base.rareResourceChance + rareBonus),
         craftQualityBonus: base.craftQualityBonus,
         materialSaveChance: base.materialSaveChance,
         // Для UI
-        bonusPointsAvailable: getAvailableBonusPoints(prof),
-        bonusPointsSpent: (pts.speed || 0) + (pts.double || 0) + (pts.rare || 0)
+        bonusPointsPool: prof.bonusPointsPool || 0,
+        bonusPointsSpent: (pts.speed || 0) + (pts.double || 0) + (pts.rare || 0),
+        bonusPointsAvailable: (prof.bonusPointsPool || 0)
     };
 }
 
-/** Сколько очков доступно для распределения */
-function getAvailableBonusPoints(prof) {
-    if (!prof) return 0;
-    const tier = parseInt(prof.tier, 10) || 1;
-    const totalPoints = (tier - 1) * 2; // 2 очка за тир, начиная со 2-го
-    const spent = (prof.bonusPoints?.speed || 0) + (prof.bonusPoints?.double || 0) + (prof.bonusPoints?.rare || 0);
-    return Math.max(0, totalPoints - spent);
+/** Инициализация очков профессии при повышении тира */
+function initProfessionBonusPoints(prof) {
+    if (!prof) return;
+    if (prof.bonusPointsPool === undefined) {
+        prof.bonusPointsPool = 0;
+    }
+    if (!prof.bonusPoints) {
+        prof.bonusPoints = { speed: 0, double: 0, rare: 0 };
+    }
+}
+
+/** Добавить очки бонусов при повышении тира */
+function addBonusPointsOnTierUp(prof, pointsToAdd) {
+    if (!prof) return;
+    initProfessionBonusPoints(prof);
+    prof.bonusPointsPool = (prof.bonusPointsPool || 0) + pointsToAdd;
 }
 
 function getExpForNextTier(currentTier) {
@@ -429,8 +460,11 @@ function applyProfessionExp(profId, expAmount) {
         const profMeta = PROFESSIONS_DB.gathering.find(p => p.id === profId)
             || PROFESSIONS_DB.crafting.find(p => p.id === profId);
         addMessage(`🎉 ПОВЫШЕНИЕ ТИРА! ${profMeta?.name || profId} → ${prof.tier} тир!`, 'success');
-        const newBonuses = getProfessionBonuses(prof.tier);
-        addMessage(`📈 Новые бонусы: скорость -${Math.floor(newBonuses.gatherSpeedBonus * 100)}%, двойная добыча +${Math.floor(newBonuses.doubleGatherChance * 100)}%`, 'info');
+        // Добавляем 2 очка бонусов за тир
+        addBonusPointsOnTierUp(prof, 2);
+        addMessage(`🎁 +2 очка бонусов! Распределите в панели профессии.`, 'success');
+        const newBonuses = getProfessionBonuses(profId, prof.tier);
+        addMessage(`📈 Бонусы: скорость -${Math.floor(newBonuses.gatherSpeedBonus * 100)}%, удача +${Math.floor(newBonuses.doubleGatherChance * 100)}%, редкость +${Math.floor(newBonuses.rareResourceChance * 100)}%`, 'info');
     }
     return leveledUp;
 }
@@ -626,7 +660,7 @@ function startGathering(profId, resourceName, time, exp, requiredTier, gatherOpt
     const grid = document.getElementById('gatherResourceGrid');
     if (grid) grid.classList.add('gather-grid-locked');
 
-    const bonuses = getProfessionBonuses(currentTier);
+    const bonuses = getProfessionBonuses(profId, currentTier);
     const adjustedTime = Math.max(2, Math.floor(time * (1 - bonuses.gatherSpeedBonus)));
     let adjustedExp = Math.floor(exp * (1 + bonuses.expBonus));
     if (gatherOptions.auto) {
@@ -778,7 +812,7 @@ function showGatheringResources(profId) {
     const playerProf = player.professions[profId];
     const currentTier = playerProf ? (playerProf.tier || 1) : 1;
     const exp = playerProf?.exp || 0;
-    const bonuses = getProfessionBonuses(currentTier);
+    const bonuses = getProfessionBonuses(profId, currentTier);
     const expNeeded = getExpForNextTier(currentTier);
     const percent = (expNeeded > 0 && currentTier < 6) ? (exp / expNeeded * 100) : 100;
 
