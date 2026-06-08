@@ -1695,6 +1695,182 @@ body.low-hp .main-content {
     font-size: 11px;
     border: 1px solid var(--border);
 }
+
+/* Чипы бонусов с подсказками */
+.gather-bonus-chip--tooltip {
+    position: relative;
+    cursor: help;
+}
+.gather-bonus-chip--tooltip .gather-bonus-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    background: linear-gradient(135deg, rgba(12, 10, 22, 0.98), rgba(24, 18, 40, 0.98));
+    border: 1px solid rgba(232, 184, 74, 0.35);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    min-width: 180px;
+    max-width: 240px;
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(232, 184, 74, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+    z-index: 100;
+    pointer-events: none;
+}
+.gather-bonus-chip--tooltip:hover .gather-bonus-tooltip,
+.gather-bonus-chip--tooltip:focus .gather-bonus-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-8px);
+}
+.gather-bonus-tooltip__title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--gold-light);
+    margin-bottom: 4px;
+}
+.gather-bonus-tooltip__desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Панель улучшения бонусов */
+.gather-bonus-upgrade-panel {
+    margin-top: 14px;
+    padding: 14px;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.08), rgba(124, 92, 191, 0.08));
+    border: 1px solid rgba(52, 152, 219, 0.25);
+    border-radius: var(--radius-md);
+}
+.gather-bonus-upgrade-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.gather-bonus-upgrade-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+.gather-bonus-points-available {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.gather-bonus-points-available strong {
+    color: var(--gold-light);
+    font-size: 13px;
+}
+.gather-bonus-upgrade-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.gather-bonus-upgrade-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+.gather-bonus-upgrade-info {
+    flex: 1;
+    min-width: 0;
+}
+.gather-bonus-upgrade-label {
+    display: block;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+.gather-bonus-upgrade-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.gather-bonus-upgrade-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.gather-bonus-progress-bar {
+    width: 60px;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.gather-bonus-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+.gather-bonus-upgrade-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 28px;
+    text-align: center;
+}
+.gather-bonus-upgrade-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--accent), var(--gold-dark));
+    border: 1px solid var(--border-gold);
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.gather-bonus-upgrade-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(240, 192, 64, 0.4);
+}
+.gather-bonus-max, .gather-bonus-no-points {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+.gather-bonus-max {
+    color: #2ecc71;
+}
+.gather-bonus-no-points {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+.gather-bonus-reset-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px !important;
+    font-size: 11px !important;
+    background: rgba(231, 76, 60, 0.15) !important;
+    border: 1px solid rgba(231, 76, 60, 0.35) !important;
+    color: var(--text-secondary) !important;
+}
+.gather-bonus-reset-btn:hover {
+    background: rgba(231, 76, 60, 0.25) !important;
+    border-color: rgba(231, 76, 60, 0.5) !important;
+}
 .gather-hint {
     font-size: 12px;
     color: var(--text-secondary);

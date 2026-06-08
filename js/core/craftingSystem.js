@@ -473,19 +473,7 @@ function scrollCraftProgressIntoView() {
     });
 }
 
-function getProfessionBonuses(tier) {
-    const effectiveLevel = (tier - 1) * 10 + 5;
-    // craftQualityBonus: тир-зависимая таблица, чтобы крафтовая броня была ~на 15% лучше магазинной
-    const craftQualityByTier = { 1: 0.03, 2: 0.05, 3: 0.08, 4: 0.10, 5: 0.12, 6: 0.15 };
-    return {
-        gatherSpeedBonus: Math.min(0.5, effectiveLevel * 0.01),
-        doubleGatherChance: Math.min(0.5, effectiveLevel * 0.01),
-        expBonus: Math.min(1.0, effectiveLevel * 0.02),
-        rareResourceChance: Math.min(0.3, effectiveLevel * 0.006),
-        craftQualityBonus: craftQualityByTier[tier] || 0,
-        materialSaveChance: Math.min(0.3, effectiveLevel * 0.006)
-    };
-}
+// getProfessionBonuses импортируется из gathering.js
 
 let pendingCraftData = null;
 let craftProgressRafId = null;
