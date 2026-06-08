@@ -576,12 +576,12 @@ function showEncyclopedia() {
     html += '.card-title { font-size: 16px; font-weight: bold; color: var(--primary); margin: 0 0 8px 0; }';
     
     // Badges
-    html += '.badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin: 2px; }';
-    html += '.badge-level { background: rgba(52, 152, 219, 0.2); color: #3498db; }';
-    html += '.badge-gold { background: rgba(241, 196, 15, 0.2); color: #f1c40f; }';
-    html += '.badge-tier { background: rgba(155, 89, 182, 0.2); color: #9b59b6; }';
-    html += '.badge-rarity { background: rgba(52, 152, 219, 0.2); color: #3498db; }';
-    html += '.badge-boss-drop { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }';
+    html += '.badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin: 2px; color: white; }';
+    html += '.badge-level { background: rgba(52, 152, 219, 0.8); }';
+    html += '.badge-gold { background: rgba(241, 196, 15, 0.8); }';
+    html += '.badge-tier { background: rgba(155, 89, 182, 0.8); }';
+    html += '.badge-rarity { background: rgba(52, 152, 219, 0.8); }';
+    html += '.badge-boss-drop { background: rgba(231, 76, 60, 0.8); }';
     html += '.loc-badges, .resource-badges, .craft-badges { margin: 6px 0; }';
     
     // Location cards
