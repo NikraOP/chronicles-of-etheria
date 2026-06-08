@@ -60,7 +60,9 @@ function computeRandomBattleRoll() {
     const monsters = loc.monsters || [];
     if (!monsters.length) return null;
     const mData = monsters[Math.floor(Math.random() * monsters.length)];
-    const scale = Math.max(1, 1 + ((player.level - loc.minLvl) * 0.2));
+    // Ограничиваем прогрессию монстров после 63 уровня
+    const effectiveLevel = Math.min(player.level, 63);
+    const scale = Math.max(1, 1 + ((effectiveLevel - loc.minLvl) * 0.2));
     return { mData: mData, scale: scale, goldMult: loc.goldMult };
 }
 
