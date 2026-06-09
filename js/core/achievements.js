@@ -156,8 +156,21 @@ function giveAchievementRewards(achievement) {
     
     // Опыт
     if (achievement.rewardExp && achievement.rewardExp > 0) {
-        addExperience(achievement.rewardExp);
+        player.experience += achievement.rewardExp;
         addMessage(`⭐ +${achievement.rewardExp} опыта за достижение!`, 'success');
+        
+        // Проверяем повышение уровня
+        while (player.experience >= player.maxExperience) {
+            player.experience -= player.maxExperience;
+            player.level++;
+            player.maxExperience = Math.floor(player.level * 70 + 250);
+            if (typeof resetBaseStats === 'function') resetBaseStats();
+            player.health = player.maxHealth;
+            if (player.class === 'Маг') player.mana = player.maxMana;
+            if (typeof updateAllAbilities === 'function') updateAllAbilities();
+            addMessage(`🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ${player.level} уровень!`, 'success');
+            if (typeof onAchievementLevelUp === 'function') onAchievementLevelUp(player.level);
+        }
     }
     
     // Отмечаем как полученное
