@@ -244,6 +244,12 @@ function startMonsterPhaseAfterPlayer() {
 /** @returns {boolean} true — бой продолжается; false — вызвана victory() */
 function tryVictoryAfterEnemyDown() {
     if (!currentMonster || currentMonster.health > 0) return true;
+    
+    // Проверяем, был ли это one-hit kill (монстр умер с первого удара в бою)
+    if (typeof globalBattleTurn !== 'undefined' && globalBattleTurn === 1) {
+        if (typeof onAchievementOneHitKill === 'function') onAchievementOneHitKill();
+    }
+    
     const enemies = getBattleEnemies();
     if (enemies.length > 1) {
         const living = enemies.filter(function (e) { return e && e.health > 0; });

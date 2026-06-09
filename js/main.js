@@ -22,6 +22,7 @@ function initLegacyLocalGame() {
                 }
                 
                 initSkinsSystem();
+                if (typeof initAchievementsSystem === 'function') initAchievementsSystem();
                 
                 updateAllItemPrices();
                 updateAllAbilities();
@@ -274,6 +275,17 @@ function addEncyclopediaButton() {
         encCard.setAttribute('onclick', 'showEncyclopedia()');
         encCard.innerHTML = '<div class="nav-card-icon">📖</div><div class="nav-card-title">Справочник</div>';
         navGrid.appendChild(encCard);
+    }
+}
+
+function addAchievementsButton() {
+    const navGrid = document.querySelector('.nav-grid');
+    if (navGrid && !document.querySelector('.nav-card[onclick="showAchievementsPanel()"]')) {
+        const achCard = document.createElement('div');
+        achCard.className = 'nav-card';
+        achCard.setAttribute('onclick', 'showAchievementsPanel()');
+        achCard.innerHTML = '<div class="nav-card-icon">🏆</div><div class="nav-card-title">Достижения</div>';
+        navGrid.appendChild(achCard);
     }
 }
 
@@ -576,7 +588,7 @@ const originalRenderGame = renderGame;
 window._originalRenderGame = originalRenderGame;
 renderGame = function() {
     originalRenderGame();
-    setTimeout(function() { addSkinsButton(); addEncyclopediaButton(); }, 150);
+    setTimeout(function() { addSkinsButton(); addEncyclopediaButton(); addAchievementsButton(); }, 150);
 };
 
 window.addEventListener('beforeunload', function() {
@@ -618,6 +630,18 @@ function migrateOldSave(playerData) {
             rings: [], necklaces: []
         };
     }
+    
+    // Инициализация системы достижений для старых сохранений
+    if (!playerData.achievements) {
+        playerData.achievements = {
+            unlocked: [],
+            progress: {},
+            claimedRewards: []
+        };
+    }
+    if (!Array.isArray(playerData.achievements.unlocked)) playerData.achievements.unlocked = [];
+    if (!playerData.achievements.progress) playerData.achievements.progress = {};
+    if (!Array.isArray(playerData.achievements.claimedRewards)) playerData.achievements.claimedRewards = [];
     if (!Array.isArray(playerData.inventory.rings)) playerData.inventory.rings = [];
     if (!Array.isArray(playerData.inventory.necklaces)) playerData.inventory.necklaces = [];
     if (!Array.isArray(playerData.inventory.manaPotions)) playerData.inventory.manaPotions = [];
@@ -662,7 +686,7 @@ function migrateOldSave(playerData) {
     } else if (!playerData.uiKeys || typeof playerData.uiKeys !== 'object') {
         playerData.uiKeys = { back: 'Backspace' };
     }
-    
+
     // ВАЖНО: сохраняем скины из старого сохранения, если они есть
     if (playerData.unlockedSkins === undefined) playerData.unlockedSkins = [];
     if (playerData.currentSkin === undefined) playerData.currentSkin = null;
@@ -726,6 +750,11 @@ function migrateOldSave(playerData) {
         if (playerData.potionQuickSlots.length < 4) {
             playerData.potionQuickSlots.push({ type: 'elixir', itemIndex: 0 });
         }
+    }
+
+    // Инициализация посещённых локаций
+    if (!playerData.visitedLocations || !Array.isArray(playerData.visitedLocations)) {
+        playerData.visitedLocations = [];
     }
 
     // МИГРАЦИЯ ОЧКОВ БОНУСОВ ПРОФЕССИЙ (для старых игроков)

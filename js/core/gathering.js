@@ -538,6 +538,9 @@ function onGatheringComplete(profId, resourceName, adjustedExp, outcome, gatherO
     }
     addResourceToPlayer(resourceName, outcome.autoCount);
 
+    // Триггер достижения сбора ресурса
+    if (typeof onAchievementResourceGathered === 'function') onAchievementResourceGathered(outcome.autoCount);
+
     if (!outcome.hasCritical) {
         const totalExp = adjustedExp + outcome.bonusExp;
         applyProfessionExp(profId, totalExp);

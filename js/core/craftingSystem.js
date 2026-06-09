@@ -759,6 +759,9 @@ function completeCrafting(profId, options) {
         addMessage(`🏆 Теперь у вас ${prof.tier} тир профессии!`, 'success');
     }
     
+    // Триггер достижения крафта предмета
+    if (typeof onAchievementItemCrafted === 'function') onAchievementItemCrafted();
+    
     saveGame();
     pendingCraftData = null;
     

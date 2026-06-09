@@ -202,6 +202,11 @@ function finalizeCharacter() {
             lastSpinDate: '',
             spinHistory: []
         },
+        achievements: {
+            unlocked: [],
+            progress: {},
+            claimedRewards: []
+        },
         potionQuickSlots: [{ type: 'potion', itemIndex: 0 }, { type: 'mana_potion', itemIndex: 0 }, { type: 'food', itemIndex: 0 }, { type: 'elixir', itemIndex: 0 }], // 4 слота быстрого доступа к зельям
         ...baseStats
     };
@@ -213,6 +218,9 @@ function finalizeCharacter() {
     resetBaseStats();
     player.health = player.maxHealth;
     if (player.class === 'Маг') player.mana = player.maxMana;
+    
+    // Инициализируем систему достижений
+    if (typeof initAchievements === 'function') initAchievements();
     
     // Инициализируем скины
     if (typeof initSkins !== 'undefined') {

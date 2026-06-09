@@ -22,6 +22,10 @@ function showLocations() {
 
 function selectLocation(name) {
     player.location = name;
+    
+    // Триггер достижения посещения локации
+    if (typeof onAchievementLocationVisited === 'function') onAchievementLocationVisited(name);
+    
     saveGame();
     renderGame();
     addMessage('📍 ' + name, 'success');

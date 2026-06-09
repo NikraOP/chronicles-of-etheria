@@ -639,6 +639,10 @@ function buyItemKeepOpen(cat, name) {
     }
     
     saveGame();
+    
+    // Триггер достижения покупки предмета
+    if (typeof onAchievementItemBought === 'function') onAchievementItemBought();
+    
     addMessage(`✅ Куплено: ${item.name} за ${item.price} золота!`, 'success');
     refreshCurrentCategory();
 }

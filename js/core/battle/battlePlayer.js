@@ -189,6 +189,8 @@ function executePlayerAttackAtTarget(targetKind, targetIndex) {
     }
     if (monsterDodgesPlayerHit()) {
         addBattleLog(`💨 ${currentMonster.name} уклонился от атаки!`, 'info');
+        // Триггер уворота для достижения (монстра считаем как отдельный счётчик)
+        if (typeof onAchievementDodge === 'function') onAchievementDodge();
         isPlayerTurn = false;
         updateBattleButtons();
         endPlayerActionChain();
@@ -216,9 +218,13 @@ function executePlayerAttackAtTarget(targetKind, targetIndex) {
     }
     let crit = nextCritGuaranteed || Math.random() * 100 <= player.criticalChance;
     if (nextCritGuaranteed) nextCritGuaranteed = false;
-    if (crit) dmg = Math.floor(dmg * (player.criticalDamage / 100));
+    if (crit) {
+        dmg = Math.floor(dmg * (player.criticalDamage / 100));
+        // Триггер достижения критического удара
+        if (typeof onAchievementCriticalHit === 'function') onAchievementCriticalHit();
+    }
     dmg = calculateDamageWithShred(dmg, getMonsterCurrentDefense(), currentMonster.armorShred || 0);
-
+    
     const appliedDamage = applyDamageToMonster(dmg);
     applyMonsterReflectDamage(appliedDamage);
     const msg = (crit ? '💥 КРИТ! ' : '⚔️ ') + appliedDamage + ' урона';
@@ -262,6 +268,9 @@ function attemptDodge() {
     
     if (Math.random() * 100 <= totalDodge) {
         addBattleLog('✅ Уклонились! Монстр промахнулся!', 'success');
+        
+        // Триггер достижения уворота
+        if (typeof onAchievementDodge === 'function') onAchievementDodge();
         
         const hasFreeOnDodge = player.temporaryEffects.some(e => e.freeOnDodge);
         if (hasFreeOnDodge) {

@@ -409,11 +409,13 @@
         if (!player.professions) player.professions = {};
         if (!player.resources) player.resources = {};
         if (player.inventory && !player.inventory.gatherScrolls) player.inventory.gatherScrolls = [];
+        if (!player.achievements) player.achievements = { unlocked: [], progress: {}, claimedRewards: [] };
         if (typeof initSkinsSystem === 'function') initSkinsSystem();
         if (typeof updateAllItemPrices === 'function') updateAllItemPrices();
         if (typeof updateAllAbilities === 'function') updateAllAbilities();
         if (typeof resetBaseStats === 'function') resetBaseStats();
         if (typeof clampPlayerVitalsAfterLoad === 'function') clampPlayerVitalsAfterLoad();
+        if (typeof initAchievements === 'function') initAchievements();
         if (typeof saveGame === 'function') saveGame();
         return true;
     }

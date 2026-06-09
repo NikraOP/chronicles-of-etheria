@@ -80,6 +80,9 @@ function victory() {
 function dungeonVictoryApplyAndModal() {
     if (!currentMonster) return;
 
+    // Триггер достижения победы
+    if (typeof onAchievementVictory === 'function') onAchievementVictory();
+
     const enemies = typeof getBattleEnemies === 'function' ? getBattleEnemies() : [];
     let totalExp = currentMonster.exp;
     if (enemies.length > 1) {
@@ -102,6 +105,10 @@ function dungeonVictoryApplyAndModal() {
 
     window.lastVictoryData = { exp: totalExp, gold: gold };
     player.gold += gold;
+    
+    // Триггер достижения для золота
+    if (typeof onAchievementGoldThreshold === 'function') onAchievementGoldThreshold(player.gold);
+    
     player.experience += totalExp;
     player.victories = (player.victories || 0) + 1;
 
@@ -114,7 +121,13 @@ function dungeonVictoryApplyAndModal() {
         if (player.class === 'Маг') player.mana = player.maxMana;
         updateAllAbilities();
         addMessage('🎉 ПОВЫШЕНИЕ УРОВНЯ! Теперь вы ' + player.level + ' уровень!', 'success');
+        
+        // Триггер достижения на уровень
+        if (typeof onAchievementLevelUp === 'function') onAchievementLevelUp(player.level);
     }
+
+    // Триггер достижения победы
+    if (typeof onAchievementVictory === 'function') onAchievementVictory();
 
     const duo = typeof getDuoDungeonState === 'function' ? getDuoDungeonState() : null;
     const isDuoHost = duo && duo.role === 'host' && session && session.mode === 'duo';

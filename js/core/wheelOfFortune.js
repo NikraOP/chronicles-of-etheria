@@ -985,6 +985,10 @@ function wheelSpin() {
 
         // Обновляем UI после награды
         if (typeof updateSidebarGoldExp === 'function') updateSidebarGoldExp();
+        
+        // Триггер достижения выигрыша в колесе
+        if (typeof onAchievementWheelWin === 'function') onAchievementWheelWin();
+        
         wheelUpdateUiState();
     });
 }
