@@ -483,10 +483,64 @@ let isCraftingLocked = false;
 let autoCraftSession = null; // Авто-крафт как свитки добычи
 let autoCraftIntervalId = null;
 let sessionFinished = false; // Флаг для предотвращения дублирования при завершении крафта
-let craftStartTime = 0; // Время начала крафта для восстановления прогресса
-let craftTotalTime = 0; // Общее время крафта в миллисекундах
+window.craftStartTime = 0; // Время начала крафта для восстановления прогресса
+window.craftTotalTime = 0; // Общее время крафта в миллисекундах
+let craftPushNotification = null; // Push-уведомление прогресса крафта
 
-function stopAutoCraftSession(reason) {
+function showCraftPushNotification(recipeName, batchCount, percent) {
+    // Удаляем старое уведомление если есть
+    if (craftPushNotification && craftPushNotification.parentNode) {
+        craftPushNotification.parentNode.removeChild(craftPushNotification);
+    }
+    
+    // Создаём новое уведомление
+    const notification = document.createElement('div');
+    notification.className = 'push-notification push-notification--info';
+    notification.id = 'craftPushNotification';
+    
+    const iconHtml = typeof renderItemIconHTML === 'function'
+        ? renderItemIconHTML(activeCraftSession?.normRecipe, { size: 24, fallback: '🔨' })
+        : '🔨';
+    
+    const quantityLabel = batchCount > 1 ? ` ×${batchCount}` : '';
+    
+    notification.innerHTML = `
+        <span class="push-notification__icon">${iconHtml}</span>
+        <span class="push-notification__text">🔨 Крафт: ${recipeName}${quantityLabel} — ${percent}%</span>
+    `;
+    
+    // Позиционируем уведомление
+    const baseTop = 20;
+    const gap = 10;
+    const notificationHeight = 60;
+    const existingNotifications = document.querySelectorAll('.push-notification:not(#craftPushNotification)');
+    const topPosition = baseTop + (existingNotifications.length * (notificationHeight + gap));
+    
+    notification.style.top = topPosition + 'px';
+    
+    document.body.appendChild(notification);
+    craftPushNotification = notification;
+}
+
+function updateCraftPushNotification(percent) {
+    if (!craftPushNotification) return;
+    
+    const session = activeCraftSession;
+    if (!session) return;
+    
+    const quantityLabel = session.batchCount > 1 ? ` ×${session.batchCount}` : '';
+    craftPushNotification.innerHTML = `
+        <span class="push-notification__icon">🔨</span>
+        <span class="push-notification__text">Крафт: ${session.normRecipe.name}${quantityLabel} — ${percent}%</span>
+    `;
+}
+
+function removeCraftPushNotification() {
+    if (craftPushNotification && craftPushNotification.parentNode) {
+        craftPushNotification.parentNode.removeChild(craftPushNotification);
+    }
+    craftPushNotification = null;
+}
     if (autoCraftIntervalId != null) {
         clearInterval(autoCraftIntervalId);
         autoCraftIntervalId = null;
@@ -561,8 +615,8 @@ function restoreCraftProgressUI() {
     }
     
     // Рассчитываем текущий прогресс
-    const elapsed = performance.now() - craftStartTime;
-    const percent = Math.min(100, Math.floor(elapsed / craftTotalTime * 100));
+    const elapsed = performance.now() - window.craftStartTime;
+    const percent = Math.min(100, Math.floor(elapsed / window.craftTotalTime * 100));
     
     slot.innerHTML = `
         <div class="crafting-progress craft-active" id="craftProgressPanel">
@@ -586,8 +640,8 @@ function restoreCraftProgressUI() {
     const tick = (now) => {
         if (!activeCraftSession || sessionFinished) return;
         
-        const elapsed = now - craftStartTime;
-        const percent = Math.min(100, Math.floor(elapsed / craftTotalTime * 100));
+        const elapsed = now - window.craftStartTime;
+        const percent = Math.min(100, Math.floor(elapsed / window.craftTotalTime * 100));
         const fill = document.getElementById('craftFill');
         const percentEl = document.getElementById('craftPercent');
         if (fill) fill.style.width = percent + '%';
@@ -863,6 +917,9 @@ function completeCrafting(profId, options) {
     activeCraftSession = null;
     sessionFinished = true; // Помечаем как завершённую чтобы избежать повторного вызова
     
+    // Удаляем push-уведомление крафта
+    removeCraftPushNotification();
+    
     // Обновляем счётчик авто-крафта
     if (autoCraftSession && autoCraftSession.profId === profId) {
         autoCraftSession.crafted = (autoCraftSession.crafted || 0) + count;
@@ -885,6 +942,9 @@ function showCraftingRecipes(profId) {
     // НЕ останавливаем крафт при переходе в рецепты — продолжаем в фоне
     // stopCraftProgress();
     // if (pendingCraftData) flushPendingCraft();
+    
+    // Удаляем push-уведомление крафта так как мы в меню крафта
+    removeCraftPushNotification();
     
     const allRecipes = getAllRecipesForProfession(profId);
     
@@ -1272,8 +1332,14 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
     const startTime = performance.now();
 
     // Сохраняем время для восстановления UI
-    craftStartTime = startTime;
-    craftTotalTime = totalTime;
+    window.craftStartTime = startTime;
+    window.craftTotalTime = totalTime;
+    
+    // Показываем push-уведомление если игрок не в меню крафта
+    const slot = document.getElementById('craftProgressSlot');
+    if (!slot) {
+        showCraftPushNotification(normRecipe.name, count, 0);
+    }
 
     const tick = (now) => {
         // Проверяем только activeCraftSession — isCraftingLocked может быть false если UI закрыт
@@ -1281,12 +1347,15 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
         // Если сессия уже завершена — прекращаем
         if (sessionFinished) return;
 
-        const elapsed = now - startTime;
-        const percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
+        const elapsed = now - window.craftStartTime;
+        const percent = Math.min(100, Math.floor(elapsed / window.craftTotalTime * 100));
         const fill = document.getElementById('craftFill');
         const percentEl = document.getElementById('craftPercent');
         if (fill) fill.style.width = percent + '%';
         if (percentEl) percentEl.textContent = percent + '%';
+
+        // Обновляем push-уведомление если есть
+        updateCraftPushNotification(percent);
 
         if (percent < 100) {
             craftProgressRafId = requestAnimationFrame(tick);
@@ -1326,3 +1395,6 @@ window.stopAutoCraftSession = stopAutoCraftSession;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
 window.restoreCraftProgressUI = restoreCraftProgressUI;
+window.showCraftPushNotification = showCraftPushNotification;
+window.updateCraftPushNotification = updateCraftPushNotification;
+window.removeCraftPushNotification = removeCraftPushNotification;

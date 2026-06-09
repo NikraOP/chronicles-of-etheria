@@ -13,6 +13,17 @@ function renderGame() {
     stopGathering();
     // НЕ прерываем крафт при возврате на главный экран — крафт продолжается в фоне
     // if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    
+    // Если крафт активен и мы выходим из профессий — показываем push-уведомление
+    if (typeof activeCraftSession !== 'undefined' && activeCraftSession && !sessionFinished) {
+        if (typeof showCraftPushNotification === 'function') {
+            const session = activeCraftSession;
+            const elapsed = performance.now() - craftStartTime;
+            const percent = Math.min(100, Math.floor(elapsed / craftTotalTime * 100));
+            showCraftPushNotification(session.normRecipe.name, session.batchCount, percent);
+        }
+    }
+    
     document.body.classList.remove('low-hp', 'settings-open');
     const av = getAvatar();
     const cs = 'class-' + (player.class === 'Воин' ? 'warrior' : player.class === 'Маг' ? 'mage' : 'archer');
