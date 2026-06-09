@@ -434,16 +434,33 @@ function getFallbackAvatar() {
 }
 
 function addMessage(msg, type) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) {
-        console.log('Message:', msg, type);
-        return;
-    }
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${type}`;
-    msgDiv.textContent = msg;
-    container.appendChild(msgDiv);
-    setTimeout(() => msgDiv.remove(), 3000);
+    // Создаём push-уведомление
+    const notification = document.createElement('div');
+    notification.className = `push-notification push-notification--${type || 'info'}`;
+    
+    // Иконка по типу
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    else if (type === 'error') icon = '❌';
+    else if (type === 'warning') icon = '⚠️';
+    else if (type === 'info') icon = 'ℹ️';
+    
+    notification.innerHTML = `
+        <span class="push-notification__icon">${icon}</span>
+        <span class="push-notification__text">${msg}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Удаляем через 3.5 секунды с анимацией
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3500);
 }
 
 function showModal(title, icon, message, buttonText, callback) {
