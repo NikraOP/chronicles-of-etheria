@@ -526,6 +526,47 @@ function restoreGatherProgressUI() {
             <div id="gatherResult"></div>
         </div>
     `;
+    
+    // Если сессия уже имеет outcome (завершена), сразу вызываем завершение
+    if (session.outcome) {
+        onGatheringComplete(session.profId, session.resourceName, session.adjustedExp, session.outcome, session.gatherOptions);
+        return;
+    }
+
+    // Иначе возобновляем анимацию с последнего известного времени
+    // Для этого нужно сохранить время начала в сессии
+    if (!session.startTime) return; // Нет времени начала - не можем продолжить
+    
+    const totalTime = session.totalTime || 0;
+    if (!totalTime) return;
+    
+    const tick = (now) => {
+        if (!isGatheringLocked || !activeGatherSession) return;
+
+        const elapsed = now - session.startTime;
+        const percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
+        const fill = document.getElementById('gatherFill');
+        const percentEl = document.getElementById('gatherPercent');
+
+        if (fill) fill.style.width = percent + '%';
+        if (percentEl) percentEl.textContent = percent + '%';
+
+        if (percent < 100) {
+            gatheringRafId = requestAnimationFrame(tick);
+            return;
+        }
+
+        gatheringRafId = null;
+        const outcome = rollGatherOutcome(session.bonuses, session.adjustedExp);
+        activeGatherSession.outcome = outcome;
+
+        const panel = document.getElementById('gatherProgressPanel');
+        if (panel) panel.classList.add('gather-complete');
+
+        onGatheringComplete(session.profId, session.resourceName, session.adjustedExp, outcome, session.gatherOptions);
+    };
+
+    gatheringRafId = requestAnimationFrame(tick);
 }
 
 function claimCriticalGather() {
@@ -692,7 +733,7 @@ function startGathering(profId, resourceName, time, exp, requiredTier, gatherOpt
     const totalTime = adjustedTime * 1000;
     const startTime = performance.now();
 
-    activeGatherSession = { profId, resourceName, adjustedExp, bonuses, gatherOptions };
+    activeGatherSession = { profId, resourceName, adjustedExp, bonuses, gatherOptions, startTime, totalTime };
 
     progressDiv.innerHTML = `
         <div class="gathering-progress gather-active" id="gatherProgressPanel">
