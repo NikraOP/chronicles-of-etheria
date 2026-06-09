@@ -171,28 +171,61 @@ const CRAFTING_RECIPES = {
             {name:'Скипетр первозданной магии',icon:'✨',img:'png/weapons/mage/mage_staff_13.png',tier:6,exp:1000,time:18,resources:{'Орихалк':8,'Звездный камень':3,'Звёздный шёлк':6,'Камень душ':2},type:'weapon',class:'Маг',rarity:'Древний',dmg:106,def:12,hp:156,crit:24,critDmg:60,baseDmg:106},
             {name:'Посох абсолютной магии',icon:'🔮',img:'png/weapons/mage/mage_staff_14.png',tier:6,exp:1200,time:20,resources:{'Орихалк':9,'Звездный камень':5,'Звёздный шёлк':6,'Камень душ':3,'Искра творца':4,'Эссенция пустоты':3},type:'weapon',class:'Маг',rarity:'Божественный',dmg:114,hp:192,crit:34,critDmg:90,dodge:4,baseDmg:114},
             {name:'Жезл вселенной',icon:'🌠',img:'png/weapons/mage/mage_staff_15.png',tier:6,exp:1300,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Звёздный шёлк':8,'Камень душ':3,'Искра творца':5,'Эссенция пустоты':3},type:'weapon',class:'Маг',rarity:'Божественный',dmg:132,hp:240,crit:38,critDmg:102,baseDmg:132},
-            {name:'Скипетр божественной силы',icon:'👑',img:'png/weapons/mage/mage_staff_16.png',tier:6,exp:1500,time:22,resources:{'Орихалк':12,'Звездный камень':6,'Звёздный шёлк':8,'Камень душ':5,'Искра творца':5,'Эссенция пустоты':4},type:'weapon',class:'Маг',rarity:'Божественный',dmg:156,hp:300,crit:42,critDmg:120,baseDmg:156},
+            {name:'Скипетр божественной силы',icon:'👑',img:'png/weapons/mage/PS> git status.png',tier:6,exp:1500,time:22,resources:{'Орихалк':12,'Звездный камень':6,'Звёздный шёлк':8,'Камень душ':5,'Искра творца':5,'Эссенция пустоты':4},type:'weapon',class:'Маг',rarity:'Божественный',dmg:156,hp:300,crit:42,critDmg:120,baseDmg:156},
             {name:'Посох мироздания',icon:'🌟',img:'png/weapons/mage/mage_staff_17.png',tier:6,exp:1800,time:25,resources:{'Орихалк':14,'Звездный камень':8,'Звёздный шёлк':9,'Камень душ':6,'Искра творца':6,'Эссенция пустоты':4},type:'weapon',class:'Маг',rarity:'Божественный',dmg:180,hp:384,crit:48,critDmg:144,baseDmg:180}
         ],
         armor: [
-            {name:'Хлопковая мантия',icon:'👘',img:'png/armor/mage/mage_armor_01.png',tier:2,exp:80,time:4,resources:{'Хлопок':6},type:'chest',class:'Маг',rarity:'Необычный',def:6,hp:24,mana:24,baseDef:6},
-            {name:'Хлопковый капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_02.png',tier:2,exp:60,time:3,resources:{'Хлопок':5},type:'helmet',class:'Маг',rarity:'Необычный',def:4,hp:14,mana:14,baseDef:4},
-            {name:'Хлопковые штаны',icon:'👖',img:'png/armor/mage/mage_armor_03.png',tier:2,exp:55,time:3,resources:{'Хлопок':5},type:'pants',class:'Маг',rarity:'Необычный',def:4,hp:12,mana:12,baseDef:4},
-            {name:'Хлопковые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_04.png',tier:2,exp:55,time:3,resources:{'Хлопок':5},type:'boots',class:'Маг',rarity:'Необычный',def:4,dodge:4,mana:10,baseDef:4},
-            {name:'Шёлковая мантия',icon:'👘',img:'png/armor/mage/mage_armor_05.png',tier:3,exp:150,time:6,resources:{'Шёлк':6,'Паутина':3},type:'chest',class:'Маг',rarity:'Редкий',def:12,hp:42,mana:48,baseDef:12},
-            {name:'Шёлковый капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_06.png',tier:3,exp:120,time:5,resources:{'Шёлк':5,'Паутина':2},type:'helmet',class:'Маг',rarity:'Редкий',def:8,hp:26,mana:30,baseDef:8},
-            {name:'Шёлковые штаны',icon:'👖',img:'png/armor/mage/mage_armor_07.png',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'pants',class:'Маг',rarity:'Редкий',def:7,hp:22,mana:24,baseDef:7},
-            {name:'Шёлковые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_08.png',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'boots',class:'Маг',rarity:'Редкий',def:7,dodge:6,mana:22,baseDef:7},
-            {name:'Мифриловое одеяние',icon:'✨',img:'png/armor/mage/mage_armor_09.png',tier:4,exp:280,time:9,resources:{'Мифриловая нить':6,'Шёлк':3},type:'chest',class:'Маг',rarity:'Эпический',def:22,hp:66,mana:84,baseDef:22},
-            {name:'Мифриловый капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_10.png',tier:4,exp:220,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'helmet',class:'Маг',rarity:'Эпический',def:14,hp:42,mana:54,baseDef:14},
-            {name:'Мифриловые штаны',icon:'👖',img:'png/armor/mage/mage_armor_11.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'pants',class:'Маг',rarity:'Эпический',def:12,hp:34,mana:42,baseDef:12},
-            {name:'Мифриловые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_12.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'boots',class:'Маг',rarity:'Эпический',def:12,dodge:7,mana:36,baseDef:12},
+            // === СЕТ "КОЖАНЫЙ" (базовый, тир 1-5) ===
+            {name:'Кожаная роба',icon:'👘',img:'png/armor/mage/kox-nag.png',tier:1,exp:50,time:3,resources:{'Кожа':6},type:'chest',class:'Маг',rarity:'Обычный',def:3,hp:14,mana:14,baseDef:3},
+            {name:'Кожаная роба зачарованная',icon:'👘',img:'png/armor/mage/kox-nag.png',tier:2,exp:80,time:4,resources:{'Кожа':7,'Паутина':2},type:'chest',class:'Маг',rarity:'Необычный',def:5,hp:22,mana:24,baseDef:5},
+            {name:'Кожаная роба рейнджера',icon:'👘',img:'png/armor/mage/kox-nag.png',tier:3,exp:150,time:6,resources:{'Кожа':8,'Шёлк':3},type:'chest',class:'Маг',rarity:'Редкий',def:10,hp:36,mana:48,baseDef:10},
+            {name:'Кожаная роба тени',icon:'👘',img:'png/armor/mage/kox-nag.png',tier:4,exp:280,time:9,resources:{'Кожа':9,'Мифриловая нить':3},type:'chest',class:'Маг',rarity:'Эпический',def:18,hp:56,mana:84,baseDef:18},
+            {name:'Кожаная роба призрака',icon:'👘',img:'png/armor/mage/kox-nag.png',tier:5,exp:450,time:12,resources:{'Кожа':10,'Драконья чешуя':2},type:'chest',class:'Маг',rarity:'Легендарный',def:20,hp:80,mana:120,baseDef:20},
             
-            // Мифический звёздный сет (тир 6) — крафт
-            {name:'Звёздное одеяние',icon:'🌟',img:'png/armor/mage/mage_armor_13.png',tier:6,exp:500,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Звездная пыльца':3},type:'chest',class:'Маг',rarity:'Мифический',def:38,hp:108,mana:144,baseDef:38},
-            {name:'Звёздный капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_14.png',tier:6,exp:400,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'helmet',class:'Маг',rarity:'Мифический',def:26,hp:72,mana:96,baseDef:26},
-            {name:'Звёздные штаны',icon:'👖',img:'png/armor/mage/mage_armor_15.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'pants',class:'Маг',rarity:'Мифический',def:22,hp:60,mana:78,baseDef:22},
-            {name:'Звёздные сапоги',icon:'👢',img:'png/armor/mage/mage_armor_16.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Мифический',def:22,dodge:10,mana:66,baseDef:22},
+            {name:'Кожаный колпак',icon:'🎭',img:'png/armor/mage/kox-helm.png',tier:1,exp:40,time:2,resources:{'Кожа':5},type:'helmet',class:'Маг',rarity:'Обычный',def:1,hp:7,mana:7,baseDef:1},
+            {name:'Кожаный колпак зачарованный',icon:'🎭',img:'png/armor/mage/kox-helm.png',tier:2,exp:60,time:3,resources:{'Кожа':6,'Паутина':2},type:'helmet',class:'Маг',rarity:'Необычный',def:3,hp:12,mana:14,baseDef:3},
+            {name:'Кожаный колпак рейнджера',icon:'🎭',img:'png/armor/mage/kox-helm.png',tier:3,exp:120,time:5,resources:{'Кожа':7,'Шёлк':2},type:'helmet',class:'Маг',rarity:'Редкий',def:6,hp:24,mana:30,baseDef:6},
+            {name:'Кожаный колпак тени',icon:'🎭',img:'png/armor/mage/kox-helm.png',tier:4,exp:220,time:7,resources:{'Кожа':8,'Мифриловая нить':2},type:'helmet',class:'Маг',rarity:'Эпический',def:11,hp:36,mana:54,baseDef:11},
+            {name:'Кожаный колпак призрака',icon:'🎭',img:'png/armor/mage/kox-helm.png',tier:5,exp:350,time:10,resources:{'Кожа':9,'Драконья чешуя':1},type:'helmet',class:'Маг',rarity:'Легендарный',def:14,hp:50,mana:72,baseDef:14},
+            
+            {name:'Кожаные штаны',icon:'👖',img:'png/armor/mage/kox-wtan.png',tier:1,exp:35,time:2,resources:{'Кожа':5},type:'pants',class:'Маг',rarity:'Обычный',def:1,hp:8,mana:8,baseDef:1},
+            {name:'Кожаные штаны зачарованные',icon:'👖',img:'png/armor/mage/kox-wtan.png',tier:2,exp:55,time:3,resources:{'Кожа':6,'Паутина':2},type:'pants',class:'Маг',rarity:'Необычный',def:3,hp:12,mana:14,baseDef:3},
+            {name:'Кожаные штаны рейнджера',icon:'👖',img:'png/armor/mage/kox-wtan.png',tier:3,exp:100,time:4,resources:{'Кожа':7,'Шёлк':2},type:'pants',class:'Маг',rarity:'Редкий',def:5,hp:20,mana:24,baseDef:5},
+            {name:'Кожаные штаны тени',icon:'👖',img:'png/armor/mage/kox-wtan.png',tier:4,exp:200,time:7,resources:{'Кожа':8,'Мифриловая нить':2},type:'pants',class:'Маг',rarity:'Эпический',def:10,hp:30,mana:42,baseDef:10},
+            {name:'Кожаные штаны призрака',icon:'👖',img:'png/armor/mage/kox-wtan.png',tier:5,exp:320,time:10,resources:{'Кожа':9,'Драконья чешуя':1},type:'pants',class:'Маг',rarity:'Легендарный',def:12,hp:42,mana:60,baseDef:12},
+            
+            {name:'Кожаные сапоги',icon:'👢',img:'png/armor/mage/kox-buc.png',tier:1,exp:35,time:2,resources:{'Кожа':5},type:'boots',class:'Маг',rarity:'Обычный',def:1,dodge:3,mana:6,baseDef:1},
+            {name:'Кожаные сапоги зачарованные',icon:'👢',img:'png/armor/mage/kox-buc.png',tier:2,exp:55,time:3,resources:{'Кожа':6,'Паутина':2},type:'boots',class:'Маг',rarity:'Необычный',def:3,dodge:5,mana:10,baseDef:3},
+            {name:'Кожаные сапоги рейнджера',icon:'👢',img:'png/armor/mage/kox-buc.png',tier:3,exp:100,time:4,resources:{'Кожа':7,'Шёлк':2},type:'boots',class:'Маг',rarity:'Редкий',def:5,dodge:7,mana:22,baseDef:5},
+            {name:'Кожаные сапоги тени',icon:'👢',img:'png/armor/mage/kox-buc.png',tier:4,exp:200,time:7,resources:{'Кожа':8,'Мифриловая нить':2},type:'boots',class:'Маг',rarity:'Эпический',def:10,dodge:10,mana:36,baseDef:10},
+            {name:'Кожаные сапоги призрака',icon:'👢',img:'png/armor/mage/kox-buc.png',tier:5,exp:320,time:10,resources:{'Кожа':9,'Драконья чешуя':1},type:'boots',class:'Маг',rarity:'Легендарный',def:10,dodge:12,mana:48,baseDef:10},
+            
+            // === СЕТ "КОЛЬЧУЖНЫЙ" (продвинутый, тир 2-5) ===
+            {name:'Кольчужная мантия',icon:'👘',img:'png/armor/mage/kolch-nag.png',tier:2,exp:80,time:4,resources:{'Медная руда':4,'Кожа':4},type:'chest',class:'Маг',rarity:'Необычный',def:4,hp:20,mana:20,baseDef:4},
+            {name:'Кольчужная мантия мудреца',icon:'👘',img:'png/armor/mage/kolch-nag.png',tier:3,exp:150,time:6,resources:{'Серебряная руда':4,'Кожа':5},type:'chest',class:'Маг',rarity:'Редкий',def:10,hp:35,mana:42,baseDef:10},
+            {name:'Кольчужная мантия архимага',icon:'👘',img:'png/armor/mage/kolch-nag.png',tier:4,exp:280,time:9,resources:{'Золотая руда':4,'Кожа':6},type:'chest',class:'Маг',rarity:'Эпический',def:18,hp:56,mana:72,baseDef:18},
+            {name:'Кольчужная мантия провидца',icon:'👘',img:'png/armor/mage/kolch-nag.png',tier:5,exp:450,time:12,resources:{'Мифриловая руда':4,'Кожа':7},type:'chest',class:'Маг',rarity:'Легендарный',def:20,hp:80,mana:108,baseDef:20},
+            
+            {name:'Кольчужный капюшон',icon:'🎭',img:'png/armor/mage/kolch-helm.png',tier:2,exp:60,time:3,resources:{'Медная руда':3,'Кожа':3},type:'helmet',class:'Маг',rarity:'Необычный',def:2,hp:11,mana:12,baseDef:2},
+            {name:'Кольчужный капюшон мудреца',icon:'🎭',img:'png/armor/mage/kolch-helm.png',tier:3,exp:120,time:5,resources:{'Серебряная руда':3,'Кожа':4},type:'helmet',class:'Маг',rarity:'Редкий',def:6,hp:22,mana:24,baseDef:6},
+            {name:'Кольчужный капюшон архимага',icon:'🎭',img:'png/armor/mage/kolch-helm.png',tier:4,exp:220,time:7,resources:{'Золотая руда':3,'Кожа':5},type:'helmet',class:'Маг',rarity:'Эпический',def:11,hp:35,mana:42,baseDef:11},
+            {name:'Кольчужный капюшон провидца',icon:'🎭',img:'png/armor/mage/kolch-helm.png',tier:5,exp:350,time:10,resources:{'Мифриловая руда':3,'Кожа':6},type:'helmet',class:'Маг',rarity:'Легендарный',def:14,hp:50,mana:60,baseDef:14},
+            
+            {name:'Кольчужные поножи',icon:'👖',img:'png/armor/mage/kolch-wtan.png',tier:2,exp:55,time:3,resources:{'Медная руда':3,'Кожа':3},type:'pants',class:'Маг',rarity:'Необычный',def:2,hp:10,mana:10,baseDef:2},
+            {name:'Кольчужные поножи мудреца',icon:'👖',img:'png/armor/mage/kolch-wtan.png',tier:3,exp:100,time:4,resources:{'Серебряная руда':3,'Кожа':4},type:'pants',class:'Маг',rarity:'Редкий',def:5,hp:18,mana:18,baseDef:5},
+            {name:'Кольчужные поножи архимага',icon:'👖',img:'png/armor/mage/kolch-wtan.png',tier:4,exp:200,time:7,resources:{'Золотая руда':3,'Кожа':5},type:'pants',class:'Маг',rarity:'Эпический',def:10,hp:28,mana:30,baseDef:10},
+            {name:'Кольчужные поножи провидца',icon:'👖',img:'png/armor/mage/kolch-wtan.png',tier:5,exp:320,time:10,resources:{'Мифриловая руда':3,'Кожа':6},type:'pants',class:'Маг',rarity:'Легендарный',def:12,hp:42,mana:48,baseDef:12},
+            
+            {name:'Кольчужные сапоги',icon:'👢',img:'png/armor/mage/kolch-buc.png',tier:2,exp:55,time:3,resources:{'Медная руда':3,'Кожа':3},type:'boots',class:'Маг',rarity:'Необычный',def:2,dodge:3,mana:8,baseDef:2},
+            {name:'Кольчужные сапоги мудреца',icon:'👢',img:'png/armor/mage/kolch-buc.png',tier:3,exp:100,time:4,resources:{'Серебряная руда':3,'Кожа':4},type:'boots',class:'Маг',rarity:'Редкий',def:5,dodge:5,mana:16,baseDef:5},
+            {name:'Кольчужные сапоги архимага',icon:'👢',img:'png/armor/mage/kolch-buc.png',tier:4,exp:200,time:7,resources:{'Золотая руда':3,'Кожа':5},type:'boots',class:'Маг',rarity:'Эпический',def:10,dodge:5,mana:28,baseDef:10},
+            {name:'Кольчужные сапоги провидца',icon:'👢',img:'png/armor/mage/kolch-buc.png',tier:5,exp:320,time:10,resources:{'Мифриловая руда':3,'Кожа':6},type:'boots',class:'Маг',rarity:'Легендарный',def:10,dodge:12,mana:42,baseDef:10},
+            
+            // === СЕТ "ЗВЁЗДНЫЙ" (топовый, тир 6, объединяет Мифриловый + Тайные знания) ===
+            {name:'Звёздное одеяние',icon:'🌟',img:'png/armor/mage/mage_armor_13.png',tier:6,exp:500,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Звездная пыльца':3,'Алмаз':2},type:'chest',class:'Маг',rarity:'Мифический',def:38,hp:108,mana:144,critDmg:14,dodge:4,baseDef:38},
+            {name:'Звёздный капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_14.png',tier:6,exp:400,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2,'Алмаз':1},type:'helmet',class:'Маг',rarity:'Мифический',def:26,hp:72,mana:96,crit:10,dodge:5,baseDef:26},
+            {name:'Звёздные штаны',icon:'👖',img:'png/armor/mage/mage_armor_15.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'pants',class:'Маг',rarity:'Мифический',def:22,hp:60,mana:78,dodge:8,baseDef:22},
+            {name:'Звёздные сапоги',icon:'👢',img:'png/armor/mage/mage_armor_16.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Мифический',def:22,dodge:14,mana:66,baseDef:22},
 
             // Древние/Божественные — ТОЛЬКО КРАФТ
             {name:'Капюшон звёздного пророка',icon:'🔮',img:'png/armor/mage/mage_armor_17.png',tier:6,exp:800,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездный камень':2},type:'helmet',class:'Маг',rarity:'Древний',def:46,hp:132,mana:120,crit:18,critDmg:14,baseDef:46},
