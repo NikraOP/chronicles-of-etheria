@@ -433,6 +433,9 @@ function getFallbackAvatar() {
     return '🏹';
 }
 
+// Хранилище активных уведомлений для позиционирования
+window.activePushNotifications = [];
+
 function addMessage(msg, type) {
     // Создаём push-уведомление
     const notification = document.createElement('div');
@@ -450,7 +453,18 @@ function addMessage(msg, type) {
         <span class="push-notification__text">${msg}</span>
     `;
     
+    // Позиционируем уведомление
+    const baseTop = 20;
+    const gap = 10;
+    const notificationHeight = 60; // примерная высота одного уведомления
+    const topPosition = baseTop + (window.activePushNotifications.length * (notificationHeight + gap));
+    
+    notification.style.top = topPosition + 'px';
+    
     document.body.appendChild(notification);
+    
+    // Добавляем в массив активных
+    window.activePushNotifications.push(notification);
     
     // Удаляем через 3.5 секунды с анимацией
     setTimeout(() => {
@@ -458,6 +472,16 @@ function addMessage(msg, type) {
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
+            }
+            // Удаляем из массива и пересчитываем позиции
+            const index = window.activePushNotifications.indexOf(notification);
+            if (index > -1) {
+                window.activePushNotifications.splice(index, 1);
+                // Пересчитываем позиции оставшихся уведомлений
+                window.activePushNotifications.forEach((notif, idx) => {
+                    const newTop = baseTop + (idx * (notificationHeight + gap));
+                    notif.style.top = newTop + 'px';
+                });
             }
         }, 300);
     }, 3500);

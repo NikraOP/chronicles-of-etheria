@@ -881,6 +881,7 @@ body.low-hp .main-content {
     pointer-events: none;
     opacity: 0;
     transform: translateX(-20px);
+    transition: top 0.3s ease-out;
 }
 
 @keyframes pushSlideIn {
