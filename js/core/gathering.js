@@ -504,6 +504,30 @@ function releaseGatherLockAndRefresh(profId, delayMs) {
     }
 }
 
+function restoreGatherProgressUI() {
+    // Восстанавливаем UI прогресса добычи если есть активная сессия
+    if (!isGatheringLocked || !activeGatherSession) return;
+    const progressDiv = document.getElementById('gatheringProgress');
+    if (!progressDiv) return;
+
+    const session = activeGatherSession;
+    progressDiv.innerHTML = `
+        <div class="gathering-progress gather-active" id="gatherProgressPanel">
+            <div class="gather-progress-header">
+                <strong>⛏️ Добыча: ${session.resourceName}</strong>
+                <span id="gatherPercent">0%</span>
+            </div>
+            <div class="gathering-bar">
+                <div class="gathering-fill" id="gatherFill"></div>
+            </div>
+            <div class="gather-progress-hint">
+                ⚡ -${Math.floor(session.bonuses.gatherSpeedBonus * 100)}% времени · 📈 +${Math.floor(session.bonuses.expBonus * 100)}% опыта
+            </div>
+            <div id="gatherResult"></div>
+        </div>
+    `;
+}
+
 function claimCriticalGather() {
     if (!pendingGatherData || !activeGatherSession) return;
 
@@ -590,7 +614,7 @@ function onGatheringComplete(profId, resourceName, adjustedExp, outcome, gatherO
     } else if (gatherOptions.auto) {
         setTimeout(() => claimCriticalGather(), 900);
     }
-
+    
     addMessage(`⛏️ Базовая добыча +${outcome.autoCount} ${resourceName}. Заберите критический бонус!`, 'info');
     isGatheringLocked = true;
     scrollGatherClaimIntoView();
@@ -799,7 +823,8 @@ function showGatheringResources(profId) {
     if (typeof guardBattleNavigation === 'function' && !guardBattleNavigation()) return;
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showProfessions', []);
-    stopGatheringAnimation();
+    // НЕ прерываем активную добычу — она продолжается в фоне
+    // stopGatheringAnimation();
     pendingGatherData = null;
 
     const prof = PROFESSIONS_DB.gathering.find(p => p.id === profId);
@@ -875,6 +900,9 @@ function showGatheringResources(profId) {
 
     if (availableResources.length > 0) bindGatheringResourceGrid(profId, availableResources);
 
+    // Восстанавливаем UI прогресса добычи если она активна
+    restoreGatherProgressUI();
+
     if (isAutoGatherActiveForProf(profId)) {
         tickAutoGatherUi(profId);
         if (autoGatherUiTimerId != null) clearInterval(autoGatherUiTimerId);
@@ -899,3 +927,4 @@ window.upgradeBonus = upgradeBonus;
 window.resetBonusPoints = resetBonusPoints;
 window.getProfessionBonuses = getProfessionBonuses;
 window.getBaseProfessionBonuses = getBaseProfessionBonuses;
+window.restoreGatherProgressUI = restoreGatherProgressUI;
