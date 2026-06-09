@@ -541,6 +541,8 @@ function removeCraftPushNotification() {
     }
     craftPushNotification = null;
 }
+
+function stopAutoCraftSession(reason) {
     if (autoCraftIntervalId != null) {
         clearInterval(autoCraftIntervalId);
         autoCraftIntervalId = null;
@@ -1285,6 +1287,7 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
             scaledMaterials,
             batchCount: count
         });
+        showCraftPushNotification(normRecipe.name, count, 0);
         return;
     }
 
@@ -1335,12 +1338,6 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
     window.craftStartTime = startTime;
     window.craftTotalTime = totalTime;
     
-    // Показываем push-уведомление если игрок не в меню крафта
-    const slot = document.getElementById('craftProgressSlot');
-    if (!slot) {
-        showCraftPushNotification(normRecipe.name, count, 0);
-    }
-
     const tick = (now) => {
         // Проверяем только activeCraftSession — isCraftingLocked может быть false если UI закрыт
         if (!activeCraftSession) return;
