@@ -141,7 +141,8 @@ function enterBattleZone() {
     if (!player) return;
     if (isBattleEngaged()) return;
     if (typeof stopGathering === 'function') stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при входе в бой — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
 
     const candidates = getStagingMonsterCandidates();
     if (!candidates.length) {
@@ -163,7 +164,8 @@ function enterBattleZoneWithMonster(monsterData, options) {
     if (!monsterData) return false;
     if (isBattleEngaged()) return false;
     if (typeof stopGathering === 'function') stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при входе в бой — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
 
     battleZoneActive = true;
     battleEngaged = false;

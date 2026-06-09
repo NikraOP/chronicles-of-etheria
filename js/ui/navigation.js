@@ -36,7 +36,8 @@ function showProfessions() {
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('renderGame', []);
     stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при переходе в профессии — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     let html = '<h2>🔧 Профессии</h2><p style="margin-bottom:15px;">Изучайте профессии, собирайте ресурсы и создавайте предметы. Каждый тир даёт бонусы!</p>';
     
     html += '<h3 style="color:var(--green); margin-top: 15px;">🌿 Добывающие профессии</h3><div class="profession-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">';

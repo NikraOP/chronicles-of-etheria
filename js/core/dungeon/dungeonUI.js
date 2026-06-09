@@ -12,7 +12,8 @@ function dungeonUiPrepareScreen(parentFn, parentArgs) {
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen(parentFn, parentArgs || []);
     if (typeof stopGathering === 'function') stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при переходе в подземелья — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     return true;
 }
 
@@ -124,7 +125,8 @@ function showDungeonsHub(opts) {
     }
     if (opts.force) {
         if (typeof stopGathering === 'function') stopGathering();
-        if (typeof flushPendingCraft === 'function') flushPendingCraft();
+        // НЕ прерываем крафт при переходе в список подземелий — крафт продолжается в фоне
+        // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     } else if (!dungeonUiPrepareScreen('renderGame', [])) {
         return;
     }

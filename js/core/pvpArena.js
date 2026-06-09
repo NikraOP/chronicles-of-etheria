@@ -1362,7 +1362,8 @@ function showPvPArena() {
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (!player) return;
     stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при выходе из PvP — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     if (typeof leavePvPBossBattle === 'function') leavePvPBossBattle();
     resetPvPLobbyForRematch();
     pvpState.local = getPvPPlayerSnapshot();

@@ -481,6 +481,7 @@ let activeCraftSession = null;
 let isCraftingLocked = false;
 let autoCraftSession = null; // Авто-крафт как свитки добычи
 let autoCraftIntervalId = null;
+let sessionFinished = false; // Флаг для предотвращения дублирования при завершении крафта
 
 function stopAutoCraftSession(reason) {
     if (autoCraftIntervalId != null) {
@@ -522,8 +523,9 @@ function stopCraftProgress() {
         cancelAnimationFrame(craftProgressRafId);
         craftProgressRafId = null;
     }
-    activeCraftSession = null;
-    isCraftingLocked = false;
+    // НЕ сбрасываем activeCraftSession и isCraftingLocked — крафт продолжается в фоне
+    // activeCraftSession = null;
+    // isCraftingLocked = false;
     if (typeof document.querySelector === 'function') {
         const grid = document.querySelector('.craft-recipe-grid');
         if (grid) grid.classList.remove('craft-grid-locked');
@@ -531,6 +533,7 @@ function stopCraftProgress() {
     }
     const slot = document.getElementById('craftProgressSlot');
     if (slot) slot.innerHTML = '';
+    sessionFinished = false; // Сбрасываем флаг при остановке
 }
 
 function flushPendingCraft() {
@@ -568,7 +571,7 @@ function finishCraftProgress(session) {
     const slot = document.getElementById('craftProgressSlot');
     const hasUi = !!slot;
     completeCrafting(session.profId, { silent: !hasUi });
-    stopCraftProgress();
+    // stopCraftProgress(); — НЕ вызываем здесь — крафт продолжается в фоне
 }
 
 // Функция для сбора всех рецептов профессии из всех категорий
@@ -765,6 +768,11 @@ function completeCrafting(profId, options) {
     saveGame();
     pendingCraftData = null;
     
+    // Сбрасываем lock и сессию только после успешного завершения
+    isCraftingLocked = false;
+    activeCraftSession = null;
+    sessionFinished = true; // Помечаем как завершённую чтобы избежать повторного вызова
+    
     // Обновляем счётчик авто-крафта
     if (autoCraftSession && autoCraftSession.profId === profId) {
         autoCraftSession.crafted = (autoCraftSession.crafted || 0) + count;
@@ -784,8 +792,9 @@ function showCraftingRecipes(profId) {
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     if (typeof uiNavOnScreenOpen === 'function') uiNavOnScreenOpen('showProfessions', []);
     stopGathering();
-    stopCraftProgress();
-    if (pendingCraftData) flushPendingCraft();
+    // НЕ останавливаем крафт при переходе в рецепты — продолжаем в фоне
+    // stopCraftProgress();
+    // if (pendingCraftData) flushPendingCraft();
     
     const allRecipes = getAllRecipesForProfession(profId);
     
@@ -1054,11 +1063,20 @@ function startCraftWithQuantity(recipeNameEncoded, profId) {
 }
 
 function startCraftProgress(profId, recipeName, cardEl, craftCount) {
-    if (isCraftingLocked) {
-        addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
-        return;
+    // Разрешаем крафт в фоне даже если UI заблокирован
+    // if (isCraftingLocked) {
+    //     addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
+    //     return;
+    // }
+    // Проверяем только activeCraftSession — если есть активная сессия, завершаем её перед новым крафтом
+    if (activeCraftSession) {
+        // Если крафт уже идёт в фоне, завершаем его перед новым
+        finishCraftProgress(activeCraftSession);
     }
     if (pendingCraftData) flushPendingCraft();
+
+    // Сбрасываем флаг завершённости для новой сессии
+    sessionFinished = false;
 
     const allRecipes = getAllRecipesForProfession(profId);
     const recipe = allRecipes.find(r => r.name === recipeName);
@@ -1103,6 +1121,7 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
 
     const slot = document.getElementById('craftProgressSlot');
     if (!slot) {
+        // Нет UI — крафтим сразу в фоне
         finishCraftProgress({
             profId,
             normRecipe,
@@ -1114,7 +1133,8 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
         return;
     }
 
-    stopCraftProgress();
+    // НЕ останавливаем предыдущий прогресс — крафт продолжается в фоне
+    // stopCraftProgress();
     isCraftingLocked = true;
     if (typeof document.querySelector === 'function') {
         const grid = document.querySelector('.craft-recipe-grid');
@@ -1157,7 +1177,10 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
     const startTime = performance.now();
 
     const tick = (now) => {
-        if (!isCraftingLocked || !activeCraftSession) return;
+        // Проверяем только activeCraftSession — isCraftingLocked может быть false если UI закрыт
+        if (!activeCraftSession) return;
+        // Если сессия уже завершена — прекращаем
+        if (sessionFinished) return;
 
         const elapsed = now - startTime;
         const percent = Math.min(100, Math.floor(elapsed / totalTime * 100));
@@ -1171,6 +1194,8 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
             return;
         }
 
+        // Крафт завершён — помечаем сессию как завершённую чтобы избежать дублирования
+        sessionFinished = true;
         craftProgressRafId = null;
         const panel = document.getElementById('craftProgressPanel');
         if (panel) panel.classList.add('craft-complete');

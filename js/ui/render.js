@@ -11,7 +11,8 @@ function renderGame() {
     }
     if (typeof cancelBattleZoneStaging === 'function') cancelBattleZoneStaging();
     stopGathering();
-    if (typeof flushPendingCraft === 'function') flushPendingCraft();
+    // НЕ прерываем крафт при возврате на главный экран — крафт продолжается в фоне
+    // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     document.body.classList.remove('low-hp', 'settings-open');
     const av = getAvatar();
     const cs = 'class-' + (player.class === 'Воин' ? 'warrior' : player.class === 'Маг' ? 'mage' : 'archer');
