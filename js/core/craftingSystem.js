@@ -482,6 +482,8 @@ let isCraftingLocked = false;
 let autoCraftSession = null; // Авто-крафт как свитки добычи
 let autoCraftIntervalId = null;
 let sessionFinished = false; // Флаг для предотвращения дублирования при завершении крафта
+let craftStartTime = 0; // Время начала крафта для восстановления прогресса
+let craftTotalTime = 0; // Общее время крафта в миллисекундах
 
 function stopAutoCraftSession(reason) {
     if (autoCraftIntervalId != null) {
@@ -518,6 +520,65 @@ function tickAutoCraftUi(profId) {
         '</div>';
 }
     
+function restoreCraftProgressUI() {
+    // Восстанавливаем UI крафта если есть активная сессия и UI slot
+    if (!activeCraftSession || sessionFinished) return;
+    const slot = document.getElementById('craftProgressSlot');
+    if (!slot) return;
+    
+    const session = activeCraftSession;
+    const iconHtml = typeof renderItemIconHTML === 'function'
+        ? renderItemIconHTML(session.normRecipe, { size: 32, fallback: session.normRecipe.icon || '📦' })
+        : (session.normRecipe.icon || '📦');
+    
+    const quantityLabel = session.batchCount > 1 ? ` ×${session.batchCount}` : '';
+    
+    // Рассчитываем текущий прогресс
+    const elapsed = performance.now() - craftStartTime;
+    const percent = Math.min(100, Math.floor(elapsed / craftTotalTime * 100));
+    
+    slot.innerHTML = `
+        <div class="crafting-progress craft-active" id="craftProgressPanel">
+            <div class="craft-progress-header">
+                <span class="craft-progress-icon">${iconHtml}</span>
+                <strong>🔨 Создание: ${session.normRecipe.name}${quantityLabel}</strong>
+                <span id="craftPercent">${percent}%</span>
+            </div>
+            <div class="crafting-bar">
+                <div class="crafting-fill" id="craftFill" style="width: ${percent}%"></div>
+            </div>
+            <div class="craft-progress-hint-detail">
+                ⚡ −${Math.floor(session.bonuses.gatherSpeedBonus * 100)}% времени · ✨ +${Math.floor(session.bonuses.craftQualityBonus * 100)}% качества · 📦 ×${session.batchCount}
+            </div>
+        </div>
+    `;
+    
+    // Возобновляем анимацию
+    const tick = (now) => {
+        if (!activeCraftSession || sessionFinished) return;
+        
+        const elapsed = now - craftStartTime;
+        const percent = Math.min(100, Math.floor(elapsed / craftTotalTime * 100));
+        const fill = document.getElementById('craftFill');
+        const percentEl = document.getElementById('craftPercent');
+        if (fill) fill.style.width = percent + '%';
+        if (percentEl) percentEl.textContent = percent + '%';
+
+        if (percent < 100) {
+            craftProgressRafId = requestAnimationFrame(tick);
+            return;
+        }
+
+        sessionFinished = true;
+        craftProgressRafId = null;
+        const panel = document.getElementById('craftProgressPanel');
+        if (panel) panel.classList.add('craft-complete');
+        finishCraftProgress(activeCraftSession);
+    };
+
+    craftProgressRafId = requestAnimationFrame(tick);
+}
+
 function stopCraftProgress() {
     if (craftProgressRafId) {
         cancelAnimationFrame(craftProgressRafId);
@@ -853,6 +914,11 @@ function showCraftingRecipes(profId) {
     html += '<div id="craftProgressSlot" class="craft-progress-slot"></div>';
     html += '<p class="craft-progress-hint">Нажмите на рецепт с ✓ — начнётся создание. <strong>Shift+Крафт</strong> или <strong>Ctrl+Крафт</strong> — авто-крафт до указанного количества.</p>';
     
+    document.getElementById('dynamicContent').innerHTML = html;
+    
+    // Восстанавливаем UI прогресса крафта если он активен
+    restoreCraftProgressUI();
+    
     // Показываем панель авто-крафта если активен
     if (isAutoCraftActiveForProf(profId)) {
         tickAutoCraftUi(profId);
@@ -1176,6 +1242,10 @@ function startCraftProgress(profId, recipeName, cardEl, craftCount) {
     const totalTime = adjustedTime * 1000;
     const startTime = performance.now();
 
+    // Сохраняем время для восстановления UI
+    craftStartTime = startTime;
+    craftTotalTime = totalTime;
+
     const tick = (now) => {
         // Проверяем только activeCraftSession — isCraftingLocked может быть false если UI закрыт
         if (!activeCraftSession) return;
@@ -1226,3 +1296,4 @@ window.startAutoCraft = startAutoCraft;
 window.stopAutoCraftSession = stopAutoCraftSession;
 window.prepareCraft = prepareCraft;
 window.showCraftingRecipes = showCraftingRecipes;
+window.restoreCraftProgressUI = restoreCraftProgressUI;
