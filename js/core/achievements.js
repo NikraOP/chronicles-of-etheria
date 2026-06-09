@@ -529,7 +529,7 @@ function getAchievementCurrentProgress(achievement) {
 }
 
 // Экспорт функций
-window.initAchievements = initAchievements;
+window.initAchievements = initAchievementsSystem; // Алиас для совместимости
 window.initAchievementsSystem = initAchievementsSystem;
 window.checkAllAchievements = checkAllAchievements;
 window.unlockAchievement = unlockAchievement;
