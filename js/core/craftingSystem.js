@@ -435,7 +435,8 @@ function bindCraftRecipeGrid(profId) {
             if (e.target.closest('.craft-quantity-input') || e.target.closest('.craft-now-btn')) {
                 return;
             }
-            if (isCraftingLocked && !autoCraftSession) {
+            // Проверяем активную сессию — если есть и ещё не завершена, ждём
+            if (activeCraftSession && !sessionFinished) {
                 addMessage('⏳ Дождитесь окончания текущего крафта.', 'error');
                 return;
             }
@@ -521,8 +522,8 @@ function tickAutoCraftUi(profId) {
 }
     
 function restoreCraftProgressUI() {
-    // Восстанавливаем UI крафта если есть активная сессия и UI slot
-    if (!activeCraftSession || sessionFinished) return;
+    // Восстанавливаем UI крафта если есть активная сессия
+    if (!activeCraftSession) return;
     const slot = document.getElementById('craftProgressSlot');
     if (!slot) return;
     
@@ -532,6 +533,32 @@ function restoreCraftProgressUI() {
         : (session.normRecipe.icon || '📦');
     
     const quantityLabel = session.batchCount > 1 ? ` ×${session.batchCount}` : '';
+    
+    // Если сессия завершена (sessionFinished) но pendingCraftData ещё не обработан
+    if (sessionFinished) {
+        // Показываем завершённый прогресс-бар
+        slot.innerHTML = `
+            <div class="crafting-progress craft-active craft-complete" id="craftProgressPanel">
+                <div class="craft-progress-header">
+                    <span class="craft-progress-icon">${iconHtml}</span>
+                    <strong>🔨 Создание: ${session.normRecipe.name}${quantityLabel}</strong>
+                    <span id="craftPercent">100%</span>
+                </div>
+                <div class="crafting-bar">
+                    <div class="crafting-fill" id="craftFill" style="width: 100%"></div>
+                </div>
+                <div class="craft-progress-hint-detail">
+                    ⚡ −${Math.floor(session.bonuses.gatherSpeedBonus * 100)}% времени · ✨ +${Math.floor(session.bonuses.craftQualityBonus * 100)}% качества · 📦 ×${session.batchCount}
+                </div>
+                <div style="margin-top: 8px; font-size: 11px; color: #2ecc71;">✅ Готово! Предмет создан.</div>
+            </div>
+        `;
+        // Обрабатываем pendingCraftData если есть
+        if (pendingCraftData) {
+            setTimeout(() => completeCrafting(session.profId, { silent: false }), 500);
+        }
+        return;
+    }
     
     // Рассчитываем текущий прогресс
     const elapsed = performance.now() - craftStartTime;
@@ -553,7 +580,9 @@ function restoreCraftProgressUI() {
         </div>
     `;
     
-    // Возобновляем анимацию
+    // Возобновляем анимацию только если крафт ещё не завершён
+    if (percent >= 100) return;
+    
     const tick = (now) => {
         if (!activeCraftSession || sessionFinished) return;
         
