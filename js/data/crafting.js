@@ -188,6 +188,12 @@ const CRAFTING_RECIPES = {
             {name:'Мифриловые штаны',icon:'👖',img:'png/armor/mage/mage_armor_11.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'pants',class:'Маг',rarity:'Эпический',def:12,hp:34,mana:42,baseDef:12},
             {name:'Мифриловые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_12.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'boots',class:'Маг',rarity:'Эпический',def:12,dodge:7,mana:36,baseDef:12},
             
+            // Мифический сет Некроманта (тир 6) — крафт
+            {name:'Шлем некроманта',icon:'💀',img:'png/armor/mage/nekr-helm.png',tier:6,exp:420,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':4,'Камень душ':2},type:'helmet',class:'Маг',rarity:'Мифический',def:20,hp:72,mana:80,baseDef:20},
+            {name:'Нагрудник некроманта',icon:'💀',img:'png/armor/mage/nekr-nag.png',tier:6,exp:520,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Камень душ':3},type:'chest',class:'Маг',rarity:'Мифический',def:30,hp:110,mana:120,baseDef:30},
+            {name:'Поножи некроманта',icon:'💀',img:'png/armor/mage/nekr-wtan.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Камень душ':2},type:'pants',class:'Маг',rarity:'Мифический',def:16,hp:60,mana:70,baseDef:16},
+            {name:'Сапоги некроманта',icon:'💀',img:'png/armor/mage/nekr-buc.png',tier:6,exp:380,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Мифический',def:16,dodge:6,mana:60,baseDef:16},
+            
             // Мифический звёздный сет (тир 6) — крафт
             {name:'Звёздное одеяние',icon:'🌟',img:'png/armor/mage/mage_armor_13.png',tier:6,exp:500,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Звездная пыльца':3},type:'chest',class:'Маг',rarity:'Мифический',def:38,hp:108,mana:144,baseDef:38},
             {name:'Звёздный капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_14.png',tier:6,exp:400,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':3,'Звездная пыльца':2},type:'helmet',class:'Маг',rarity:'Мифический',def:26,hp:72,mana:96,baseDef:26},
