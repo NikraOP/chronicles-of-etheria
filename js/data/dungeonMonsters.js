@@ -466,15 +466,15 @@ const DUNGEON_MONSTERS_DB = [
             { name: 'Тёмная регенерация', type: 'heal', value: 35, chance: 40, cooldown: 5 }
         ]
     },
-    // === ПРИЗРАЧНЫЕ ДОЛИНЫ ===
+    // === ПРИЗРАЧНЫЕ ДОЛИНЫ (50-60 ур., эндгейм) ===
     {
         id: 'ghost_wing',
         name: 'Призрачный Мотылёк',
         icon: '🦋',
         img: './monsters/dungeon/mi-let.png',
-        hp: 420,
-        atk: 95,
-        def: 22,
+        hp: 3200,
+        atk: 185,
+        def: 48,
         exp: 85,
         tier: 'normal',
         abilities: [
@@ -487,9 +487,9 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Крылатый Страж',
         icon: '🪽',
         img: './monsters/dungeon/ric-let.png',
-        hp: 580,
-        atk: 110,
-        def: 28,
+        hp: 4800,
+        atk: 210,
+        def: 58,
         exp: 110,
         tier: 'elite',
         abilities: [
@@ -502,9 +502,9 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Теневой Усик',
         icon: '👻',
         img: './monsters/dungeon/drag-let.png',
-        hp: 720,
-        atk: 125,
-        def: 32,
+        hp: 6200,
+        atk: 235,
+        def: 68,
         exp: 140,
         tier: 'elite',
         abilities: [
@@ -517,9 +517,9 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Древний Пожиратель Света',
         icon: '🌑',
         img: './monsters/dungeon/pow-let.png',
-        hp: 4200,
-        atk: 165,
-        def: 42,
+        hp: 28000,
+        atk: 385,
+        def: 120,
         exp: 950,
         tier: 'final_boss',
         dropTable: [
