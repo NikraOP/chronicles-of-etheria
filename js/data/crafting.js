@@ -190,6 +190,12 @@ const CRAFTING_RECIPES = {
             {name:'Поножи времени',icon:'🌌',img:'png/armor/mage/vrem-wtan.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3,'Звездная пыльца':2},type:'pants',class:'Маг',rarity:'Эпический',def:8,hp:30,dodge:5,baseDef:8},
             {name:'Сапоги времени',icon:'🌌',img:'png/armor/mage/vrem-buc.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Эпический',def:6,dodge:10,baseDef:6},
             
+            // Сет Ледяного дракона (Легендарный, тир 5) — крафт
+            {name:'Шлем ледяного дракона',icon:'🐉',img:'png/armor/mage/ice-helm.png',tier:5,exp:450,time:12,resources:{'Адамантит':5,'Алмаз':3,'Чешуя ледяного дракона':3},type:'helmet',class:'Маг',rarity:'Легендарный',def:15,hp:55,crit:9,baseDef:15},
+            {name:'Нагрудник ледяного дракона',icon:'🐉',img:'png/armor/mage/ice-nag.png',tier:5,exp:550,time:14,resources:{'Адамантит':6,'Алмаз':4,'Чешуя ледяного дракона':4},type:'chest',class:'Маг',rarity:'Легендарный',def:22,hp:85,crit:7,critDmg:12,baseDef:22},
+            {name:'Поножи ледяного дракона',icon:'🐉',img:'png/armor/mage/ice-wtan.png',tier:5,exp:380,time:11,resources:{'Адамантит':5,'Алмаз':3,'Чешуя ледяного дракона':3},type:'pants',class:'Маг',rarity:'Легендарный',def:13,hp:45,dodge:7,baseDef:13},
+            {name:'Сапоги ледяного дракона',icon:'🐉',img:'png/armor/mage/ice-buc.png',tier:5,exp:380,time:11,resources:{'Адамантит':5,'Алмаз':3,'Ледяная роза':4},type:'boots',class:'Маг',rarity:'Легендарный',def:11,dodge:14,baseDef:11},
+            
             // Мифический сет Некроманта (тир 6) — крафт
             {name:'Шлем некроманта',icon:'💀',img:'png/armor/mage/nekr-helm.png',tier:6,exp:420,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':4,'Камень душ':2},type:'helmet',class:'Маг',rarity:'Мифический',def:20,hp:72,mana:80,baseDef:20},
             {name:'Нагрудник некроманта',icon:'💀',img:'png/armor/mage/nekr-nag.png',tier:6,exp:520,time:14,resources:{'Звёздный шёлк':8,'Мифриловая нить':5,'Камень душ':3},type:'chest',class:'Маг',rarity:'Мифический',def:30,hp:110,mana:120,baseDef:30},
