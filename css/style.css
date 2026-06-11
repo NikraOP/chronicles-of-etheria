@@ -2699,6 +2699,17 @@ body.gather-screen-flash::after {
     color: var(--text-secondary);
     padding: 24px;
 }
+.dungeon-section {
+    margin-bottom: 24px;
+}
+.dungeon-section__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold);
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+}
 .dungeon-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

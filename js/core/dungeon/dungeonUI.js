@@ -125,8 +125,6 @@ function showDungeonsHub(opts) {
     }
     if (opts.force) {
         if (typeof stopGathering === 'function') stopGathering();
-        // НЕ прерываем крафт при переходе в список подземелий — крафт продолжается в фоне
-        // if (typeof flushPendingCraft === 'function') flushPendingCraft();
     } else if (!dungeonUiPrepareScreen('renderGame', [])) {
         return;
     }
@@ -134,14 +132,25 @@ function showDungeonsHub(opts) {
     if (!el) return;
 
     const list = typeof DUNGEONS_DB !== 'undefined' && Array.isArray(DUNGEONS_DB) ? DUNGEONS_DB : [];
-    let cards = '';
+    
+    // Сортировка по минимальному уровню
+    const sortedList = list.slice().sort(function(a, b) {
+        return (a.minLevel || 1) - (b.minLevel || 1);
+    });
+    
+    // Разделение на соло и дуо
+    const soloDungeons = sortedList.filter(function(d) { return d.mode === 'solo'; });
+    const duoDungeons = sortedList.filter(function(d) { return d.mode === 'duo'; });
+    
+    let soloCards = '';
+    let duoCards = '';
 
-    list.forEach(function (dungeon) {
+    // Соло подземелья
+    soloDungeons.forEach(function (dungeon) {
         const unlocked = isDungeonUnlocked(dungeon);
-        const id = escapeDungeonText(dungeon.id);
         const click = unlocked ? 'openDungeonDetail(\'' + String(dungeon.id).replace(/'/g, "\\'") + '\')' : '';
         const themeUi = buildDungeonThemeStyle(dungeon, 'card');
-        cards += '<div class="dungeon-card' + (unlocked ? '' : ' locked') +
+        soloCards += '<div class="dungeon-card' + (unlocked ? '' : ' locked') +
             (themeUi.className ? ' ' + themeUi.className : '') + '"' +
             themeUi.style +
             (click ? ' onclick="' + click + '"' : '') +
@@ -155,9 +164,39 @@ function showDungeonsHub(opts) {
             '</div>';
     });
 
-    if (!cards) {
-        cards = '<p class="dungeon-hub__empty">Каталог подземелий пока пуст.</p>';
-    }
+    // Дуо подземелья
+    duoDungeons.forEach(function (dungeon) {
+        const unlocked = isDungeonUnlocked(dungeon);
+        const click = unlocked ? 'openDungeonDetail(\'' + String(dungeon.id).replace(/'/g, "\\'") + '\')' : '';
+        const themeUi = buildDungeonThemeStyle(dungeon, 'card');
+        duoCards += '<div class="dungeon-card' + (unlocked ? '' : ' locked') +
+            (themeUi.className ? ' ' + themeUi.className : '') + '"' +
+            themeUi.style +
+            (click ? ' onclick="' + click + '"' : '') +
+            ' role="button" tabindex="' + (unlocked ? '0' : '-1') + '"' +
+            (unlocked ? '' : ' aria-disabled="true"') + '>' +
+            '<div class="dungeon-card__badges">' + renderDungeonModeBadge(dungeon.mode) + '</div>' +
+            '<div class="dungeon-card__icon">' + escapeDungeonText(dungeon.icon || '🏰') + '</div>' +
+            renderDungeonLevelLine(dungeon, unlocked) +
+            '<div class="dungeon-card__name">' + escapeDungeonText(dungeon.name) + '</div>' +
+            '<div class="dungeon-card__hint">' + (unlocked ? 'Подробнее →' : '🔒 Нужен ур. ' + (dungeon.minLevel || 1)) + '</div>' +
+            '</div>';
+    });
+
+    const soloSection = soloCards ? 
+        '<div class="dungeon-section">' +
+        '<h3 class="dungeon-section__title">⚔️ Соло подземелья</h3>' +
+        '<div class="dungeon-grid">' + soloCards + '</div>' +
+        '</div>' : '';
+    
+    const duoSection = duoCards ? 
+        '<div class="dungeon-section">' +
+        '<h3 class="dungeon-section__title">👥 Дуо подземелья</h3>' +
+        '<div class="dungeon-grid">' + duoCards + '</div>' +
+        '</div>' : '';
+
+    const hasAnyDungeons = soloSection || duoSection;
+    const content = hasAnyDungeons ? soloSection + duoSection : '<p class="dungeon-hub__empty">Каталог подземелий пока пуст.</p>';
 
     el.innerHTML =
         '<section class="dungeon-hub">' +
@@ -165,7 +204,7 @@ function showDungeonsHub(opts) {
         '<h2>🏰 Подземелья</h2>' +
         '<p class="dungeon-hub__intro">Процедурные данжи: соло или вдвоём онлайн. Выберите подземелье по уровню.</p>' +
         '</div>' +
-        '<div class="dungeon-grid">' + cards + '</div>' +
+        content +
         '</section>';
 }
 
