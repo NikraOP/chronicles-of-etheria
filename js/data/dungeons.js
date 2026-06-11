@@ -432,12 +432,51 @@ function getDungeonById(id) {
  * @param {object} dungeon — запись из DUNGEONS_DB
  * @param {number} floorIndex — 0-based индекс этажа
  * @param {() => number} rng — функция случайного числа [0, 1)
+ * @param {number} totalFloors
+ * @param {string|null} [excludeBossId] — ID босса, который нужно исключить из пула (для обычных комнат)
  * @returns {string[]} id или имена монстров для комнат этажа (см. findDungeonMonsterById)
  */
-function pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors) {
+function pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors, excludeBossId) {
     if (!dungeon || !Array.isArray(dungeon.monsterPool) || dungeon.monsterPool.length === 0) {
         return [];
     }
+
+    let pool = dungeon.monsterPool.slice();
+    
+    // Исключаем босса из пула для обычных комнат
+    if (excludeBossId) {
+        pool = pool.filter(function(name) {
+            return name !== excludeBossId;
+        });
+    }
+
+    const floorCount = totalFloors || dungeon.floors?.max || DUNGEON_BALANCE.floorCountMax;
+    const progress = floorCount <= 1 ? 1 : floorIndex / (floorCount - 1);
+
+    const tierSize = Math.max(1, Math.ceil(pool.length / floorCount));
+    const maxTier = Math.min(pool.length, Math.ceil((progress + 0.35) * pool.length));
+    const minTier = Math.max(1, maxTier - tierSize + 1);
+    const slice = pool.slice(minTier - 1, maxTier);
+
+    const picked = [];
+    const available = slice.slice();
+    const pickCount = Math.max(
+        DUNGEON_BALANCE.enemiesPerRoomMin,
+        Math.min(DUNGEON_BALANCE.enemiesPerRoomMax, available.length || DUNGEON_BALANCE.enemiesPerRoomMin)
+    );
+
+    for (let i = 0; i < pickCount; i++) {
+        if (!available.length) {
+            picked.push(slice[Math.floor(rng() * slice.length)]);
+            continue;
+        }
+        const idx = Math.floor(rng() * available.length);
+        picked.push(available[idx]);
+        if (available.length > 1) available.splice(idx, 1);
+    }
+
+    return picked.length ? picked : pool.slice(0, Math.min(pool.length, DUNGEON_BALANCE.enemiesPerRoomMin));
+}
 
     const pool = dungeon.monsterPool;
     const floorCount = totalFloors || dungeon.floors?.max || DUNGEON_BALANCE.floorCountMax;

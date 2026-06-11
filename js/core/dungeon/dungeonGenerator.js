@@ -282,7 +282,7 @@ function generateDungeonFloor(dungeonId, floorIndex, totalFloors, seed, mode) {
     const bossId = dungeon.finalBossId || null;
 
     const namePool = typeof pickDungeonMonsterPool === 'function'
-        ? pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors)
+        ? pickDungeonMonsterPool(dungeon, floorIndex, rng, totalFloors, bossId)
         : (dungeon.monsterPool || []).slice();
     const combatPool = bossId
         ? namePool.filter(function (n) { return n !== bossId; })
