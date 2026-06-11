@@ -171,10 +171,10 @@ const EQUIPMENT_DB = {
             'helmet': [
                 {name:'Кожаный шлем',rarity:'Обычный',lvl:3,price:120,dmg:0,def:3,hp:11,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/kox-helm.png'},
                 {name:'Хлопковый капюшон',rarity:'Необычный',lvl:5,price:180,dmg:0,def:4,hp:14,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_02.png'},
-                {name:'Кальчужный шлем',rarity:'Необычный',lvl:8,price:300,dmg:0,def:4,hp:24,crit:4,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_06.png'},
+                {name:'Кальчужный шлем',rarity:'Редкий',lvl:10,price:300,dmg:0,def:4,hp:24,crit:4,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_06.png'},
                 {name:'Звёздный капюшон',rarity:'Мифический',lvl:25,price:2200,dmg:0,def:22,hp:61,crit:0,critDmg:0,dodge:0,icon:'🎭',img:'png/armor/mage/mage_armor_14.png'},
                 // === 2-Й СЕТ "МИСТИК" ===
-                {name:'Шлем иллюзий',rarity:'Эпический',lvl:14,price:650,dmg:5,def:8,hp:36,crit:6,critDmg:0,dodge:0,icon:'🌌',img:''},
+                {name:'Шлем времени',rarity:'Эпический',lvl:14,price:650,dmg:5,def:8,hp:36,crit:6,critDmg:0,dodge:0,icon:'🌌',img:'png/armor/mage/vrem-helm.png'},
                 {name:'Венец провидца',rarity:'Легендарный',lvl:20,price:1400,dmg:0,def:14,hp:50,crit:8,critDmg:0,dodge:3,icon:'👁️',img:''},
                 // === СЕТ "НЕКРОМАНТ" (Мифический) ===
                 {name:'Шлем некроманта',rarity:'Мифический',lvl:25,price:2400,dmg:0,def:20,hp:72,crit:0,critDmg:0,dodge:0,mana:80,icon:'💀',img:'png/armor/mage/nekr-helm.png'},
@@ -190,7 +190,7 @@ const EQUIPMENT_DB = {
                 {name:'Кольчужный нагрудник',rarity:'Редкий',lvl:8,price:550,dmg:0,def:7,hp:36,crit:0,critDmg:6,dodge:0,icon:'👘',img:'png/armor/mage/kolch-nag.png'},
                 {name:'Звёздное одеяние',rarity:'Мифический',lvl:25,price:3500,dmg:0,def:32,hp:91,crit:0,critDmg:0,dodge:0,icon:'🌟',img:'png/armor/mage/mage_armor_13.png'},
                 // === 2-Й СЕТ "МИСТИК" ===
-                {name:'Доспех иллюзий',rarity:'Эпический',lvl:14,price:1100,dmg:0,def:12,hp:56,crit:0,critDmg:8,dodge:2,icon:'🌌',img:''},
+                {name:'Доспех времени',rarity:'Эпический',lvl:14,price:1100,dmg:0,def:12,hp:56,crit:0,critDmg:8,dodge:2,icon:'🌌',img:'png/armor/mage/vrem-nag.png'},
                 {name:'Мантия провидца',rarity:'Легендарный',lvl:20,price:2400,dmg:0,def:20,hp:80,crit:6,critDmg:10,dodge:0,icon:'👁️',img:''},
                 // === СЕТ "НЕКРОМАНТ" (Мифический) ===
                 {name:'Нагрудник некроманта',rarity:'Мифический',lvl:25,price:3800,dmg:0,def:30,hp:110,crit:0,critDmg:0,dodge:0,mana:120,icon:'💀',img:'png/armor/mage/nekr-nag.png'},
@@ -206,7 +206,7 @@ const EQUIPMENT_DB = {
                 {name:'Кольчужные штаны',rarity:'Редкий',lvl:8,price:280,dmg:0,def:4,hp:20,crit:0,critDmg:0,dodge:2,icon:'👖',img:'png/armor/mage/kolch-wtan.png'},
                 {name:'Звёздные штаны',rarity:'Мифический',lvl:25,price:2000,dmg:0,def:18,hp:51,crit:0,critDmg:0,dodge:0,icon:'👖',img:'png/armor/mage/mage_armor_15.png'},
                 // === 2-Й СЕТ "МИСТИК" ===
-                {name:'Поножи иллюзий',rarity:'Эпический',lvl:14,price:600,dmg:0,def:8,hp:30,crit:0,critDmg:0,dodge:5,icon:'🌌',img:''},
+                {name:'Поножи времени',rarity:'Эпический',lvl:14,price:600,dmg:0,def:8,hp:30,crit:0,critDmg:0,dodge:5,icon:'🌌',img:'png/armor/mage/vrem-wtan.png'},
                 {name:'Штаны провидца',rarity:'Легендарный',lvl:20,price:1200,dmg:0,def:12,hp:42,crit:0,critDmg:0,dodge:6,icon:'👁️',img:''},
                 // === СЕТ "НЕКРОМАНТ" (Мифический) ===
                 {name:'Поножи некроманта',rarity:'Мифический',lvl:25,price:2200,dmg:0,def:16,hp:60,crit:0,critDmg:0,dodge:0,mana:70,icon:'💀',img:'png/armor/mage/nekr-wtan.png'},
@@ -222,7 +222,7 @@ const EQUIPMENT_DB = {
                 {name:'Кольчужные сапоги',rarity:'Редкий',lvl:8,price:250,dmg:0,def:3,hp:0,crit:0,critDmg:0,dodge:7,icon:'👢',img:'png/armor/mage/kolch-buc.png'},
                 {name:'Звёздные сапоги',rarity:'Мифический',lvl:25,price:1800,dmg:0,def:18,hp:0,crit:0,critDmg:0,dodge:8,icon:'👢',img:'png/armor/mage/mage_armor_16.png'},
                 // === 2-Й СЕТ "МИСТИК" ===
-                {name:'Сапоги иллюзий',rarity:'Эпический',lvl:14,price:550,dmg:0,def:6,hp:0,crit:0,critDmg:0,dodge:10,icon:'🌌',img:''},
+                {name:'Сапоги времени',rarity:'Эпический',lvl:14,price:550,dmg:0,def:6,hp:0,crit:0,critDmg:0,dodge:10,icon:'🌌',img:'png/armor/mage/vrem-buc.png'},
                 {name:'Сапоги провидца',rarity:'Легендарный',lvl:20,price:1100,dmg:0,def:10,hp:0,crit:0,critDmg:0,dodge:12,icon:'👁️',img:''},
                 // === СЕТ "НЕКРОМАНТ" (Мифический) ===
                 {name:'Сапоги некроманта',rarity:'Мифический',lvl:25,price:1900,dmg:0,def:16,hp:0,crit:0,critDmg:0,dodge:6,mana:60,icon:'💀',img:'png/armor/mage/nekr-buc.png'},
