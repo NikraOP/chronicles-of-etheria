@@ -183,10 +183,12 @@ const CRAFTING_RECIPES = {
             {name:'Шёлковый капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_06.png',tier:3,exp:120,time:5,resources:{'Шёлк':5,'Паутина':2},type:'helmet',class:'Маг',rarity:'Редкий',def:8,hp:26,mana:30,baseDef:8},
             {name:'Шёлковые штаны',icon:'👖',img:'png/armor/mage/mage_armor_07.png',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'pants',class:'Маг',rarity:'Редкий',def:7,hp:22,mana:24,baseDef:7},
             {name:'Шёлковые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_08.png',tier:3,exp:100,time:4,resources:{'Шёлк':5,'Паутина':2},type:'boots',class:'Маг',rarity:'Редкий',def:7,dodge:6,mana:22,baseDef:7},
-            {name:'Мифриловое одеяние',icon:'✨',img:'png/armor/mage/mage_armor_09.png',tier:4,exp:280,time:9,resources:{'Мифриловая нить':6,'Шёлк':3},type:'chest',class:'Маг',rarity:'Эпический',def:22,hp:66,mana:84,baseDef:22},
-            {name:'Мифриловый капюшон',icon:'🎭',img:'png/armor/mage/mage_armor_10.png',tier:4,exp:220,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'helmet',class:'Маг',rarity:'Эпический',def:14,hp:42,mana:54,baseDef:14},
-            {name:'Мифриловые штаны',icon:'👖',img:'png/armor/mage/mage_armor_11.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'pants',class:'Маг',rarity:'Эпический',def:12,hp:34,mana:42,baseDef:12},
-            {name:'Мифриловые сапоги',icon:'👢',img:'png/armor/mage/mage_armor_12.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3},type:'boots',class:'Маг',rarity:'Эпический',def:12,dodge:7,mana:36,baseDef:12},
+            
+            // Сет Времени (Эпический, тир 4) — крафт
+            {name:'Шлем времени',icon:'🌌',img:'png/armor/mage/vrem-helm.png',tier:4,exp:240,time:7,resources:{'Мифриловая нить':5,'Шёлк':3,'Звездная пыльца':2},type:'helmet',class:'Маг',rarity:'Эпический',def:8,hp:36,crit:6,baseDef:8},
+            {name:'Доспех времени',icon:'🌌',img:'png/armor/mage/vrem-nag.png',tier:4,exp:300,time:9,resources:{'Мифриловая нить':6,'Шёлк':3,'Звездная пыльца':3},type:'chest',class:'Маг',rarity:'Эпический',def:12,hp:56,critDmg:8,dodge:2,baseDef:12},
+            {name:'Поножи времени',icon:'🌌',img:'png/armor/mage/vrem-wtan.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3,'Звездная пыльца':2},type:'pants',class:'Маг',rarity:'Эпический',def:8,hp:30,dodge:5,baseDef:8},
+            {name:'Сапоги времени',icon:'🌌',img:'png/armor/mage/vrem-buc.png',tier:4,exp:200,time:7,resources:{'Мифриловая нить':5,'Шёлк':3,'Звездная пыльца':2},type:'boots',class:'Маг',rarity:'Эпический',def:6,dodge:10,baseDef:6},
             
             // Мифический сет Некроманта (тир 6) — крафт
             {name:'Шлем некроманта',icon:'💀',img:'png/armor/mage/nekr-helm.png',tier:6,exp:420,time:11,resources:{'Звёздный шёлк':6,'Мифриловая нить':4,'Камень душ':2},type:'helmet',class:'Маг',rarity:'Мифический',def:20,hp:72,mana:80,baseDef:20},
