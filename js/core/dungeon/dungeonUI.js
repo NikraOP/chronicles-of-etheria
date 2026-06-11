@@ -18,7 +18,8 @@ function dungeonUiPrepareScreen(parentFn, parentArgs) {
 }
 
 function isDungeonUnlocked(dungeon) {
-    if (!dungeon || !player) return false;
+    if (!dungeon) return false;
+    if (typeof player === 'undefined' || !player) return false;
     return player.level >= (dungeon.minLevel || 1);
 }
 
@@ -133,11 +134,29 @@ function showDungeonsHub(opts) {
 
     const list = typeof DUNGEONS_DB !== 'undefined' && Array.isArray(DUNGEONS_DB) ? DUNGEONS_DB : [];
     
+    // ОТЛАДКА: вывод в консоль
+    console.log('DUNGEONS_DB loaded:', list.length, 'dungeons');
+    console.log('Dungeons:', list.map(d => ({ id: d.id, name: d.name, mode: d.mode, minLevel: d.minLevel })));
+    console.log('isDungeonUnlocked function:', typeof isDungeonUnlocked);
+    console.log('player:', typeof player !== 'undefined' ? player.name + ' ур.' + player.level : 'не загружен');
+    
+    if (list.length === 0) {
+        el.innerHTML =
+            '<section class="dungeon-hub">' +
+            '<div class="dungeon-hub__header">' +
+            '<h2>🏰 Подземелья</h2>' +
+            '<p class="dungeon-hub__intro">Каталог подземелий пока пуст. Проверьте консоль браузера (F12) на наличие ошибок.</p>' +
+            '</div>' +
+            '<p style="color: #e74c3c; padding: 20px; background: rgba(231, 76, 60, 0.1); border: 1px solid #e74c3c; border-radius: 8px;">⚠️ DUNGEONS_DB не загружен или пуст. Проверьте консоль (F12).</p>' +
+            '</section>';
+        return;
+    }
+    
     // Сортировка по минимальному уровню
     const sortedList = list.slice().sort(function(a, b) {
         return (a.minLevel || 1) - (b.minLevel || 1);
     });
-    
+
     // Разделение на соло и дуо
     const soloDungeons = sortedList.filter(function(d) { return d.mode === 'solo'; });
     const duoDungeons = sortedList.filter(function(d) { return d.mode === 'duo'; });
@@ -185,13 +204,13 @@ function showDungeonsHub(opts) {
 
     const soloSection = soloCards ? 
         '<div class="dungeon-section">' +
-        '<h3 class="dungeon-section__title">⚔️ Соло подземелья</h3>' +
+        '<h3 class="dungeon-section__title">⚔️ Соло подземелья (' + soloDungeons.length + ')</h3>' +
         '<div class="dungeon-grid">' + soloCards + '</div>' +
         '</div>' : '';
     
     const duoSection = duoCards ? 
         '<div class="dungeon-section">' +
-        '<h3 class="dungeon-section__title">👥 Дуо подземелья</h3>' +
+        '<h3 class="dungeon-section__title">👥 Дуо подземелья (' + duoDungeons.length + ')</h3>' +
         '<div class="dungeon-grid">' + duoCards + '</div>' +
         '</div>' : '';
 
