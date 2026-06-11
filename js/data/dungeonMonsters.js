@@ -472,13 +472,13 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Призрачный Мотылёк',
         icon: '🦋',
         img: './monsters/dungeon/mi-let.png',
-        hp: 3200,
-        atk: 185,
-        def: 48,
-        exp: 85,
+        hp: 5800,
+        atk: 245,
+        def: 62,
+        exp: 180,
         tier: 'normal',
         abilities: [
-            { name: 'Световая пыль', type: 'damage', multiplier: 1.2, chance: 45, cooldown: 2 },
+            { name: 'Световая пыль', type: 'damage', multiplier: 1.3, chance: 45, cooldown: 2 },
             { name: 'Ослепляющий мерцание', type: 'debuff', effect: 'blind', value: 30, duration: 2, chance: 35, cooldown: 4 }
         ]
     },
@@ -487,14 +487,14 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Крылатый Страж',
         icon: '🪽',
         img: './monsters/dungeon/ric-let.png',
-        hp: 4800,
-        atk: 210,
-        def: 58,
-        exp: 110,
+        hp: 7500,
+        atk: 275,
+        def: 72,
+        exp: 220,
         tier: 'elite',
         abilities: [
-            { name: 'Вихрь крыльев', type: 'damage', multiplier: 1.4, chance: 50, cooldown: 2 },
-            { name: 'Защитный порыв', type: 'buff', effect: 'def', value: 25, duration: 3, chance: 40, cooldown: 4 }
+            { name: 'Вихрь крыльев', type: 'damage', multiplier: 1.5, chance: 50, cooldown: 2 },
+            { name: 'Защитный порыв', type: 'buff', effect: 'def', value: 30, duration: 3, chance: 40, cooldown: 4 }
         ]
     },
     {
@@ -502,14 +502,14 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Теневой Усик',
         icon: '👻',
         img: './monsters/dungeon/drag-let.png',
-        hp: 6200,
-        atk: 235,
-        def: 68,
-        exp: 140,
+        hp: 9200,
+        atk: 305,
+        def: 85,
+        exp: 260,
         tier: 'elite',
         abilities: [
-            { name: 'Теневое касание', type: 'damage', multiplier: 1.5, chance: 55, cooldown: 2 },
-            { name: 'Поглощение света', type: 'debuff', effect: 'atk', value: 20, duration: 2, chance: 45, cooldown: 3 }
+            { name: 'Теневое касание', type: 'damage', multiplier: 1.6, chance: 55, cooldown: 2 },
+            { name: 'Поглощение света', type: 'debuff', effect: 'atk', value: 25, duration: 2, chance: 45, cooldown: 3 }
         ]
     },
     {
@@ -517,19 +517,58 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Древний Пожиратель Света',
         icon: '🌑',
         img: './monsters/dungeon/pow-let.png',
-        hp: 28000,
-        atk: 385,
-        def: 120,
-        exp: 950,
+        hp: 42000,
+        atk: 420,
+        def: 135,
+        exp: 1850,
         tier: 'final_boss',
         dropTable: [
             { name: 'Эссенция Призрачного Мотылька', icon: '🦋', img: './png/resources/boss/let-essens.png', chance: 100 }
         ],
         abilities: [
-            { name: 'Пожирание света', type: 'damage', multiplier: 2.0, chance: 55, cooldown: 3 },
-            { name: 'Тёмная аура', type: 'debuff', effect: 'atk', value: 30, duration: 3, chance: 50, cooldown: 4 },
-            { name: 'Призрачный шквал', type: 'damage', multiplier: 1.4, hits: 4, chance: 45, cooldown: 3 },
-            { name: 'Восстановление тени', type: 'heal', value: 25, chance: 35, cooldown: 5 }
+            { name: 'Пожирание света', type: 'damage', multiplier: 2.2, chance: 55, cooldown: 3 },
+            { name: 'Тёмная аура', type: 'debuff', effect: 'atk', value: 35, duration: 3, chance: 50, cooldown: 4 },
+            { name: 'Призрачный шквал', type: 'damage', multiplier: 1.5, hits: 4, chance: 45, cooldown: 3 },
+            { name: 'Восстановление тени', type: 'heal', value: 30, chance: 40, cooldown: 5 }
+        ]
+    },
+    // === ПАСТЬ ДРЕВНИХ (50-58 ур., перебалансировано) ===
+    {
+        id: 'elder_maw_boss',
+        name: 'Древнее Зло',
+        icon: '👹',
+        img: './monsters/dungeon/ash-overlord.png',
+        hp: 18500,
+        atk: 340,
+        def: 95,
+        exp: 1450,
+        tier: 'final_boss',
+        abilities: [
+            { name: 'Древний гнев', type: 'damage', multiplier: 2.0, chance: 55, cooldown: 3 },
+            { name: 'Аура разрушения', type: 'debuff', effect: 'atk', value: 30, duration: 3, chance: 50, cooldown: 4 },
+            { name: 'Удар титана', type: 'damage', multiplier: 1.7, chance: 50, cooldown: 3 },
+            { name: 'Тёмная регенерация', type: 'heal', value: 28, chance: 38, cooldown: 5 }
+        ]
+    },
+    // === ЯДРО ЗАБВЕНИЯ (60-75 ур., эндгейм) ===
+    {
+        id: 'oblivion_overlord',
+        name: 'Владыка Забвения',
+        icon: '💀',
+        img: './monsters/dungeon/tri-hydra.png',
+        hp: 65000,
+        atk: 520,
+        def: 165,
+        exp: 2800,
+        tier: 'final_boss',
+        dropTable: [
+            { name: 'Сердце Бездны', icon: '🖤', img: './png/resources/boss/void-heart.png', chance: 100 }
+        ],
+        abilities: [
+            { name: 'Луч забвения', type: 'damage', multiplier: 2.4, chance: 60, cooldown: 3 },
+            { name: 'Апокалипсис', type: 'damage', multiplier: 1.6, hits: 5, chance: 50, cooldown: 4 },
+            { name: 'Проклятие пустоты', type: 'debuff', effect: 'atk', value: 40, duration: 3, chance: 55, cooldown: 4 },
+            { name: 'Пожирание души', type: 'heal', value: 35, chance: 45, cooldown: 5 }
         ]
     }
 ];
