@@ -412,7 +412,7 @@ const DUNGEONS_DB = [
         recommendedLevel: 46,
         backgroundId: 'abyss_of_fear',
         finalBossId: 'cthulhu_god',
-        monsterPool: ['kraken_horror', 'sea_dragon_monster', 'legendary_kraken', 'cthulh_god'],
+        monsterPool: ['kraken_horror', 'sea_dragon_monster', 'legendary_kraken', 'cthulhu_god'],
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 17,

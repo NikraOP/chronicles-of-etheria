@@ -1,4 +1,11 @@
-// craftingSystem.js - Полная исправленная версия
+'Обычный': '#ccc'
+'Необычный': '#2ecc71'
+'Редкий': '#3498db'
+'Эпический': '#9b59b6'
+'Легендарный': '#f0c040'
+'Мифический': '#e74c3c'
+'Древний': '#e67e22'
+'Божественный': '#1abc9c'// craftingSystem.js - Полная исправленная версия
 
 function getExpForNextTier(currentTier) {
     const tier = parseInt(currentTier, 10) || 1;

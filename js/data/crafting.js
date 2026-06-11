@@ -214,12 +214,6 @@ const CRAFTING_RECIPES = {
             {name:'Штаны древнего мудреца',icon:'📜',img:'png/armor/mage/mage_armor_25.png',tier:6,exp:700,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'pants',class:'Маг',rarity:'Древний',def:54,hp:168,mana:144,critDmg:10,dodge:8,baseDef:54},
             {name:'Сапоги лунного шага',icon:'🌙',img:'png/armor/mage/mage_armor_29.png',tier:6,exp:600,time:300,resources:{'Орихалк':6,'Звёздный шёлк':5,'Звездная пыльца':3},type:'boots',class:'Маг',rarity:'Древний',def:28,hp:120,mana:108,dodge:28,baseDef:28},
 
-            // === БОЖЕСТВЕННЫЙ СЕТ (Звёздный суверен) ===
-            {name:'Диадема небесного чародея',icon:'✨',img:'png/armor/mage/mage_armor_18.png',tier:6,exp:900,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2,'Слёзы божества':2,'Искра творца':1},type:'helmet',class:'Маг',rarity:'Божественный',def:69,hp:168,mana:156,crit:22,dodge:4,baseDef:69},
-            {name:'Одеяние звёздного суверена',icon:'✨',img:'png/armor/mage/mage_armor_22.png',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Камень душ':3,'Слёзы божества':3,'Эссенция пустоты':2},type:'chest',class:'Маг',rarity:'Божественный',def:112,hp:300,mana:240,dodge:8,baseDef:112},
-            {name:'Порты магического вознесения',icon:'💫',img:'png/armor/mage/mage_armor_26.png',tier:6,exp:800,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2,'Эссенция пустоты':3,'Искра творца':1},type:'pants',class:'Маг',rarity:'Божественный',def:79,hp:216,mana:168,crit:10,dodge:10,baseDef:79},
-            {name:'Тапочки эфирного странника',icon:'👣',img:'png/armor/mage/mage_armor_30.png',tier:6,exp:700,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Камень душ':2,'Искра творца':2,'Слёзы божества':1},type:'boots',class:'Маг',rarity:'Божественный',def:43,hp:156,mana:132,dodge:36,baseDef:43},
-
             // === СЕТ КТУЛХУ (Божественный) ===
             {name:'Шлем Ктулху',icon:'🐙',img:'png/armor/mage/kth-helm.png',tier:6,exp:900,time:600,resources:{'Орихалк':8,'Звёздный шёлк':6,'Звездный камень':3,'Эссенция Ктулху':2},type:'helmet',class:'Маг',rarity:'Божественный',def:69,hp:168,mana:156,crit:22,dodge:4,baseDef:69},
             {name:'Нагрудник Ктулху',icon:'🐙',img:'png/armor/mage/kth-nag.png',tier:6,exp:1000,time:600,resources:{'Орихалк':9,'Звёздный шёлк':7,'Звездный камень':3,'Эссенция Ктулху':3},type:'chest',class:'Маг',rarity:'Божественный',def:112,hp:300,mana:240,dodge:8,baseDef:112},
