@@ -98,6 +98,7 @@ const DUNGEON_BACKGROUNDS = {
     frozen_abyss: { image: './backgrounds/dungeon/bg-crystal.png', bgColor: 'linear-gradient(135deg, #1a2a3a, #0a1520)' },
     void_prison: { image: './backgrounds/dungeon/bg-prison.png', bgColor: 'linear-gradient(135deg, #12081a, #050208)' },
     sky_ruins: { image: './backgrounds/dungeon/bg-cave-brown.png', bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)' },
+    abyss_of_fear: { image: './backgrounds/dungeon/ktulh-dangeons-nackground.jpg', bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)' },
     default: { image: './backgrounds/dungeon/bg-crypt.png', bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a12)' }
 };
 
@@ -399,6 +400,25 @@ const DUNGEONS_DB = [
         expMult: 1.25,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)'
+        }
+    },
+    {
+        id: 'abyss_of_fear',
+        name: 'Бездна страха',
+        icon: '🐙',
+        mode: 'solo',
+        minLevel: 42,
+        maxLevel: 50,
+        recommendedLevel: 46,
+        backgroundId: 'default',
+        finalBossId: 'cthulhu_god',
+        monsterPool: ['kraken_horror', 'sea_dragon_monster', 'legendary_kraken', 'cthulhu_god'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 17,
+        expMult: 1.35,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)'
         }
     }
 ];

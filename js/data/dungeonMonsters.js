@@ -396,6 +396,75 @@ const DUNGEON_MONSTERS_DB = [
             { name: 'Гнев тенец', type: 'buff', effect: 'atk', value: 55, duration: 2, chance: 42, cooldown: 4 },
             { name: 'Опутывающие лозы', type: 'debuff', effect: 'freeze', duration: 1, chance: 25, cooldown: 5 }
         ]
+    },
+    {
+        id: 'kraken_horror',
+        name: 'Кракен-ужас',
+        icon: '🐙',
+        img: './monsters/crack.png',
+        hp: 3350,
+        atk: 220,
+        def: 40,
+        exp: 360,
+        tier: 'normal',
+        abilities: [
+            { name: 'Щупальца', type: 'damage', multiplier: 1.5, chance: 55 },
+            { name: 'Чёрнильная завеса', type: 'debuff', effect: 'blind', value: 40, duration: 2, chance: 45, cooldown: 3 },
+            { name: 'Регенерация', type: 'heal', value: 20, chance: 40, cooldown: 4 }
+        ]
+    },
+    {
+        id: 'sea_dragon_monster',
+        name: 'Морской дракон',
+        icon: '🐉',
+        img: './monsters/gid.png',
+        hp: 3770,
+        atk: 245,
+        def: 34,
+        exp: 385,
+        tier: 'elite',
+        abilities: [
+            { name: 'Драконье дыхание', type: 'damage', multiplier: 1.6, chance: 50, cooldown: 2 },
+            { name: 'Чешуя дракона', type: 'buff', effect: 'def', value: 70, duration: 2, chance: 45, cooldown: 3 },
+            { name: 'Водяной смерч', type: 'damage', multiplier: 1.4, chance: 60 }
+        ]
+    },
+    {
+        id: 'legendary_kraken',
+        name: 'Легендарный кракен',
+        icon: '🦑',
+        img: './monsters/korolCrack.png',
+        hp: 4080,
+        atk: 205,
+        def: 50,
+        exp: 450,
+        tier: 'elite',
+        abilities: [
+            { name: 'Кракенов удар', type: 'damage', multiplier: 1.9, chance: 40, cooldown: 3 },
+            { name: 'Цунами', type: 'damage', multiplier: 1.5, chance: 50, cooldown: 2 },
+            { name: 'Тёмная вода', type: 'debuff', effect: 'atk', value: 35, duration: 2, chance: 45, cooldown: 3 },
+            { name: 'Гидратация', type: 'heal', value: 30, chance: 35, cooldown: 4 }
+        ]
+    },
+    {
+        id: 'cthulhu_god',
+        name: 'Бог Ктулху',
+        icon: '🐙',
+        img: './monsters/dungeon/ktulh.png',
+        hp: 8500,
+        atk: 380,
+        def: 65,
+        exp: 1200,
+        tier: 'final_boss',
+        dropTable: [
+            { name: 'Эссенция Ктулху', icon: '👁️', img: './png/resources/boss/ktulh-essens.png', chance: 100 }
+        ],
+        abilities: [
+            { name: 'Психический шторм', type: 'damage', multiplier: 2.2, chance: 50, cooldown: 3 },
+            { name: 'Щупальца бездны', type: 'damage', multiplier: 1.6, hits: 3, chance: 55, cooldown: 2 },
+            { name: 'Безумие древних', type: 'debuff', effect: 'blind', value: 50, duration: 3, chance: 45, cooldown: 4 },
+            { name: 'Тёмная регенерация', type: 'heal', value: 35, chance: 40, cooldown: 5 }
+        ]
     }
 ];
 
