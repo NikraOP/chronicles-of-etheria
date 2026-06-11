@@ -99,6 +99,7 @@ const DUNGEON_BACKGROUNDS = {
     void_prison: { image: './backgrounds/dungeon/bg-prison.png', bgColor: 'linear-gradient(135deg, #12081a, #050208)' },
     sky_ruins: { image: './backgrounds/dungeon/bg-cave-brown.png', bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)' },
     abyss_of_fear: { image: './backgrounds/dungeon/ktulh-dangeons-nackground.jpg', bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)' },
+    ghost_valley: { image: './backgrounds/dungeon/dan-let.jpeg', bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a15)' },
     default: { image: './backgrounds/dungeon/bg-crypt.png', bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a12)' }
 };
 
@@ -419,6 +420,25 @@ const DUNGEONS_DB = [
         expMult: 1.35,
         theme: {
             bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)'
+        }
+    },
+    {
+        id: 'ghost_valley',
+        name: 'Призрачные долины',
+        icon: '🦋',
+        mode: 'solo',
+        minLevel: 25,
+        maxLevel: 33,
+        recommendedLevel: 29,
+        backgroundId: 'ghost_valley',
+        finalBossId: 'ancient_light_eater',
+        monsterPool: ['ghost_wing', 'wing_guardian', 'shadow_tentacle', 'ancient_light_eater'],
+        floors: { min: 3, max: 4 },
+        roomsPerFloor: { min: 5, max: 7 },
+        goldMult: 14,
+        expMult: 1.26,
+        theme: {
+            bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a15)'
         }
     }
 ];

@@ -116,6 +116,7 @@ const RESOURCES_DB = {
         {name:'Слёзы божества',icon:'💧',img:'png/resources/special/tears-of-divinity.png',tier:6,exp:500,time:1,locations:['Ядро забвения'],rarity:'Божественный',bossDrop:true,bossChance:0.05},
         {name:'Искра творца',icon:'⚡',img:'png/resources/special/spark-of-creation.png',tier:6,exp:600,time:1,locations:['Престол Богов','Ядро забвения','Руины небес'],rarity:'Божественный',bossDrop:true,bossChance:0.03},
         {name:'Эссенция пустоты',icon:'🌀',img:'png/resources/special/essence-of-void.png',tier:6,exp:550,time:1,locations:['Тюрьма пустоты','Цитадель пустоты'],rarity:'Божественный',bossDrop:true,bossChance:0.08},
-        {name:'Эссенция Ктулху',icon:'👁️',img:'png/resources/boss/ktulh-essens.png',tier:6,exp:500,time:1,locations:['Бездна страха'],rarity:'Божественный',bossDrop:true,bossChance:1.0}
+        {name:'Эссенция Ктулху',icon:'👁️',img:'png/resources/boss/ktulh-essens.png',tier:6,exp:500,time:1,locations:['Бездна страха'],rarity:'Божественный',bossDrop:true,bossChance:1.0},
+        {name:'Эссенция Призрачного Мотылька',icon:'🦋',img:'png/resources/boss/let-essens.png',tier:6,exp:480,time:1,locations:['Призрачные долины'],rarity:'Божественный',bossDrop:true,bossChance:1.0}
     ]
 };

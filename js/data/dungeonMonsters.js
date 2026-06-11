@@ -465,6 +465,72 @@ const DUNGEON_MONSTERS_DB = [
             { name: 'Безумие древних', type: 'debuff', effect: 'blind', value: 50, duration: 3, chance: 45, cooldown: 4 },
             { name: 'Тёмная регенерация', type: 'heal', value: 35, chance: 40, cooldown: 5 }
         ]
+    },
+    // === ПРИЗРАЧНЫЕ ДОЛИНЫ ===
+    {
+        id: 'ghost_wing',
+        name: 'Призрачный Мотылёк',
+        icon: '🦋',
+        img: './monsters/dungeon/mi-let.png',
+        hp: 420,
+        atk: 95,
+        def: 22,
+        exp: 85,
+        tier: 'normal',
+        abilities: [
+            { name: 'Световая пыль', type: 'damage', multiplier: 1.2, chance: 45, cooldown: 2 },
+            { name: 'Ослепляющий мерцание', type: 'debuff', effect: 'blind', value: 30, duration: 2, chance: 35, cooldown: 4 }
+        ]
+    },
+    {
+        id: 'wing_guardian',
+        name: 'Крылатый Страж',
+        icon: '🪽',
+        img: './monsters/dungeon/ric-let.png',
+        hp: 580,
+        atk: 110,
+        def: 28,
+        exp: 110,
+        tier: 'elite',
+        abilities: [
+            { name: 'Вихрь крыльев', type: 'damage', multiplier: 1.4, chance: 50, cooldown: 2 },
+            { name: 'Защитный порыв', type: 'buff', effect: 'def', value: 25, duration: 3, chance: 40, cooldown: 4 }
+        ]
+    },
+    {
+        id: 'shadow_tentacle',
+        name: 'Теневой Усик',
+        icon: '👻',
+        img: './monsters/dungeon/drag-let.png',
+        hp: 720,
+        atk: 125,
+        def: 32,
+        exp: 140,
+        tier: 'elite',
+        abilities: [
+            { name: 'Теневое касание', type: 'damage', multiplier: 1.5, chance: 55, cooldown: 2 },
+            { name: 'Поглощение света', type: 'debuff', effect: 'atk', value: 20, duration: 2, chance: 45, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'ancient_light_eater',
+        name: 'Древний Пожиратель Света',
+        icon: '🌑',
+        img: './monsters/dungeon/pow-let.png',
+        hp: 4200,
+        atk: 165,
+        def: 42,
+        exp: 950,
+        tier: 'final_boss',
+        dropTable: [
+            { name: 'Эссенция Призрачного Мотылька', icon: '🦋', img: './png/resources/boss/let-essens.png', chance: 100 }
+        ],
+        abilities: [
+            { name: 'Пожирание света', type: 'damage', multiplier: 2.0, chance: 55, cooldown: 3 },
+            { name: 'Тёмная аура', type: 'debuff', effect: 'atk', value: 30, duration: 3, chance: 50, cooldown: 4 },
+            { name: 'Призрачный шквал', type: 'damage', multiplier: 1.4, hits: 4, chance: 45, cooldown: 3 },
+            { name: 'Восстановление тени', type: 'heal', value: 25, chance: 35, cooldown: 5 }
+        ]
     }
 ];
 
