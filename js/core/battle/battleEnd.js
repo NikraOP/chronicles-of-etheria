@@ -45,6 +45,31 @@ function claimSpecialBattleRewards(monster) {
     return rewardLines;
 }
 
+/** Обрабатывает dropTable у боссов подземелий */
+function claimDungeonBossDrop(monster) {
+    if (!monster || !monster.dropTable || !monster.isBoss) return [];
+    const dropLines = [];
+    
+    monster.dropTable.forEach(function(drop) {
+        const chance = drop.chance || 0;
+        if (Math.random() * 100 <= chance) {
+            const itemName = drop.name;
+            
+            if (typeof addResourceToPlayer === 'function') {
+                addResourceToPlayer(itemName, 1);
+            } else {
+                if (!player.resources[itemName]) player.resources[itemName] = 0;
+                player.resources[itemName] += 1;
+            }
+            
+            const icon = drop.icon || '📦';
+            dropLines.push(`${icon} ${itemName}: +1`);
+        }
+    });
+    
+    return dropLines;
+}
+
 function victory() {
     if (typeof clearMonsterQueueState === 'function') clearMonsterQueueState();
     window._monsterTurnBusy = false;
@@ -101,6 +126,8 @@ function dungeonVictoryApplyAndModal() {
     let gold = Math.floor((totalExp / 4 + player.level * 1.5) * (currentMonster.goldMult || 10) / 15);
     gold = Math.floor(gold * floorGoldMult * duoGoldMult * bossGoldMult);
     const rewardLines = claimSpecialBattleRewards(currentMonster);
+    const dropLines = claimDungeonBossDrop(currentMonster);
+    const allRewards = rewardLines.concat(dropLines);
     const returnTo = currentMonster.returnTo;
 
     window.lastVictoryData = { exp: totalExp, gold: gold };
@@ -140,7 +167,7 @@ function dungeonVictoryApplyAndModal() {
             kind: 'victory_ack',
             exp: totalExp,
             gold: gold,
-            rewardLines: rewardLines
+            rewardLines: allRewards
         });
     }
 
@@ -151,7 +178,7 @@ function dungeonVictoryApplyAndModal() {
     saveGame();
     document.body.classList.remove('low-hp');
     renderGame();
-    const rewardText = rewardLines.length ? '\n\n' + rewardLines.join('\n') : '';
+    const rewardText = allRewards.length ? '\n\n' + allRewards.join('\n') : '';
     window._battleEndModalOpen = true;
     window._isDungeonVictory = true;
     showModal('🎉 Победа!', '🏆', 'Вы победили!\n⭐ Опыт: +' + window.lastVictoryData.exp + '\n💰 Золото: +' + window.lastVictoryData.gold + rewardText + '\n📊 Уровень: ' + player.level, 'Продолжить', function () {
