@@ -182,9 +182,11 @@ function getPackMult(table, enemyCount, fallback) {
 function getDungeonLevelHpMult(dungeon, floorIndex, isBoss) {
     if (!dungeon) return 1;
     const minLv = dungeon.minLevel || 1;
+    const maxLv = dungeon.maxLevel || 50;
     const plv = (typeof player !== 'undefined' && player && player.level) ? player.level : minLv;
-    // Ограничиваем прогрессию монстров после 63 уровня
-    const lv = Math.max(minLv, Math.min(63, plv));
+    // Ограничиваем прогрессию монстров: не ниже minLevel и не выше maxLevel подземелья
+    // Если игрок выше maxLevel, монстры не становятся сильнее
+    const lv = Math.max(minLv, Math.min(maxLv, plv));
     const floor = 1 + (floorIndex || 0) * (DUNGEON_BALANCE.floorThreatStep || 0.12);
     if (lv < 12) return Math.max(1, (0.35 + lv * 0.05) * floor);
     const B = DUNGEON_BALANCE;
