@@ -126,8 +126,9 @@ function showDungeonsHub(opts) {
     }
     if (opts.force) {
         if (typeof stopGathering === 'function') stopGathering();
-    } else if (!dungeonUiPrepareScreen('renderGame', [])) {
-        return;
+    } else {
+        const prepared = dungeonUiPrepareScreen('renderGame', []);
+        if (!prepared) return;
     }
     const el = document.getElementById('dynamicContent');
     if (!el) return;
