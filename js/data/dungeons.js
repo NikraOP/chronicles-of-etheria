@@ -2,7 +2,7 @@
 
 const DUNGEON_BALANCE = {
     packHp: {
-        solo: { 1: 1.05, 2: 0.55, 3: 0.42 },
+        solo: { 1: 1.0, 2: 0.38, 3: 0.28 },
         duo: { 1: 0.95, 2: 0.50, 3: 0.38 }
     },
     packAtk: {
@@ -26,7 +26,7 @@ const DUNGEON_BALANCE = {
     duoAtkMult: 0.9,
     enemiesPerRoomMin: 2,
     enemiesPerRoomMax: 3,
-    soloThreatMult: 0.82,
+    soloThreatMult: 0.65,
     levelHpCapNormal: 5.2,
     levelHpCapBoss: 6.35,
     levelHpCoefNormal: 0.45,
