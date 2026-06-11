@@ -552,6 +552,53 @@ const DUNGEON_MONSTERS_DB = [
     },
     // === ЯДРО ЗАБВЕНИЯ (60-75 ур., эндгейм) ===
     {
+        id: 'void_reaper',
+        name: 'Жнец Пустоты',
+        icon: '💀',
+        img: './monsters/dungeon/void-wretch.png',
+        hp: 12500,
+        atk: 380,
+        def: 88,
+        exp: 520,
+        tier: 'normal',
+        abilities: [
+            { name: 'Коса тьмы', type: 'damage', multiplier: 1.5, chance: 65 },
+            { name: 'Аура смерти', type: 'debuff', effect: 'atk', value: 20, duration: 2, chance: 40, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'abyss_lord',
+        name: 'Лорд Бездны',
+        icon: '👿',
+        img: './monsters/dungeon/cyber-dragon.png',
+        hp: 16800,
+        atk: 425,
+        def: 105,
+        exp: 680,
+        tier: 'elite',
+        abilities: [
+            { name: 'Бездны гнев', type: 'damage', multiplier: 1.7, chance: 55, cooldown: 2 },
+            { name: 'Тёмный договор', type: 'buff', effect: 'atk', value: 35, duration: 2, chance: 45, cooldown: 4 },
+            { name: 'Разлом', type: 'damage', multiplier: 1.3, hits: 3, chance: 50, cooldown: 3 }
+        ]
+    },
+    {
+        id: 'chaos_titan',
+        name: 'Титан Хаоса',
+        icon: '🗿',
+        img: './monsters/dungeon/frost-colossus.png',
+        hp: 21000,
+        atk: 465,
+        def: 125,
+        exp: 820,
+        tier: 'elite',
+        abilities: [
+            { name: 'Удар хаоса', type: 'damage', multiplier: 1.8, chance: 50, cooldown: 2 },
+            { name: 'Броня бездны', type: 'buff', effect: 'def', value: 60, duration: 2, chance: 50, cooldown: 4 },
+            { name: 'Сокрушение', type: 'damage', multiplier: 2.1, chance: 40, cooldown: 4 }
+        ]
+    },
+    {
         id: 'oblivion_overlord',
         name: 'Владыка Забвения',
         icon: '💀',

@@ -378,7 +378,7 @@ const DUNGEONS_DB = [
         recommendedLevel: 68,
         backgroundId: 'void_prison',
         finalBossId: 'oblivion_overlord',
-        monsterPool: ['cyber_dragon', 'ash_lord', 'glacier_heart', 'oblivion_overlord'],
+        monsterPool: ['void_reaper', 'abyss_lord', 'chaos_titan', 'oblivion_overlord'],
         floors: { min: 5, max: 6 },
         roomsPerFloor: { min: 7, max: 10 },
         goldMult: 22,
