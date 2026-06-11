@@ -451,9 +451,9 @@ const DUNGEON_MONSTERS_DB = [
         name: 'Бог Ктулху',
         icon: '🐙',
         img: './monsters/dungeon/ktulh.png',
-        hp: 8500,
-        atk: 380,
-        def: 65,
+        hp: 3500,
+        atk: 180,
+        def: 35,
         exp: 1200,
         tier: 'final_boss',
         dropTable: [

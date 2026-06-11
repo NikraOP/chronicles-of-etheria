@@ -320,6 +320,10 @@ function useMonsterAbility(ability) {
 /** Тики конца хода монстра (DoT на враге, реген, проверка победы/поражения). @returns {boolean} true — бой остановлен */
 function applyMonsterTurnEndTicks() {
     if (!currentMonster) return true;
+    // БЫСТРАЯ ПРОВЕРКА: если монстр мёртв - прерываем (победа уже была!)
+    if (currentMonster.health <= 0) {
+        return !tryVictoryAfterEnemyDown();
+    }
     if (currentMonster.effects && currentMonster.effects.length > 0) {
         currentMonster.effects = currentMonster.effects.filter(e => {
             if (e.type === 'Оглушение' || e.type === 'Заморозка') return e.dur > 0;
@@ -406,7 +410,13 @@ function monsterTurn() {
         const duo = getDuoDungeonState();
         if (duo.role !== 'host') return;
     }
+    // БЫСТРАЯ ПРОВЕРКА: если монстр мёртв - прерываем ход (победа уже была!)
+    if (!currentMonster || currentMonster.health <= 0) {
+        if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
+        return;
+    }
     if (window._monsterTurnBusy) {
+        // БЫСТРАЯ ПРОВЕРКА: если монстр мёртв во время busy - прерываем
         if (!currentMonster || currentMonster.health <= 0) {
             window._monsterTurnBusy = false;
             if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
@@ -415,12 +425,8 @@ function monsterTurn() {
         if (typeof scheduleMonsterTurn === 'function') scheduleMonsterTurn(120);
         return;
     }
-    if (!currentMonster || currentMonster.health <= 0) {
-        if (typeof finishMonsterTurnOrQueue === 'function') finishMonsterTurnOrQueue();
-        return;
-    }
     window._monsterTurnBusy = true;
-
+    
     if (typeof setStrikeImpact === 'function') setStrikeImpact(null);
     updateMonsterBuffs();
 
