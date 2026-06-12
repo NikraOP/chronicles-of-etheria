@@ -262,7 +262,9 @@ function buildFinalBossEnemy(dungeon, floorIndex, mults, runMode) {
         def: mults.def * (B.finalBossDefMult || 1.14),
         exp: mults.exp * (B.finalBossExpMult || 1.55)
     };
-    return buildScaledEnemy(template, bossMults, dungeon, floorIndex);
+    const enemy = buildScaledEnemy(template, bossMults, dungeon, floorIndex);
+    enemy.isBoss = true;
+    return enemy;
 }
 
 /**
