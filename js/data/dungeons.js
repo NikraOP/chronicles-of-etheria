@@ -130,7 +130,7 @@ const DUNGEONS_DB = [
         floors: { min: 2, max: 3 },
         roomsPerFloor: { min: 4, max: 6 },
         goldMult: 10,
-        expMult: 1.15,
+        expMult: 0.85,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a3a1a, #0d1f0d)'
         }
@@ -147,7 +147,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 12,
-        expMult: 1.2,
+        expMult: 0.88,
         theme: {
             bgColor: 'linear-gradient(135deg, #2a2a3a, #1a1a2a)'
         }
@@ -164,7 +164,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 5 },
         roomsPerFloor: { min: 5, max: 8 },
         goldMult: 16,
-        expMult: 1.35,
+        expMult: 0.95,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a1a3a, #0a0a2a)'
         }
@@ -181,7 +181,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 6, max: 8 },
         goldMult: 14,
-        expMult: 1.25,
+        expMult: 0.90,
         theme: {
             bgColor: 'linear-gradient(135deg, #e8f0f8, #c8d8e8)'
         }
@@ -198,7 +198,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 6, max: 9 },
         goldMult: 18,
-        expMult: 1.4,
+        expMult: 1.0,
         theme: {
             bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)'
         }
@@ -217,7 +217,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 13,
-        expMult: 1.22,
+        expMult: 0.90,
         theme: {
             bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)'
         }
@@ -236,7 +236,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 14,
-        expMult: 1.25,
+        expMult: 0.92,
         theme: {
             bgColor: 'linear-gradient(135deg, #2a1a4a, #12082a)'
         }
@@ -255,7 +255,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 13,
-        expMult: 1.23,
+        expMult: 0.91,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)'
         }
@@ -274,7 +274,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 6, max: 8 },
         goldMult: 15,
-        expMult: 1.28,
+        expMult: 0.94,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a2a3a, #0a1520)'
         }
@@ -293,7 +293,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 6, max: 8 },
         goldMult: 16,
-        expMult: 1.32,
+        expMult: 0.96,
         theme: {
             bgColor: 'linear-gradient(135deg, #12081a, #050208)'
         }
@@ -312,7 +312,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 6, max: 9 },
         goldMult: 18,
-        expMult: 1.38,
+        expMult: 0.98,
         theme: {
             bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)'
         }
@@ -331,7 +331,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 6, max: 8 },
         goldMult: 16,
-        expMult: 1.32,
+        expMult: 0.96,
         theme: { bgColor: 'linear-gradient(135deg, #12081a, #050208)' }
     },
     {
@@ -348,7 +348,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 6, max: 9 },
         goldMult: 17,
-        expMult: 1.36,
+        expMult: 0.97,
         theme: { bgColor: 'linear-gradient(135deg, #2a3a5a, #101828)' }
     },
     {
@@ -365,7 +365,7 @@ const DUNGEONS_DB = [
         floors: { min: 4, max: 5 },
         roomsPerFloor: { min: 7, max: 9 },
         goldMult: 19,
-        expMult: 1.42,
+        expMult: 1.0,
         theme: { bgColor: 'linear-gradient(135deg, #4a1810, #1a0806)' }
     },
     {
@@ -382,7 +382,7 @@ const DUNGEONS_DB = [
         floors: { min: 5, max: 6 },
         roomsPerFloor: { min: 7, max: 10 },
         goldMult: 22,
-        expMult: 1.55,
+        expMult: 1.05,
         theme: { bgColor: 'linear-gradient(135deg, #1a0818, #030208)' }
     },
     {
@@ -398,7 +398,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 14,
-        expMult: 1.25,
+        expMult: 0.92,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a3a22, #0a1a10)'
         }
@@ -417,7 +417,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 17,
-        expMult: 1.35,
+        expMult: 0.98,
         theme: {
             bgColor: 'linear-gradient(135deg, #0a1a3a, #050a1a)'
         }
@@ -436,7 +436,7 @@ const DUNGEONS_DB = [
         floors: { min: 3, max: 4 },
         roomsPerFloor: { min: 5, max: 7 },
         goldMult: 19,
-        expMult: 1.42,
+        expMult: 1.0,
         theme: {
             bgColor: 'linear-gradient(135deg, #1a1a2a, #0a0a15)'
         }
