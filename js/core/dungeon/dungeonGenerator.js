@@ -158,7 +158,9 @@ function buildScaledEnemy(template, mults, dungeon, floorIndex) {
         exp: Math.max(1, Math.floor(template.exp * mults.exp * expMult)),
         icon: template.icon || '👾',
         img: template.img || '',
-        abilities: template.abilities ? template.abilities.slice() : []
+        abilities: template.abilities ? template.abilities.slice() : [],
+        dropTable: template.dropTable ? template.dropTable.slice() : null,
+        tier: template.tier || null
     };
 }
 
