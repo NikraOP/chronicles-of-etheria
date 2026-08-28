@@ -6,6 +6,10 @@
     const LS_ACTIVE_CHAR = 'etheria_active_char_v1';
     const CLOUD_SAVE_DEBOUNCE_MS = 2800;
 
+    // Временный режим для локального тестирования без оплачиваемого сервера.
+    // Чтобы вернуть обязательную авторизацию и облачные сохранения, поставьте false.
+    const LOCAL_TEST_MODE = true;
+
     let cloudSaveTimer = null;
     let cloudSaveInFlight = false;
 
@@ -56,6 +60,7 @@
     }
 
     function shouldUseGameAccounts() {
+        if (LOCAL_TEST_MODE) return false;
         if (typeof window !== 'undefined' && window.ETHERIA_USE_GAME_ACCOUNTS === false) return false;
         return true;
     }
