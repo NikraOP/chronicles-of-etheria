@@ -6,21 +6,22 @@ const EQUIPMENT_DB = {
     weapons: {
         'Воин': [
             // === БАЗОВЫЕ (уровни 1-10) ===
-            {name:'Стальной меч',rarity:'Обычный',lvl:1,price:80,dmg:10,def:2,hp:0,crit:0,critDmg:0,dodge:0,icon:'🗡️',img:''},
-            {name:'Боевой топор',rarity:'Обычный',lvl:1,price:90,dmg:12,def:0,hp:10,crit:0,critDmg:0,dodge:0,icon:'🪓',img:''},
-            {name:'Закаленный клинок',rarity:'Необычный',lvl:5,price:180,dmg:16,def:4,hp:0,crit:5,critDmg:0,dodge:0,icon:'⚔️',img:''},
-            {name:'Секира ярости',rarity:'Необычный',lvl:5,price:200,dmg:18,def:0,hp:15,crit:0,critDmg:15,dodge:0,icon:'🔪',img:''},
+            {name:'Стальной меч',rarity:'Обычный',lvl:1,price:80,dmg:10,def:2,hp:0,crit:0,critDmg:0,dodge:0,icon:'🗡️',img:'png/weapons/warrior/steel-sword.png'},
+            {name:'Боевой топор',rarity:'Обычный',lvl:1,price:90,dmg:12,def:0,hp:10,crit:0,critDmg:0,dodge:0,icon:'🪓',img:'png/weapons/warrior/battle-axe.png'},
+            {name:'Закаленный клинок',rarity:'Необычный',lvl:5,price:180,dmg:16,def:4,hp:0,crit:5,critDmg:0,dodge:0,icon:'⚔️',img:'png/weapons/warrior/tempered-blade.png'},
+            {name:'Секира ярости',rarity:'Необычный',lvl:5,price:200,dmg:18,def:0,hp:15,crit:0,critDmg:15,dodge:0,icon:'🔪',img:'png/weapons/warrior/rage-axe.png'},
             
             // === СЕТ "Рыцарский" (уровни 12-22) ===
-            {name:'Рыцарский меч',rarity:'Редкий',lvl:12,price:550,dmg:22,def:6,hp:0,crit:6,critDmg:0,dodge:0,icon:'⚔️',img:''},
-            {name:'Рыцарский топор',rarity:'Редкий',lvl:12,price:580,dmg:25,def:0,hp:25,crit:0,critDmg:18,dodge:0,icon:'🪓',img:''},
-            {name:'Благословенный клинок',rarity:'Эпический',lvl:18,price:1200,dmg:30,def:8,hp:40,crit:8,critDmg:0,dodge:0,icon:'✨',img:''},
-            {name:'Молот правосудия',rarity:'Эпический',lvl:22,price:1500,dmg:35,def:5,hp:0,crit:0,critDmg:25,dodge:5,icon:'🔨',img:''},
+            {name:'Рыцарский меч',rarity:'Редкий',lvl:12,price:550,dmg:22,def:6,hp:0,crit:6,critDmg:0,dodge:0,icon:'⚔️',img:'png/weapons/warrior/knight-sword.png'},
+            {name:'Рыцарский топор',rarity:'Редкий',lvl:12,price:580,dmg:25,def:0,hp:25,crit:0,critDmg:18,dodge:0,icon:'🪓',img:'png/weapons/warrior/knight-axe.png'},
+            {name:'Благословенный клинок',rarity:'Эпический',lvl:18,price:1200,dmg:30,def:8,hp:40,crit:8,critDmg:0,dodge:0,icon:'✨',img:'png/weapons/warrior/blessed-blade.png'},
+            {name:'Молот правосудия',rarity:'Эпический',lvl:22,price:1500,dmg:35,def:5,hp:0,crit:0,critDmg:25,dodge:5,icon:'🔨',img:'png/weapons/warrior/justice-hammer.png'},
             
             // === СЕТ "Легендарный" (уровни 28-38) ===
-            {name:'Меч короля-воина',rarity:'Легендарный',lvl:28,price:2800,dmg:42,def:10,hp:0,crit:10,critDmg:20,dodge:0,icon:'👑',img:''},
-            {name:'Секира великана',rarity:'Легендарный',lvl:32,price:3500,dmg:48,def:0,hp:60,crit:8,critDmg:25,dodge:0,icon:'🪓',img:''},
-            {name:'Клинок тысячелетия',rarity:'Мифический',lvl:38,price:5500,dmg:58,def:12,hp:80,crit:12,critDmg:30,dodge:0,icon:'💎',img:''},
+            {name:'Меч короля-воина',rarity:'Легендарный',lvl:28,price:2800,dmg:42,def:10,hp:0,crit:10,critDmg:20,dodge:0,icon:'👑',img:'png/weapons/warrior/king-sword.png'},
+            {name:'Секира великана',rarity:'Легендарный',lvl:32,price:3500,dmg:48,def:0,hp:60,crit:8,critDmg:25,dodge:0,icon:'🪓',img:'png/weapons/warrior/giant-axe.png'},
+            {name:'Клинок тысячелетия',rarity:'Мифический',lvl:38,price:5500,dmg:58,def:12,hp:80,crit:12,critDmg:30,dodge:0,icon:'💎',img:'png/weapons/warrior/millennium-blade.png'},
+            {name:'Громовой молот',rarity:'Мифический',lvl:38,price:5900,dmg:60,def:8,hp:110,crit:8,critDmg:36,dodge:4,icon:'⚡',img:'png/weapons/warrior/stormbreaker-maul.png'},
             
             // ===== ДРЕВНИЕ И БОЖЕСТВЕННЫЕ УДАЛЕНЫ ИЗ МАГАЗИНА! ТОЛЬКО КРАФТ =====
             // {name:'Древний клинок предков',...} - УДАЛЕНО
