@@ -30,10 +30,10 @@ const CRAFTING_RECIPES = {
             {name:'Молот титанов',icon:'🔨',img:'png/weapons/warrior/titans-hammer.png',tier:6,exp:950,time:18,resources:{'Орихалк':8,'Адамантит':6,'Шкура титана':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:100,hp:144,crit:12,critDmg:48,baseDmg:100},
             
             // Божественные (тир 6+) - ТОЛЬКО КРАФТ
-            {name:'Клинок разрушителя миров',icon:'🌌',img:'',tier:6,exp:1200,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':3,'Искра творца':3,'Эссенция пустоты':2},type:'weapon',class:'Воин',rarity:'Божественный',dmg:96,def:22,hp:240,crit:30,critDmg:66,baseDmg:96},
-            {name:'Топор армагеддона',icon:'☠️',img:'',tier:6,exp:1300,time:20,resources:{'Орихалк':12,'Звездный камень':5,'Шкура титана':3,'Искра творца':4,'Эссенция пустоты':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:132,def:26,hp:312,crit:34,critDmg:78,baseDmg:132},
-            {name:'Меч богов',icon:'⚜️',img:'',tier:6,exp:1500,time:22,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':5,'Искра творца':5,'Эссенция пустоты':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:156,def:34,hp:420,crit:38,critDmg:90,baseDmg:156},
-            {name:'Оружие Судьбы',icon:'🔱',img:'',tier:6,exp:1800,time:25,resources:{'Орихалк':15,'Звездный камень':8,'Камень душ':6,'Шкура титана':5,'Искра творца':6,'Эссенция пустоты':4},type:'weapon',class:'Воин',rarity:'Божественный',dmg:180,def:38,hp:540,crit:42,critDmg:102,baseDmg:180}
+            {name:'Клинок разрушителя миров',icon:'🌌',img:'png/weapons/warrior/worldbreaker-riftblade.png',tier:6,exp:1200,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':3,'Искра творца':3,'Эссенция пустоты':2},type:'weapon',class:'Воин',rarity:'Божественный',dmg:98,def:22,hp:210,crit:28,critDmg:60,dodge:6,baseDmg:98},
+            {name:'Топор Армагеддона',icon:'☠️',img:'png/weapons/warrior/armageddon-axe.png',tier:6,exp:1300,time:20,resources:{'Орихалк':12,'Звездный камень':5,'Шкура титана':3,'Искра творца':4,'Эссенция пустоты':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:120,def:16,hp:330,crit:20,critDmg:72,baseDmg:120},
+            {name:'Меч богов',icon:'⚜️',img:'png/weapons/warrior/sword-of-gods.png',tier:6,exp:1500,time:22,resources:{'Орихалк':14,'Звездный камень':6,'Камень душ':5,'Искра творца':5,'Эссенция пустоты':3},type:'weapon',class:'Воин',rarity:'Божественный',dmg:108,def:30,hp:270,crit:26,critDmg:66,dodge:10,baseDmg:108},
+            {name:'Копьё Судьбы',icon:'🔱',img:'png/weapons/warrior/spear-of-fate.png',tier:6,exp:1800,time:25,resources:{'Орихалк':15,'Звездный камень':8,'Камень душ':6,'Шкура титана':5,'Искра творца':6,'Эссенция пустоты':4},type:'weapon',class:'Воин',rarity:'Божественный',dmg:112,def:18,hp:240,crit:34,critDmg:58,dodge:14,baseDmg:112}
         ],
         armor: [
             // Шлемы - ресурсов на 50% больше
