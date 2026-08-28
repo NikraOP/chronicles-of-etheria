@@ -36,6 +36,26 @@ const SKINS_DB = {
                     description: 'Образ воина, сжигающего всё на своём пути',
                     gender: 'male'
                 },
+                {
+                    id: 'warrior_rage_ash_overlord_m',
+                    name: 'Пепельный Владыка',
+                    icon: '🌋',
+                    img: 'classes/warrior/rage-ash-overlord-legendary-v3.png',
+                    price: 17500,
+                    rarity: 'Легендарный',
+                    description: 'Закованный в обсидиан берсерк, чья ярость раскалывает броню огнём.',
+                    gender: 'male'
+                },
+                {
+                    id: 'warrior_rage_crimson_dragon_m',
+                    name: 'Багровый Дракон',
+                    icon: '🐉',
+                    img: 'classes/warrior/rage-crimson-dragon-legendary-v3.png',
+                    price: 19000,
+                    rarity: 'Легендарный',
+                    description: 'Драконий чемпион в рубиновой чешуе, пробуждённый жаждой битвы.',
+                    gender: 'male'
+                },
             ],
             'Школа Защиты': [
                 {
