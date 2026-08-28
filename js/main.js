@@ -225,7 +225,7 @@ function showSkinsGallery() {
         const rarityColor = rarityColors[skin.rarity] || '#ccc';
         
         const imageHtml = skin.img && skin.img !== '' 
-            ? `<img src="${skin.img}" style="width: 64px; height: 64px; object-fit: contain; margin-bottom: 10px;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\'font-size:64px;\'>${skin.icon}</div>'">`
+            ? `<img class="skin-card__art" src="${skin.img}" style="width: 64px; height: 64px; object-fit: contain; margin-bottom: 10px;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\'font-size:64px;\'>${skin.icon}</div>'">`
             : `<div style="font-size: 64px; margin-bottom: 10px;">${skin.icon}</div>`;
         
         html += `<div class="skin-card" style="background: rgba(0,0,0,0.3); border: 2px solid ${isEquipped ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius: 10px; padding: 12px; text-align: center; transition: all 0.3s;">
@@ -257,7 +257,7 @@ function showSkinsGallery() {
 }
 
 function addSkinsButton() {
-    const navGrid = document.querySelector('.nav-grid');
+    const navGrid = document.querySelector('.nav-grid--collection') || document.querySelector('.nav-grid');
     if (navGrid && !document.querySelector('.nav-card[onclick="showSkinsGallery()"]')) {
         const skinsCard = document.createElement('div');
         skinsCard.className = 'nav-card';
@@ -268,7 +268,7 @@ function addSkinsButton() {
 }
 
 function addEncyclopediaButton() {
-    const navGrid = document.querySelector('.nav-grid');
+    const navGrid = document.querySelector('.nav-grid--collection') || document.querySelector('.nav-grid');
     if (navGrid && !document.querySelector('.nav-card[onclick="showEncyclopedia()"]')) {
         const encCard = document.createElement('div');
         encCard.className = 'nav-card';
@@ -279,7 +279,7 @@ function addEncyclopediaButton() {
 }
 
 function addAchievementsButton() {
-    const navGrid = document.querySelector('.nav-grid');
+    const navGrid = document.querySelector('.nav-grid--collection') || document.querySelector('.nav-grid');
     if (navGrid && !document.querySelector('.nav-card[onclick="showAchievementsPanel()"]')) {
         const achCard = document.createElement('div');
         achCard.className = 'nav-card';
