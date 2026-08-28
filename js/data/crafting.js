@@ -22,11 +22,12 @@ const CRAFTING_RECIPES = {
             // Легендарные (тир 5)
             {name:'Меч короля-воина',icon:'👑',img:'',tier:5,exp:650,time:14,resources:{'Адамантит':8,'Алмаз':3,'Мифриловая руда':6},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:49,def:12,crit:12,critDmg:23,baseDmg:49},
             {name:'Секира великана',icon:'🪓',img:'',tier:5,exp:700,time:14,resources:{'Адамантит':8,'Алмаз':3,'Шкура дракона':2},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:56,hp:72,crit:9,critDmg:29,baseDmg:56},
-            {name:'Клинок тысячелетия',icon:'💎',img:'',tier:5,exp:750,time:15,resources:{'Адамантит':9,'Алмаз':5,'Мифриловая руда':8},type:'weapon',class:'Воин',rarity:'Легендарный',dmg:67,def:14,hp:96,crit:14,critDmg:35,baseDmg:67},
+            {name:'Клинок тысячелетия',icon:'💎',img:'png/weapons/warrior/millennium-blade.png',tier:6,exp:820,time:16,resources:{'Орихалк':6,'Адамантит':8,'Алмаз':4,'Звездный камень':2},type:'weapon',class:'Воин',rarity:'Мифический',dmg:67,def:14,hp:96,crit:14,critDmg:35,baseDmg:67},
+            {name:'Громовой молот',icon:'⚡',img:'png/weapons/warrior/stormbreaker-maul.png',tier:6,exp:840,time:16,resources:{'Орихалк':6,'Адамантит':8,'Сапфир':3,'Шкура титана':1},type:'weapon',class:'Воин',rarity:'Мифический',dmg:72,def:8,hp:128,crit:10,critDmg:42,dodge:5,baseDmg:72},
             
             // Древние (тир 6) - ТОЛЬКО КРАФТ
-            {name:'Древний клинок предков',icon:'🌌',img:'',tier:6,exp:900,time:18,resources:{'Орихалк':8,'Адамантит':6,'Звездный камень':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:85,def:18,crit:18,critDmg:42,dodge:6,baseDmg:85},
-            {name:'Молот титанов',icon:'🔨',img:'',tier:6,exp:950,time:18,resources:{'Орихалк':8,'Адамантит':6,'Шкура титана':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:100,hp:144,crit:12,critDmg:48,baseDmg:100},
+            {name:'Древний клинок предков',icon:'🌌',img:'png/weapons/warrior/ancestors-blade.png',tier:6,exp:900,time:18,resources:{'Орихалк':8,'Адамантит':6,'Звездный камень':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:85,def:18,crit:18,critDmg:42,dodge:6,baseDmg:85},
+            {name:'Молот титанов',icon:'🔨',img:'png/weapons/warrior/titans-hammer.png',tier:6,exp:950,time:18,resources:{'Орихалк':8,'Адамантит':6,'Шкура титана':3},type:'weapon',class:'Воин',rarity:'Древний',dmg:100,hp:144,crit:12,critDmg:48,baseDmg:100},
             
             // Божественные (тир 6+) - ТОЛЬКО КРАФТ
             {name:'Клинок разрушителя миров',icon:'🌌',img:'',tier:6,exp:1200,time:20,resources:{'Орихалк':10,'Звездный камень':5,'Камень душ':3,'Искра творца':3,'Эссенция пустоты':2},type:'weapon',class:'Воин',rarity:'Божественный',dmg:96,def:22,hp:240,crit:30,critDmg:66,baseDmg:96},
