@@ -160,13 +160,13 @@ function getRarityDisplay(rarity) {
 // Строки характеристик предмета (по одной на строку в карточке)
 function collectItemStatsLines(item) {
     const stats = [];
-    if (item.dmg) stats.push(`⚔️ Атака: +${item.dmg}`);
-    if (item.def) stats.push(`🛡️ Защита: +${item.def}`);
-    if (item.hp) stats.push(`❤️ Здоровье: +${item.hp}`);
-    if (item.crit) stats.push(`💥 Крит: +${item.crit}%`);
-    if (item.critDmg) stats.push(`⭐ Крит урон: +${item.critDmg}%`);
-    if (item.dodge) stats.push(`💨 Уклонение: +${item.dodge}%`);
-    if (item.mana) stats.push(`🔷 Мана: +${item.mana}`);
+    if (item.dmg) stats.push(`Атака +${item.dmg}`);
+    if (item.def) stats.push(`Защита +${item.def}`);
+    if (item.hp) stats.push(`Здоровье +${item.hp}`);
+    if (item.crit) stats.push(`Шанс крит. удара +${item.crit}%`);
+    if (item.critDmg) stats.push(`Критический урон +${item.critDmg}%`);
+    if (item.dodge) stats.push(`Уклонение +${item.dodge}%`);
+    if (item.mana) stats.push(`Мана +${item.mana}`);
     if (item.effect === 'auto_gather' || item.type === 'gather_scroll') {
         const st = item.scrollTier || item.tier || 1;
         stats.push(`📜 Тир ресурсов ≤ ${st}`);
@@ -405,9 +405,9 @@ function renderBuyItems(cat) {
             ? enrichItemForDisplay(item)
             : item;
         if (!shopDisplayItem.icon) shopDisplayItem.icon = itemIcon;
-        html += `<div class="item-card shop-item-card shop-item-card--buy${canBuy ? '' : ' shop-item-card--disabled'}" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
+        html += `<div class="item-card shop-item-card shop-item-card--buy shop-equipment-card${canBuy ? '' : ' shop-item-card--disabled'}" onclick="${canBuy ? `buyItemKeepOpen('${cat}', '${item.name.replace(/'/g, "\\'")}')` : ''}">
             <div class="shop-item-card__row">
-                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(shopDisplayItem, { size: 48, fallback: itemIcon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (itemIcon || '📦') + '</div>'}</div>
+                <div class="shop-item-card__icon">${typeof renderItemIconHTML === 'function' ? renderItemIconHTML(shopDisplayItem, { size: 156, fallback: itemIcon || (cat === 'weapons' ? '⚔️' : '🛡️') }) : '<div class="shop-item-card__emoji">' + (itemIcon || '📦') + '</div>'}</div>
                 <div class="shop-item-card__body">
                     <div class="shop-item-card__name" style="color: ${rarityColor};">${item.name}</div>
                     <div class="shop-item-card__stats">${statsHtml}</div>
