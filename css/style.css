@@ -9270,3 +9270,12 @@ body.account-gate-active #app.account-gate-layout {
 #shopItems .shop-equipment-card .shop-item-card__price{order:2;align-self:center;min-width:112px;padding:8px 13px;border-radius:8px;background:rgba(240,192,64,.12);border:1px solid rgba(240,192,64,.3);font-size:14px;font-weight:800;text-align:center}
 #shopItems .shop-equipment-card .shop-item-card__warn{margin-top:12px;text-align:center}
 @media(max-width:520px){#shopItems .shop-equipment-card .shop-item-card__stat-list{grid-template-columns:1fr}#shopItems .shop-equipment-card .shop-item-card__icon{min-height:148px}#shopItems .shop-equipment-card .item-icon{width:132px!important;height:132px!important}}
+
+
+/* В кузнице оружие показывается тем же крупным спрайтом, что и в магазине. */
+.craft-recipe-card--weapon{padding:18px!important}
+.craft-recipe-card__header--weapon{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.craft-recipe-card--weapon>.item-icon,.craft-recipe-card--weapon .craft-recipe-card__header--weapon>.item-icon{width:156px!important;height:156px!important;align-self:center;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.3)}
+.craft-recipe-card--weapon .item-icon-img{image-rendering:pixelated;transform:scale(1.14)}
+.craft-recipe-card--weapon .craft-recipe-card__header--weapon>div:last-child{width:100%;text-align:center}
+@media(max-width:520px){.craft-recipe-card--weapon>.item-icon,.craft-recipe-card--weapon .craft-recipe-card__header--weapon>.item-icon{width:132px!important;height:132px!important}}
