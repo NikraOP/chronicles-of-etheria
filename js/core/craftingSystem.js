@@ -1077,6 +1077,7 @@ function showCraftingRecipes(profId) {
                 const canCraft = !blockReason;
                 const hasMats = hasRecipeMaterials(norm);
                 let cardClass = 'resource-card craft-recipe-card';
+                if (itemType === 'weapon') cardClass += ' craft-recipe-card--weapon';
                 if (canCraft) cardClass += ' craft-recipe-ready';
                 else if (hasMats) cardClass += ' craft-recipe-mats';
                 else cardClass += ' craft-recipe-locked';
@@ -1113,9 +1114,9 @@ function showCraftingRecipes(profId) {
                 
                 html += `<div class="${cardClass}" data-recipe-name="${safeRecipe}"${blockDataAttr} role="button" tabindex="0" aria-label="${ariaLabel}">`;
                 html += tooltipHtml;
-                html += '<div style="display: flex; gap: 12px;">';
+                html += '<div class="craft-recipe-card__header' + (itemType === 'weapon' ? ' craft-recipe-card__header--weapon' : '') + '">';
                 html += typeof renderItemIconHTML === 'function'
-                    ? renderItemIconHTML(norm, { size: 44, fallback: norm.icon || '📦' })
+                    ? renderItemIconHTML(norm, { size: itemType === 'weapon' ? 156 : 44, fallback: norm.icon || '📦' })
                     : '<div class="item-icon" style="font-size:35px">' + (norm.icon || '📦') + '</div>';
                 html += '<div style="flex: 1;">';
                 html += `<div style="font-weight: 700; font-size: 14px; color: ${rarityColor};">${norm.name}</div>`;
